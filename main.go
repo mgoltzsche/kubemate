@@ -21,9 +21,12 @@ import (
 	ctr2 "github.com/k3s-io/k3s/pkg/ctr"
 	kubectl2 "github.com/k3s-io/k3s/pkg/kubectl"
 	crictl2 "github.com/kubernetes-sigs/cri-tools/cmd/crictl"
+	addcmds "github.com/mgoltzsche/k3spi/pkg/cli/cmds"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
+
+// Copied from https://github.com/k3s-io/k3s/blob/v1.23.6%2Bk3s1/cmd/server/main.go and added `connect` command.
 
 func init() {
 	reexec.Register("containerd", containerd.Main)
@@ -42,6 +45,7 @@ func main() {
 
 	app := cmds.NewApp()
 	app.Commands = []cli.Command{
+		addcmds.NewConnectCommand(addcmds.RunConnectServer),
 		cmds.NewServerCommand(server.Run),
 		cmds.NewAgentCommand(agent.Run),
 		cmds.NewKubectlCommand(kubectl.Run),

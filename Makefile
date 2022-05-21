@@ -1,7 +1,63 @@
+BUILD_DIR:=$(CURDIR)/build
+TOOLS_DIR:=$(BUILD_DIR)/tools
+
+OAPI_CODEGEN_VERSION = v1.9.0
+OAPI_CODEGEN = $(TOOLS_DIR)/oapi-codegen
+
+CONTROLLER_GEN = $(TOOLS_DIR)/controller-gen
+CONTROLLER_GEN_VERSION = v0.4.1
+
 all: image
 
 k3spi:
-	go build .
+	go build -o $(BUILD_DIR)/bin/k3spi .
 
 image:
 	docker build --force-rm -t k3spi .
+
+generate: $(OAPI_CODEGEN) $(CONTROLLER_GEN)
+	#PATH="$(TOOLS_DIR):$$PATH" go generate ./pkg/server
+	$(CONTROLLER_GEN) object paths=./pkg/apis/...
+
+clean:
+	[ "`id -u`" -eq  0 ]
+	docker rm -f `docker ps -qa` || true
+	rm -rf ./data
+	docker volume rm `docker volume ls -q` || true
+
+run: image
+	chmod 2775 .
+	mkdir -p ./data/pod-log
+	docker run --name k3spi --rm --network host --pid host --privileged \
+		--tmpfs /run --tmpfs /var/run \
+		-v `pwd`/data/k3s-server:/var/lib/rancher/k3s \
+		--mount type=bind,src=/etc/machine-id,dst=/etc/machine-id \
+		--mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
+		--mount type=bind,src=/var/lib/docker,dst=/var/lib/docker,bind-propagation=rshared \
+		--mount type=bind,src=/var/lib/kubelet,dst=/var/lib/kubelet,bind-propagation=rshared \
+		--mount type=bind,src=`pwd`/data/pod-log,dst=/var/log/pods,bind-propagation=rshared \
+		--mount type=bind,src=/sys,dst=/sys \
+		-v `pwd`:/output \
+		k3spi:latest connect --docker
+			#--no-deploy=servicelb,traefik,metrics-server \
+			#--disable-cloud-controller \
+			#--disable-helm-controller
+
+$(OAPI_CODEGEN): ## Installs oapi-codegen
+	$(call go-get-tool,$(OAPI_CODEGEN),github.com/deepmap/oapi-codegen/cmd/oapi-codegen@$(OAPI_CODEGEN_VERSION))
+
+$(CONTROLLER_GEN):
+	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION))
+
+# go-get-tool will 'go get' any package $2 and install it to $1.
+define go-get-tool
+@[ -f $(1) ] || { \
+set -e ;\
+TMP_DIR=$$(mktemp -d) ;\
+cd $$TMP_DIR ;\
+go mod init tmp ;\
+echo "Downloading $(2)" ;\
+GOBIN=$(TOOLS_DIR) go install $(2) ;\
+rm -rf $$TMP_DIR ;\
+}
+endef

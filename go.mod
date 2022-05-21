@@ -2,10 +2,7 @@ module github.com/mgoltzsche/k3spi
 
 go 1.16
 
-replace (
-	github.com/k3s-io/etcd => github.com/k3s-io/etcd/v3 v3.5.4-k3s1
-	github.com/k3s-io/k3s => github.com/rancher/k3s v1.23.7-0.20220427204415-418c3fa858b6
-)
+replace github.com/k3s-io/k3s => github.com/rancher/k3s v1.23.7-0.20220427204415-418c3fa858b6
 
 replace (
 	github.com/Microsoft/hcsshim => github.com/Microsoft/hcsshim v0.8.22
@@ -74,9 +71,15 @@ replace (
 )
 
 require (
+	github.com/deepmap/oapi-codegen v1.10.1
 	github.com/docker/docker v20.10.10+incompatible
 	github.com/k3s-io/k3s v0.0.0-00010101000000-000000000000
 	github.com/kubernetes-sigs/cri-tools v0.0.0-00010101000000-000000000000
+	github.com/labstack/echo/v4 v4.7.2
+	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/urfave/cli v1.22.4
+	k8s.io/apimachinery v0.23.6
+	k8s.io/apiserver v0.23.6
+	k8s.io/client-go v11.0.1-0.20190409021438-1a26190bd76a+incompatible
 )
