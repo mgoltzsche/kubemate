@@ -10,32 +10,55 @@ import (
 	"time"
 
 	"github.com/mgoltzsche/k3spi/pkg/apiserver"
-	"github.com/mgoltzsche/k3spi/pkg/runner"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
-	genericapiserver "k8s.io/apiserver/pkg/server"
 )
 
 type ConnectConfig struct {
-	Address string
-	WebDir  string
-	Docker  bool
+	apiserver.ServerOptions
+	HTTPAddress string
+	HTTPPort    int
 }
 
 var appName = "k3s-connect"
-var Connect ConnectConfig
+var Connect = ConnectConfig{
+	ServerOptions: apiserver.NewServerOptions(),
+}
 var ConnectFlags = []cli.Flag{
 	cli.StringFlag{
-		Name:        "address",
-		Usage:       "(agent/runtime) enable docker support",
-		EnvVar:      "K3SCONNECT_ADDRESS",
-		Destination: &Connect.Address,
+		Name:        "http-address",
+		Usage:       "(agent/runtime) net/IP to listen on without TLS",
+		EnvVar:      "K3SCONNECT_INSECURE_ADDRESS",
+		Destination: &Connect.HTTPAddress,
+		Value:       "127.0.0.1",
+	},
+	cli.IntFlag{
+		Name:        "http-port",
+		Usage:       "(agent/runtime) non-TLS port to listen on",
+		EnvVar:      "K3SCONNECT_INSECURE_PORT",
+		Destination: &Connect.HTTPPort,
+		Value:       80,
+	},
+	cli.StringFlag{
+		Name:        "https-address",
+		Usage:       "(agent/runtime) net/IP to listen on with TLS",
+		EnvVar:      "K3SCONNECT_SECURE_ADDRESS",
+		Destination: &Connect.HTTPSAddress,
+		Value:       Connect.HTTPSAddress,
+	},
+	cli.IntFlag{
+		Name:        "https-port",
+		Usage:       "(agent/runtime) TLS port to listen on",
+		EnvVar:      "K3SCONNECT_SECURE_PORT",
+		Destination: &Connect.HTTPSPort,
+		Value:       Connect.HTTPSPort,
 	},
 	cli.StringFlag{
 		Name:        "web-dir",
 		Usage:       "(agent/runtime) enable docker support",
 		EnvVar:      "K3SCONNECT_WEB_DIR",
 		Destination: &Connect.WebDir,
+		Value:       Connect.WebDir,
 	},
 	cli.BoolFlag{
 		Name:        "docker",
@@ -60,66 +83,13 @@ func RunConnectServer(app *cli.Context) error {
 }
 
 func run(ctx context.Context) error {
-	args := []string{
-		"server",
-		"--disable-cloud-controller",
-		"--disable-helm-controller",
-		"--no-deploy=servicelb,traefik,metrics-server",
-	}
-	if Connect.Docker {
-		args = append(args, "--docker")
-	}
-	/*// TODO: replace the code below with the new runner.
-	// TODO: using the generic apiserver, try to implement a DelegationTarget to proxy to k3s? see https://github.com/kubernetes/apiserver/blob/7816c29325f8e9272c1155bc82d4a25fe09bb683/pkg/server/genericapiserver.go#L343
-	c := exec.CommandContext(ctx, "/proc/self/exe", args...)
-	c.Env = os.Environ()
-	stdout, err := c.StdoutPipe()
+	genericServer, err := apiserver.NewServer(Connect.ServerOptions)
 	if err != nil {
 		return err
 	}
-	defer stdout.Close()
-	stderr, err := c.StderrPipe()
-	if err != nil {
-		return err
-	}
-	defer stderr.Close()
-	err = c.Start()
-	if err != nil {
-		return err
-	}
-	go func() { _, _ = io.Copy(os.Stdout, stdout) }()
-	go func() { _, _ = io.Copy(os.Stderr, stderr) }()
-	return c.Wait()*/
-
-	daemon := runner.NewRunner()
-	ch := daemon.Start(context.Background())
-	go func() {
-		for cmd := range ch {
-			// TODO: pass back status changes to the frontend
-			logrus.Printf("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
-		}
-	}()
-
-	opts := apiserver.NewServerOptions()
-	opts.WebDir = Connect.WebDir
-	opts.Address = Connect.Address
-	genericServer, err := apiserver.NewServer(opts)
-	if err != nil {
-		return err
-	}
-	genericServer.AddPostStartHookOrDie("k3s-connect", func(ctx genericapiserver.PostStartHookContext) error {
-		daemon.SetCommand(runner.CommandSpec{
-			Command: "/proc/self/exe",
-			Args:    args,
-		})
-		return nil
-	})
-	genericServer.AddPreShutdownHookOrDie("k3s-connect", func() error {
-		return daemon.Close()
-	})
 	prepared := genericServer.PrepareRun()
 	srv := &http.Server{
-		Addr: opts.Address,
+		Addr: fmt.Sprintf("%s:%d", Connect.HTTPAddress, Connect.HTTPPort),
 	}
 	srv.Handler = prepared.Handler
 	daemons := []func(context.Context) error{

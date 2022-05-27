@@ -11,13 +11,12 @@ import (
 	"net/url"
 
 	"github.com/sirupsen/logrus"
+	"k8s.io/apiserver/pkg/authentication/user"
+	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 )
 
 func newReverseProxy(host string) genericapiserver.DelegationTarget {
-	/*proxyHandler := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		proxyRequest(targetURL, rw, req)
-	})*/
 	r := &apiServerProxy{
 		targetURL: &url.URL{
 			Scheme: "https",
@@ -39,7 +38,6 @@ func (s *apiServerProxy) ListedPaths() []string {
 		logrus.Warnf("failed to get target apiserver paths: %s", err)
 		return []string{}
 	}
-	logrus.Printf("## paths: %+v", paths)
 	return paths
 }
 
@@ -62,7 +60,6 @@ func (s *apiServerProxy) listedPaths() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	logrus.Println("## raw paths:", string(b))
 	var p paths
 	err = json.Unmarshal(b, &p)
 	if err != nil {
@@ -88,7 +85,27 @@ func (s *apiServerProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	req.URL.Host = s.targetURL.Host
 	req.URL.Scheme = s.targetURL.Scheme
 	req.Host = s.targetURL.Host
-	// TODO: impersonate user, see https://kubernetes.io/docs/reference/access-authn-authz/authentication/#user-impersonation
+	usr, found := genericapirequest.UserFrom(req.Context())
+	if !found {
+		usr = &user.DefaultInfo{
+			Name: user.Anonymous,
+		}
+	}
+	// Impersonate user if not in admin group, see https://kubernetes.io/docs/reference/access-authn-authz/authentication/#user-impersonation
+	var isAdmin bool
+	for _, g := range usr.GetGroups() {
+		if g == adminGroup {
+			isAdmin = true
+			break
+		}
+	}
+	if !isAdmin {
+		for _, g := range usr.GetGroups() {
+			req.Header.Add("Impersonate-Group", g)
+		}
+		req.Header.Set("Impersonate-User", usr.GetName())
+		req.Header.Set("Impersonate-Uid", usr.GetUID())
+	}
 	proxy.ServeHTTP(rw, req)
 }
 

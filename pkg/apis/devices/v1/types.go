@@ -1,6 +1,9 @@
 package v1
 
 import (
+	"fmt"
+
+	"github.com/mgoltzsche/k3spi/pkg/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -11,6 +14,8 @@ import (
 // +enum
 type DeviceState string
 
+// DeviceMode specifies the operating mode of a device.
+// +enum
 type DeviceMode string
 
 const (
@@ -32,7 +37,8 @@ type DeviceSpec struct {
 // +k8s:openapi-gen=true
 // DeviceStatus defines the observed state of Cache
 type DeviceStatus struct {
-	State DeviceState `json:"state,omitempty"`
+	State   DeviceState `json:"state,omitempty"`
+	Message string      `json:"message,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -47,7 +53,7 @@ type Device struct {
 	Status DeviceStatus `json:"status"`
 }
 
-func (in *Device) New() runtime.Object {
+func (in *Device) New() resource.Resource {
 	return &Device{}
 }
 
@@ -57,6 +63,19 @@ func (in *Device) NewList() runtime.Object {
 
 func (in *Device) GetGroupVersionResource() schema.GroupVersionResource {
 	return GroupVersion.WithResource("devices")
+}
+
+func (in *Device) GetStatus() resource.SubResource {
+	return &in.Status
+}
+
+func (in *Device) DeepCopyIntoResource(res resource.Resource) error {
+	d, ok := res.(*Device)
+	if !ok {
+		return fmt.Errorf("expected resource of type Device but received %T", res)
+	}
+	in.DeepCopyInto(d)
+	return nil
 }
 
 // DeviceList contains a list of Cache

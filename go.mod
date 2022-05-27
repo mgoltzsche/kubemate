@@ -73,6 +73,7 @@ replace (
 require (
 	github.com/deepmap/oapi-codegen v1.10.1
 	github.com/docker/docker v20.10.10+incompatible
+	github.com/hashicorp/mdns v1.0.5
 	github.com/k3s-io/k3s v0.0.0-00010101000000-000000000000
 	github.com/kubernetes-sigs/cri-tools v0.0.0-00010101000000-000000000000
 	github.com/labstack/echo/v4 v4.7.2

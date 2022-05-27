@@ -1,41 +1,63 @@
 package apiserver
 
 import (
+	"context"
 	"fmt"
+	"net"
+	"os"
 	"time"
 
 	deviceapi "github.com/mgoltzsche/k3spi/pkg/apis/devices/v1"
+	"github.com/mgoltzsche/k3spi/pkg/resource"
+	"github.com/mgoltzsche/k3spi/pkg/runner"
+	"github.com/mgoltzsche/k3spi/pkg/storage"
+	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apiserver/pkg/authentication/authenticatorfactory"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/authentication/request/anonymous"
 	"k8s.io/apiserver/pkg/authentication/request/union"
-	"k8s.io/apiserver/pkg/authentication/user"
 	registryrest "k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/apiserver/pkg/server/filters"
+	"k8s.io/apiserver/pkg/server/options"
 	clientgoinformers "k8s.io/client-go/informers"
 	clientgoclientset "k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
-	//genericapifilters "k8s.io/apiserver/pkg/endpoints/filters"
-	//"k8s.io/apiserver/pkg/util/notfoundhandler"
+
+	"k8s.io/apiserver/pkg/authentication/request/bearertoken"
+	"k8s.io/apiserver/pkg/authentication/token/tokenfile"
+	//"k8s.io/apiserver/pkg/authentication/authenticatorfactory"
+	//"k8s.io/apiserver/pkg/authentication/user"
 )
 
 type ServerOptions struct {
-	Address string
-	WebDir  string
+	DeviceName   string
+	HTTPSAddress string
+	HTTPSPort    int
+	WebDir       string
+	Docker       bool
 }
 
 func NewServerOptions() ServerOptions {
+	hostname, err := os.Hostname()
+	if err != nil {
+		logrus.Warnf("cannot derive device name from hostname: %s", err)
+	}
 	return ServerOptions{
-		Address: "127.0.0.1:8080",
-		WebDir:  "./web",
+		DeviceName:   hostname,
+		HTTPSAddress: "0.0.0.0",
+		HTTPSPort:    443,
+		WebDir:       "/var/lib/k3sconnect/web",
 	}
 }
 
 func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
+	if o.DeviceName == "" {
+		return nil, fmt.Errorf("no device name specified")
+	}
 	scheme := runtime.NewScheme()
 	metav1.AddToGroupVersion(scheme, deviceapi.GroupVersion)
 	scheme.AddKnownTypes(deviceapi.GroupVersion, &deviceapi.Device{}, &deviceapi.DeviceList{})
@@ -43,7 +65,18 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	paramScheme := runtime.NewScheme()
 	paramCodecs := runtime.NewParameterCodec(paramScheme)
 	serverConfig := genericapiserver.NewRecommendedConfig(codecs)
-	serverConfig.ExternalAddress = o.Address
+	tlsOpts := options.NewSecureServingOptions()
+	tlsOpts.BindAddress = net.ParseIP(o.HTTPSAddress)
+	tlsOpts.BindPort = o.HTTPSPort
+	ips := []net.IP{net.ParseIP("127.0.0.1")}
+	err := tlsOpts.MaybeDefaultWithSelfSignedCerts(serverConfig.ExternalAddress, nil, ips)
+	if err != nil {
+		return nil, err
+	}
+	err = tlsOpts.ApplyTo(&serverConfig.SecureServing)
+	if err != nil {
+		return nil, err
+	}
 	serverConfig.LoopbackClientConfig = &restclient.Config{
 		Host: serverConfig.ExternalAddress,
 	}
@@ -57,18 +90,23 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	}
 	versionedInformer := clientgoinformers.NewSharedInformerFactory(clientgoExternalClient, 10*time.Minute)
 	serverConfig.SharedInformerFactory = versionedInformer
-	tokens := map[string]*user.DefaultInfo{
+	audiences := []string{adminGroup, "ui"}
+	serverConfig.Authentication.APIAudiences = audiences
+	tokens, err := tokenfile.NewCSV("/etc/k3sconnect/tokens")
+	if err != nil {
+		return nil, err
+	}
+	/*defaultTokens := map[string]*user.DefaultInfo{
 		"secret": &user.DefaultInfo{
 			Name:   adminUser,
 			UID:    adminUser,
-			Groups: []string{adminUser},
+			Groups: []string{adminGroup},
 			Extra:  map[string][]string{},
 		},
-	}
-	audiences := []string{adminUser, "ui"}
-	serverConfig.Authentication.APIAudiences = audiences
+	}*/
 	serverConfig.Authentication.Authenticator = union.New(
-		authenticatorfactory.NewFromTokens(tokens, audiences),
+		//authenticatorfactory.NewFromTokens(defaultTokens, audiences),
+		bearertoken.New(tokens),
 		anonymous.NewAuthenticator(),
 	)
 	serverConfig.Authorization.Authorizer = NewDeviceAuthorizer()
@@ -79,6 +117,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	}
 	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known"}
 	genericServer.Handler.FullHandlerChain = NewWebUIHandler(o.WebDir, genericServer.Handler.FullHandlerChain, apiPaths)
+	deviceREST := NewDeviceREST(o.DeviceName)
 	apiGroup := &genericapiserver.APIGroupInfo{
 		PrioritizedVersions:  scheme.PrioritizedVersionsForGroup(deviceapi.GroupVersion.Group),
 		Scheme:               scheme,
@@ -86,7 +125,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		NegotiatedSerializer: codecs,
 		VersionedResourcesStorageMap: map[string]map[string]registryrest.Storage{
 			"v1": map[string]registryrest.Storage{
-				"devices": NewDeviceREST("thisdevice"),
+				"devices": deviceREST,
 			},
 		},
 	}
@@ -94,5 +133,75 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("install apigroup: %w", err)
 	}
+	installK3sRunner(genericServer, deviceREST.Store, o.DeviceName, o.Docker)
 	return genericServer, nil
+}
+
+// TODO: support joining nodes to a cluster via the UI. for custom (dynamic) CORS filter, see https://github.com/kubernetes/apiserver/blob/master/pkg/server/filters/cors.go
+
+func installK3sRunner(genericServer *genericapiserver.GenericAPIServer, devices storage.Interface, deviceName string, docker bool) {
+	daemon := runner.NewRunner()
+	genericServer.AddPostStartHookOrDie("k3s-connect", func(ctx genericapiserver.PostStartHookContext) error {
+		// Update device resource's status
+		ch := daemon.Start()
+		go func() {
+			for cmd := range ch {
+				logrus.Printf("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
+				device := &deviceapi.Device{}
+				err := devices.Update(deviceName, device, func() (resource.Resource, error) {
+					// TODO: map properly
+					device.Status.State = deviceapi.DeviceState(cmd.Status.State)
+					device.Status.Message = cmd.Status.Message
+					return device, nil
+				})
+				if err != nil {
+					logrus.WithError(err).Error("failed to update device status")
+					continue
+				}
+			}
+		}()
+		// Listen for device spec changes
+		d := deviceapi.Device{}
+		_ = devices.Get(d.Name, &d)
+		daemon.SetCommand(runner.CommandSpec{
+			Command: "/proc/self/exe",
+			Args:    buildK3sArgs(&d.Spec, docker),
+		})
+		w := devices.Watch(context.Background())
+		defer w.Stop()
+		deviceCh := w.ResultChan()
+		go func() {
+			for evt := range deviceCh {
+				if evt.Type == watch.Modified {
+					d := evt.Object.(*deviceapi.Device)
+					if d.Name != deviceName {
+						continue
+					}
+					_ = devices.Get(d.Name, d)
+					daemon.SetCommand(runner.CommandSpec{
+						Command: "/proc/self/exe",
+						Args:    buildK3sArgs(&d.Spec, docker),
+					})
+				}
+			}
+		}()
+		return nil
+	})
+	genericServer.AddPreShutdownHookOrDie("k3s-connect", func() error {
+		return daemon.Close()
+	})
+}
+
+func buildK3sArgs(spec *deviceapi.DeviceSpec, docker bool) []string {
+	args := []string{
+		"server",
+		"--disable-cloud-controller",
+		"--disable-helm-controller",
+		"--no-deploy=servicelb,traefik,metrics-server",
+		fmt.Sprintf("--kube-apiserver-arg=--token-auth-file=%s", "/etc/k3sconnect/tokens"),
+	}
+	if docker {
+		args = append(args, "--docker")
+	}
+	return args
 }

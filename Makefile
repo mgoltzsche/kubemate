@@ -38,7 +38,7 @@ run: image
 		--mount type=bind,src=`pwd`/data/pod-log,dst=/var/log/pods,bind-propagation=rshared \
 		--mount type=bind,src=/sys,dst=/sys \
 		-v `pwd`:/output \
-		k3spi:latest connect --docker
+		k3spi:latest connect --docker --http-port=8080
 			#--no-deploy=servicelb,traefik,metrics-server \
 			#--disable-cloud-controller \
 			#--disable-helm-controller

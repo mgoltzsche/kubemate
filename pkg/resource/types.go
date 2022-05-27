@@ -1,4 +1,4 @@
-package apiserver
+package resource
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
@@ -6,7 +6,14 @@ import (
 )
 
 type Resource interface {
-	New() runtime.Object
+	runtime.Object
+	New() Resource
 	NewList() runtime.Object
 	GetGroupVersionResource() schema.GroupVersionResource
+	GetStatus() SubResource
+	DeepCopyIntoResource(Resource) error
+	GetResourceVersion() string
+	SetResourceVersion(string)
 }
+
+type SubResource interface{}

@@ -31,7 +31,9 @@ RUN set -ex; \
 	ln -s cni /bin/portmap; \
 	ln -s cni /bin/flannel; \
 	ln -s k3spi /bin/kubectl; \
-	ln -s k3spi /bin/crictl
+	ln -s k3spi /bin/crictl; \
+	mkdir -p /etc/k3sconnect; \
+	echo 'adminsecret,admin,admin,"admin,ui"' > /etc/k3sconnect/tokens
 COPY --from=build /work/k3spi /bin/k3spi
 COPY ./ui/dist /web
 VOLUME /var/lib/kubelet
@@ -43,7 +45,6 @@ ENV PATH="$PATH:/bin/aux" \
 	K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml \
 	K3S_KUBECONFIG_MODE=0640 \
 	KUBECONFIG=/output/kubeconfig.yaml \
-	K3SCONNECT_ADDRESS=0.0.0.0:8080 \
 	K3SCONNECT_WEB_DIR=/web
 ENTRYPOINT ["/bin/k3spi"]
-CMD ["server", "--ui-dir="]
+CMD ["server"]

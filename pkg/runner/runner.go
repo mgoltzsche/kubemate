@@ -1,7 +1,6 @@
 package runner
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -16,7 +15,6 @@ import (
 type ProcessState string
 
 const (
-	ProcessStateStarting   ProcessState = "starting"
 	ProcessStateRunning    ProcessState = "running" // TODO: add ready check to set this state
 	ProcessStateFailed     ProcessState = "failed"
 	ProcessStateTerminated ProcessState = "terminated"
@@ -64,7 +62,9 @@ func NewRunner() *Runner {
 func (l *Runner) SetCommand(p CommandSpec) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-	l.spec <- p
+	if l.spec != nil {
+		l.spec <- p
+	}
 }
 
 func (l *Runner) Close() error {
@@ -72,17 +72,18 @@ func (l *Runner) Close() error {
 	defer l.mutex.Unlock()
 	close(l.spec)
 	l.done.Wait()
+	l.spec = nil
 	return nil
 }
 
-func (l *Runner) Start(ctx context.Context) <-chan Command {
+func (l *Runner) Start() <-chan Command {
 	ch := make(chan Command)
 	l.done.Add(1)
-	go l.run(ctx, ch)
+	go l.run(ch)
 	return ch
 }
 
-func (l *Runner) run(ctx context.Context, ch chan<- Command) {
+func (l *Runner) run(ch chan<- Command) {
 	defer l.done.Done()
 	var p *Process
 	for c := range l.spec {
@@ -143,12 +144,6 @@ func startProcess(cmd CommandSpec, ch chan<- Command) *Process {
 		}
 		return nil
 	}
-	ch <- Command{
-		Spec: cmd,
-		Status: CommandStatus{
-			State: ProcessStateStarting,
-		},
-	}
 	err = c.Start()
 	if err != nil {
 		ch <- Command{
@@ -168,6 +163,12 @@ func startProcess(cmd CommandSpec, ch chan<- Command) *Process {
 		defer stderr.Close()
 		_, _ = io.Copy(os.Stderr, stderr)
 	}()
+	ch <- Command{
+		Spec: cmd,
+		Status: CommandStatus{
+			State: ProcessStateRunning,
+		},
+	}
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
