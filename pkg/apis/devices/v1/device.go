@@ -7,7 +7,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	//"sigs.k8s.io/apiserver-runtime/pkg/builder/resource"
 )
 
 // DeviceState specifies the state of a device.
@@ -31,7 +30,7 @@ const (
 // +k8s:openapi-gen=true
 // DeviceSpec defines the desired state of Cache
 type DeviceSpec struct {
-	Mode DeviceMode `json:"role"`
+	Mode DeviceMode `json:"mode"`
 }
 
 // +k8s:openapi-gen=true

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/mgoltzsche/kubemate/pkg/resource"
-	store "github.com/mgoltzsche/kubemate/pkg/storage"
+	"github.com/mgoltzsche/kubemate/pkg/storage"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -23,16 +23,16 @@ var (
 type REST struct {
 	resource      resource.Resource
 	groupResource schema.GroupResource
-	Store         store.Interface
+	Store         storage.Interface
 	registryrest.TableConvertor
 }
 
-func NewREST(res resource.Resource) *REST {
+func NewREST(res resource.Resource, store storage.Interface) *REST {
 	gr := res.GetGroupVersionResource().GroupResource()
 	return &REST{
 		resource:       res,
 		groupResource:  gr,
-		Store:          store.InMemory(),
+		Store:          store,
 		TableConvertor: registryrest.NewDefaultTableConvertor(gr),
 	}
 }
@@ -59,7 +59,7 @@ func (r *REST) List(ctx context.Context, options *metainternalversion.ListOption
 }
 
 func (r *REST) Watch(ctx context.Context, options *metainternalversion.ListOptions) (w watch.Interface, err error) {
-	return r.Store.Watch(ctx), nil
+	return r.Store.Watch(ctx, options.ResourceVersion)
 }
 
 func (r *REST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {

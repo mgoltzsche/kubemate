@@ -38,6 +38,7 @@ type ServerOptions struct {
 	HTTPSAddress string
 	HTTPSPort    int
 	WebDir       string
+	ConfigDir    string
 	Docker       bool
 }
 
@@ -60,7 +61,10 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	}
 	scheme := runtime.NewScheme()
 	metav1.AddToGroupVersion(scheme, deviceapi.GroupVersion)
-	scheme.AddKnownTypes(deviceapi.GroupVersion, &deviceapi.Device{}, &deviceapi.DeviceList{})
+	scheme.AddKnownTypes(deviceapi.GroupVersion,
+		&deviceapi.Device{}, &deviceapi.DeviceList{},
+		&deviceapi.DeviceToken{}, &deviceapi.DeviceTokenList{},
+	)
 	codecs := serializer.NewCodecFactory(scheme)
 	paramScheme := runtime.NewScheme()
 	paramCodecs := runtime.NewParameterCodec(paramScheme)
@@ -118,6 +122,10 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known"}
 	genericServer.Handler.FullHandlerChain = NewWebUIHandler(o.WebDir, genericServer.Handler.FullHandlerChain, apiPaths)
 	deviceREST := NewDeviceREST(o.DeviceName)
+	deviceTokenREST, err := NewDeviceTokenREST(o.ConfigDir)
+	if err != nil {
+		return nil, err
+	}
 	apiGroup := &genericapiserver.APIGroupInfo{
 		PrioritizedVersions:  scheme.PrioritizedVersionsForGroup(deviceapi.GroupVersion.Group),
 		Scheme:               scheme,
@@ -125,7 +133,8 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		NegotiatedSerializer: codecs,
 		VersionedResourcesStorageMap: map[string]map[string]registryrest.Storage{
 			"v1": map[string]registryrest.Storage{
-				"devices": deviceREST,
+				"devices":      deviceREST,
+				"devicetokens": deviceTokenREST,
 			},
 		},
 	}
@@ -133,7 +142,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("install apigroup: %w", err)
 	}
-	installK3sRunner(genericServer, deviceREST.Store, o.DeviceName, o.Docker)
+	installK3sRunner(genericServer, deviceREST.rest.Store, o.DeviceName, o.Docker)
 	return genericServer, nil
 }
 
@@ -167,7 +176,10 @@ func installK3sRunner(genericServer *genericapiserver.GenericAPIServer, devices 
 			Command: "/proc/self/exe",
 			Args:    buildK3sArgs(&d.Spec, docker),
 		})
-		w := devices.Watch(context.Background())
+		w, err := devices.Watch(context.Background(), "")
+		if err != nil {
+			return err
+		}
 		defer w.Stop()
 		deviceCh := w.ResultChan()
 		go func() {

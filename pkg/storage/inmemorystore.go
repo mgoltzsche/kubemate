@@ -15,81 +15,84 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-type store struct {
+type inMemoryStore struct {
 	items  map[string]resource.Resource
 	pubsub *pubsub.PubSub
 	mutex  *sync.RWMutex
 	seq    int64
 }
 
-func InMemory() Interface {
-	return &store{
+func InMemory() *inMemoryStore {
+	return &inMemoryStore{
 		mutex:  &sync.RWMutex{},
 		items:  map[string]resource.Resource{},
 		pubsub: pubsub.New(),
 	}
 }
 
-func (r *store) Watch(ctx context.Context) pubsub.Interface {
-	return r.pubsub.Subscribe(ctx)
+func (s *inMemoryStore) Watch(ctx context.Context, resourceVersion string) (pubsub.Interface, error) {
+	if resourceVersion != "" && resourceVersion != fmt.Sprintf("%d", s.seq) {
+		return nil, errors.NewGone(fmt.Sprintf("provided resource version %q is outdated", resourceVersion))
+	}
+	return s.pubsub.Subscribe(ctx), nil
 }
 
-func (r *store) List(l runtime.Object) error {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
+func (s *inMemoryStore) List(l runtime.Object) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	v, err := getListPrt(l)
 	if err != nil {
 		return err
 	}
-	keys := make([]string, 0, len(r.items))
-	for k := range r.items {
+	keys := make([]string, 0, len(s.items))
+	for k := range s.items {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		appendItem(v, r.items[k])
+		appendItem(v, s.items[k])
 	}
 	return nil
 }
 
-func (r *store) Get(key string, res resource.Resource) error {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-	item := r.items[key]
+func (s *inMemoryStore) Get(key string, res resource.Resource) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	item := s.items[key]
 	if item == nil {
 		return errors.NewNotFound(res.GetGroupVersionResource().GroupResource(), key)
 	}
 	return item.DeepCopyIntoResource(res)
 }
 
-func (r *store) Create(key string, res resource.Resource) error {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-	existing := r.items[key]
+func (s *inMemoryStore) Create(key string, res resource.Resource) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	existing := s.items[key]
 	if existing != nil {
 		return errors.NewAlreadyExists(res.GetGroupVersionResource().GroupResource(), key)
 	}
-	r.setResourceVersion(res)
-	r.items[key] = res
-	r.emit(pubsub.Added, res)
+	s.setResourceVersion(res)
+	s.items[key] = res
+	s.emit(pubsub.Added, res)
 	return nil
 }
 
-func (r *store) Delete(key string) error {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-	existing := r.items[key]
-	delete(r.items, key)
+func (s *inMemoryStore) Delete(key string) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	existing := s.items[key]
+	delete(s.items, key)
 	if existing != nil {
-		r.emit(pubsub.Deleted, existing)
+		s.emit(pubsub.Deleted, existing)
 	}
 	return nil
 }
 
-func (r *store) Update(key string, res resource.Resource, modify func() (resource.Resource, error)) error {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-	existing := r.items[key]
+func (s *inMemoryStore) Update(key string, res resource.Resource, modify func() (resource.Resource, error)) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	existing := s.items[key]
 	if existing == nil {
 		return errors.NewNotFound(res.GetGroupVersionResource().GroupResource(), key)
 	}
@@ -105,19 +108,19 @@ func (r *store) Update(key string, res resource.Resource, modify func() (resourc
 		err := fmt.Errorf("resource was changed concurrently, please fetch the latest resource version and apply your changes again")
 		return errors.NewConflict(res.GetGroupVersionResource().GroupResource(), key, err)
 	}
-	r.setResourceVersion(res)
-	r.items[key] = res.DeepCopyObject().(resource.Resource)
-	r.emit(pubsub.Modified, res)
+	s.setResourceVersion(res)
+	s.items[key] = res.DeepCopyObject().(resource.Resource)
+	s.emit(pubsub.Modified, res)
 	return nil
 }
 
-func (r *store) setResourceVersion(o resource.Resource) {
-	r.seq++
-	o.SetResourceVersion(fmt.Sprintf("%d", r.seq))
+func (s *inMemoryStore) setResourceVersion(o resource.Resource) {
+	s.seq++
+	o.SetResourceVersion(fmt.Sprintf("%d", s.seq))
 }
 
-func (r *store) emit(action pubsub.EventType, res resource.Resource) {
-	r.pubsub.Publish(pubsub.Event{Type: pubsub.Added, Object: res})
+func (s *inMemoryStore) emit(action pubsub.EventType, res resource.Resource) {
+	s.pubsub.Publish(pubsub.Event{Type: pubsub.Added, Object: res})
 }
 
 func appendItem(v reflect.Value, obj runtime.Object) {

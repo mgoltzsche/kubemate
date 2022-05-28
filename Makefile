@@ -38,7 +38,8 @@ run: image
 		--mount type=bind,src=`pwd`/data/pod-log,dst=/var/log/pods,bind-propagation=rshared \
 		--mount type=bind,src=/sys,dst=/sys \
 		-v `pwd`:/output \
-		kubemate:latest connect --docker --http-port=80 --https-port=443
+		kubemate:latest connect --docker
+			#--http-port=80 --https-port=443
 			#--no-deploy=servicelb,traefik,metrics-server \
 			#--disable-cloud-controller \
 			#--disable-helm-controller

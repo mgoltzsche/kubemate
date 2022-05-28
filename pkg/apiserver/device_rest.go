@@ -13,15 +13,23 @@ import (
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/watch"
 	registryrest "k8s.io/apiserver/pkg/registry/rest"
 )
 
 // TODO: advertise as mdns service, see https://github.com/holoplot/go-avahi#publishing
 
+var (
+	_ registryrest.Lister  = &DeviceREST{}
+	_ registryrest.Getter  = &DeviceREST{}
+	_ registryrest.Updater = &DeviceREST{}
+)
+
 type DeviceREST struct {
-	*REST
+	rest       *REST
 	runner     *runner.Runner
 	deviceName string
+	registryrest.TableConvertor
 }
 
 func NewDeviceREST(deviceName string) *DeviceREST {
@@ -36,34 +44,55 @@ func NewDeviceREST(deviceName string) *DeviceREST {
 			State: deviceapi.DeviceStateUnknown,
 		},
 	}
-	r := NewREST(&deviceapi.Device{})
+	r := NewREST(&deviceapi.Device{}, storage.InMemory())
 	err := r.Store.Create(deviceName, device)
 	if err != nil {
 		panic(err)
 	}
 	r.TableConvertor = &deviceTableConvertor{}
 	devices := &DeviceREST{
-		REST:       r,
-		deviceName: device.Name,
+		rest:           r,
+		deviceName:     device.Name,
+		TableConvertor: r,
 	}
 	go devices.populate()
 	return devices
 }
 
+func (r *DeviceREST) New() runtime.Object {
+	return r.rest.New()
+}
+
+func (r *DeviceREST) NewList() runtime.Object {
+	return r.rest.NewList()
+}
+
+func (r *DeviceREST) NamespaceScoped() bool {
+	return false
+}
+
 func (r *DeviceREST) List(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error) {
 	go r.populate()
-	return r.REST.List(ctx, options)
+	return r.rest.List(ctx, options)
 }
 
 func (r *DeviceREST) Update(ctx context.Context, name string, objInfo registryrest.UpdatedObjectInfo, createValidation registryrest.ValidateObjectFunc, updateValidation registryrest.ValidateObjectUpdateFunc, forceAllowCreate bool, options *metav1.UpdateOptions) (runtime.Object, bool, error) {
 	if name != r.deviceName {
-		return nil, false, errors.NewNotFound(r.resource.GetGroupVersionResource().GroupResource(), name)
+		return nil, false, errors.NewNotFound(r.rest.resource.GetGroupVersionResource().GroupResource(), name)
 	}
-	return r.REST.Update(ctx, name, objInfo, createValidation, updateValidation, forceAllowCreate, options)
+	return r.rest.Update(ctx, name, objInfo, createValidation, updateValidation, forceAllowCreate, options)
+}
+
+func (r *DeviceREST) Watch(ctx context.Context, options *metainternalversion.ListOptions) (w watch.Interface, err error) {
+	return r.rest.Watch(ctx, options)
+}
+
+func (r *DeviceREST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
+	return r.rest.Get(ctx, name, options)
 }
 
 func (r *DeviceREST) populate() {
-	err := populateDevicesFromMDNS(r.deviceName, r.Store)
+	err := populateDevicesFromMDNS(r.deviceName, r.rest.Store)
 	if err != nil {
 		logrus.WithError(err).Error("failed to find devices via mdns")
 	}

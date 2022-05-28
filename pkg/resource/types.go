@@ -10,10 +10,15 @@ type Resource interface {
 	New() Resource
 	NewList() runtime.Object
 	GetGroupVersionResource() schema.GroupVersionResource
-	GetStatus() SubResource
 	DeepCopyIntoResource(Resource) error
 	GetResourceVersion() string
 	SetResourceVersion(string)
 }
 
-type SubResource interface{}
+type ResourceWithStatus interface {
+	Resource
+	GetStatus() SubResource
+}
+
+type SubResource interface {
+}

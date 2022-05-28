@@ -9,7 +9,7 @@ import (
 )
 
 type Interface interface {
-	Watch(context.Context) watch.Interface
+	Watch(ctx context.Context, resourceVersion string) (watch.Interface, error)
 	List(l runtime.Object) error
 	Get(key string, o resource.Resource) error
 	Create(key string, o resource.Resource) error
