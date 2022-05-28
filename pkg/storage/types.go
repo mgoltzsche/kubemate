@@ -3,7 +3,7 @@ package storage
 import (
 	"context"
 
-	"github.com/mgoltzsche/k3spi/pkg/resource"
+	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 )

@@ -6,5 +6,5 @@ import (
 
 var (
 	// GroupVersion is group version used to register these objects
-	GroupVersion = schema.GroupVersion{Group: "k3sconnect.mgoltzsche.github.com", Version: "v1"}
+	GroupVersion = schema.GroupVersion{Group: "kubemate.mgoltzsche.github.com", Version: "v1"}
 )

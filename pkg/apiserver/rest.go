@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mgoltzsche/k3spi/pkg/resource"
-	store "github.com/mgoltzsche/k3spi/pkg/storage"
+	"github.com/mgoltzsche/kubemate/pkg/resource"
+	store "github.com/mgoltzsche/kubemate/pkg/storage"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

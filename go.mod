@@ -1,4 +1,4 @@
-module github.com/mgoltzsche/k3spi
+module github.com/mgoltzsche/kubemate
 
 go 1.16
 

@@ -7,10 +7,10 @@ import (
 	"os"
 	"time"
 
-	deviceapi "github.com/mgoltzsche/k3spi/pkg/apis/devices/v1"
-	"github.com/mgoltzsche/k3spi/pkg/resource"
-	"github.com/mgoltzsche/k3spi/pkg/runner"
-	"github.com/mgoltzsche/k3spi/pkg/storage"
+	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
+	"github.com/mgoltzsche/kubemate/pkg/resource"
+	"github.com/mgoltzsche/kubemate/pkg/runner"
+	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -49,8 +49,8 @@ func NewServerOptions() ServerOptions {
 	return ServerOptions{
 		DeviceName:   hostname,
 		HTTPSAddress: "0.0.0.0",
-		HTTPSPort:    443,
-		WebDir:       "/var/lib/k3sconnect/web",
+		HTTPSPort:    8443,
+		WebDir:       "/var/lib/kubemate/web",
 	}
 }
 
@@ -92,7 +92,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	serverConfig.SharedInformerFactory = versionedInformer
 	audiences := []string{adminGroup, "ui"}
 	serverConfig.Authentication.APIAudiences = audiences
-	tokens, err := tokenfile.NewCSV("/etc/k3sconnect/tokens")
+	tokens, err := tokenfile.NewCSV("/etc/kubemate/tokens")
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	)
 	serverConfig.Authorization.Authorizer = NewDeviceAuthorizer()
 	delegate := newReverseProxy("127.0.0.1:6443")
-	genericServer, err := serverConfig.Complete().New("k3s-connect", delegate)
+	genericServer, err := serverConfig.Complete().New("kubemate", delegate)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 
 func installK3sRunner(genericServer *genericapiserver.GenericAPIServer, devices storage.Interface, deviceName string, docker bool) {
 	daemon := runner.NewRunner()
-	genericServer.AddPostStartHookOrDie("k3s-connect", func(ctx genericapiserver.PostStartHookContext) error {
+	genericServer.AddPostStartHookOrDie("kubemate", func(ctx genericapiserver.PostStartHookContext) error {
 		// Update device resource's status
 		ch := daemon.Start()
 		go func() {
@@ -187,7 +187,7 @@ func installK3sRunner(genericServer *genericapiserver.GenericAPIServer, devices 
 		}()
 		return nil
 	})
-	genericServer.AddPreShutdownHookOrDie("k3s-connect", func() error {
+	genericServer.AddPreShutdownHookOrDie("kubemate", func() error {
 		return daemon.Close()
 	})
 }
@@ -198,7 +198,7 @@ func buildK3sArgs(spec *deviceapi.DeviceSpec, docker bool) []string {
 		"--disable-cloud-controller",
 		"--disable-helm-controller",
 		"--no-deploy=servicelb,traefik,metrics-server",
-		fmt.Sprintf("--kube-apiserver-arg=--token-auth-file=%s", "/etc/k3sconnect/tokens"),
+		fmt.Sprintf("--kube-apiserver-arg=--token-auth-file=%s", "/etc/kubemate/tokens"),
 	}
 	if docker {
 		args = append(args, "--docker")

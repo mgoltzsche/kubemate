@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/mdns"
-	deviceapi "github.com/mgoltzsche/k3spi/pkg/apis/devices/v1"
-	"github.com/mgoltzsche/k3spi/pkg/runner"
-	"github.com/mgoltzsche/k3spi/pkg/storage"
+	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
+	"github.com/mgoltzsche/kubemate/pkg/runner"
+	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"

@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mgoltzsche/k3spi/pkg/apiserver"
+	"github.com/mgoltzsche/kubemate/pkg/apiserver"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -20,7 +20,7 @@ type ConnectConfig struct {
 	HTTPPort    int
 }
 
-var appName = "k3s-connect"
+var appName = "kubemate"
 var Connect = ConnectConfig{
 	ServerOptions: apiserver.NewServerOptions(),
 }
@@ -28,42 +28,42 @@ var ConnectFlags = []cli.Flag{
 	cli.StringFlag{
 		Name:        "http-address",
 		Usage:       "(agent/runtime) net/IP to listen on without TLS",
-		EnvVar:      "K3SCONNECT_INSECURE_ADDRESS",
+		EnvVar:      "KUBEMATE_INSECURE_ADDRESS",
 		Destination: &Connect.HTTPAddress,
 		Value:       "127.0.0.1",
 	},
 	cli.IntFlag{
 		Name:        "http-port",
 		Usage:       "(agent/runtime) non-TLS port to listen on",
-		EnvVar:      "K3SCONNECT_INSECURE_PORT",
+		EnvVar:      "KUBEMATE_INSECURE_PORT",
 		Destination: &Connect.HTTPPort,
-		Value:       80,
+		Value:       8080,
 	},
 	cli.StringFlag{
 		Name:        "https-address",
 		Usage:       "(agent/runtime) net/IP to listen on with TLS",
-		EnvVar:      "K3SCONNECT_SECURE_ADDRESS",
+		EnvVar:      "KUBEMATE_SECURE_ADDRESS",
 		Destination: &Connect.HTTPSAddress,
 		Value:       Connect.HTTPSAddress,
 	},
 	cli.IntFlag{
 		Name:        "https-port",
 		Usage:       "(agent/runtime) TLS port to listen on",
-		EnvVar:      "K3SCONNECT_SECURE_PORT",
+		EnvVar:      "KUBEMATE_SECURE_PORT",
 		Destination: &Connect.HTTPSPort,
 		Value:       Connect.HTTPSPort,
 	},
 	cli.StringFlag{
 		Name:        "web-dir",
 		Usage:       "(agent/runtime) enable docker support",
-		EnvVar:      "K3SCONNECT_WEB_DIR",
+		EnvVar:      "KUBEMATE_WEB_DIR",
 		Destination: &Connect.WebDir,
 		Value:       Connect.WebDir,
 	},
 	cli.BoolFlag{
 		Name:        "docker",
 		Usage:       "(agent/runtime) enable docker support",
-		EnvVar:      "K3SCONNECT_DOCKER",
+		EnvVar:      "KUBEMATE_DOCKER",
 		Destination: &Connect.Docker,
 	},
 }

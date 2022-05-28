@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	deviceapi "github.com/mgoltzsche/k3spi/pkg/apis/devices/v1"
+	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
 	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 )

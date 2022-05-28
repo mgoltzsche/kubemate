@@ -6,10 +6,10 @@ RUN go mod download
 COPY main.go /work/
 COPY pkg /work/pkg
 #ENV CGO_ENABLED=0
-RUN go build -o k3spi .
+RUN go build -o kubemate .
 
 FROM rancher/k3s:v1.23.6-k3s1 AS k3s
-COPY --from=build /work/k3spi /bin/k3spi
+COPY --from=build /work/kubemate /bin/kubemate
 
 FROM alpine:3.15
 RUN apk add --update --no-cache iptables openssl ca-certificates
@@ -30,11 +30,11 @@ RUN set -ex; \
 	ln -s cni /bin/bridge; \
 	ln -s cni /bin/portmap; \
 	ln -s cni /bin/flannel; \
-	ln -s k3spi /bin/kubectl; \
-	ln -s k3spi /bin/crictl; \
-	mkdir -p /etc/k3sconnect; \
-	echo 'adminsecret,admin,admin,"admin,ui"' > /etc/k3sconnect/tokens
-COPY --from=build /work/k3spi /bin/k3spi
+	ln -s kubemate /bin/kubectl; \
+	ln -s kubemate /bin/crictl; \
+	mkdir -p /etc/kubemate; \
+	echo 'adminsecret,admin,admin,"admin,ui"' > /etc/kubemate/tokens
+COPY --from=build /work/kubemate /bin/kubemate
 COPY ./ui/dist /web
 VOLUME /var/lib/kubelet
 VOLUME /var/lib/rancher/k3s
@@ -45,6 +45,6 @@ ENV PATH="$PATH:/bin/aux" \
 	K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml \
 	K3S_KUBECONFIG_MODE=0640 \
 	KUBECONFIG=/output/kubeconfig.yaml \
-	K3SCONNECT_WEB_DIR=/web
-ENTRYPOINT ["/bin/k3spi"]
+	KUBEMATE_WEB_DIR=/web
+ENTRYPOINT ["/bin/kubemate"]
 CMD ["server"]

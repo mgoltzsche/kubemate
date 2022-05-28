@@ -7,8 +7,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/mgoltzsche/k3spi/pkg/pubsub"
-	"github.com/mgoltzsche/k3spi/pkg/resource"
+	"github.com/mgoltzsche/kubemate/pkg/pubsub"
+	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/conversion"

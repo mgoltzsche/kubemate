@@ -9,11 +9,11 @@ CONTROLLER_GEN_VERSION = v0.4.1
 
 all: image
 
-k3spi:
-	go build -o $(BUILD_DIR)/bin/k3spi .
+kubemate:
+	go build -o $(BUILD_DIR)/bin/kubemate .
 
 image:
-	docker build --force-rm -t k3spi .
+	docker build --force-rm -t kubemate .
 
 generate: $(OAPI_CODEGEN) $(CONTROLLER_GEN)
 	#PATH="$(TOOLS_DIR):$$PATH" go generate ./pkg/server
@@ -28,7 +28,7 @@ clean:
 run: image
 	chmod 2775 .
 	mkdir -p ./data/pod-log
-	docker run --name k3spi --rm --network host --pid host --privileged \
+	docker run --name kubemate --rm --network host --pid host --privileged \
 		--tmpfs /run --tmpfs /var/run \
 		-v `pwd`/data/k3s-server:/var/lib/rancher/k3s \
 		--mount type=bind,src=/etc/machine-id,dst=/etc/machine-id \
@@ -38,7 +38,7 @@ run: image
 		--mount type=bind,src=`pwd`/data/pod-log,dst=/var/log/pods,bind-propagation=rshared \
 		--mount type=bind,src=/sys,dst=/sys \
 		-v `pwd`:/output \
-		k3spi:latest connect --docker --http-port=8080
+		kubemate:latest connect --docker --http-port=80 --https-port=443
 			#--no-deploy=servicelb,traefik,metrics-server \
 			#--disable-cloud-controller \
 			#--disable-helm-controller

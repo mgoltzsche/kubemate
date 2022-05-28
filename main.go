@@ -21,7 +21,7 @@ import (
 	ctr2 "github.com/k3s-io/k3s/pkg/ctr"
 	kubectl2 "github.com/k3s-io/k3s/pkg/kubectl"
 	crictl2 "github.com/kubernetes-sigs/cri-tools/cmd/crictl"
-	addcmds "github.com/mgoltzsche/k3spi/pkg/cli/cmds"
+	addcmds "github.com/mgoltzsche/kubemate/pkg/cli/cmds"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )

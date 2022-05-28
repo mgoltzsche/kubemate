@@ -3,7 +3,7 @@ package v1
 import (
 	"fmt"
 
-	"github.com/mgoltzsche/k3spi/pkg/resource"
+	"github.com/mgoltzsche/kubemate/pkg/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
