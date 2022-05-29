@@ -8,6 +8,7 @@ import (
 	"time"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
+	generatedopenapi "github.com/mgoltzsche/kubemate/pkg/generated/openapi"
 	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"github.com/mgoltzsche/kubemate/pkg/runner"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
@@ -17,8 +18,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/apiserver/pkg/authentication/authenticator"
 	"k8s.io/apiserver/pkg/authentication/request/anonymous"
 	"k8s.io/apiserver/pkg/authentication/request/union"
+	openapinamer "k8s.io/apiserver/pkg/endpoints/openapi"
 	registryrest "k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/apiserver/pkg/server/filters"
@@ -27,10 +30,10 @@ import (
 	clientgoclientset "k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 
+	"k8s.io/apiserver/pkg/authentication/authenticatorfactory"
 	"k8s.io/apiserver/pkg/authentication/request/bearertoken"
 	"k8s.io/apiserver/pkg/authentication/token/tokenfile"
-	//"k8s.io/apiserver/pkg/authentication/authenticatorfactory"
-	//"k8s.io/apiserver/pkg/authentication/user"
+	"k8s.io/apiserver/pkg/authentication/user"
 )
 
 type ServerOptions struct {
@@ -88,6 +91,8 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		sets.NewString("watch", "proxy"),
 		sets.NewString("attach", "exec", "proxy", "log", "portforward"),
 	)
+	serverConfig.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapinamer.NewDefinitionNamer(scheme))
+	serverConfig.OpenAPIConfig.Info.Title = "kubemate"
 	clientgoExternalClient, err := clientgoclientset.NewForConfig(serverConfig.LoopbackClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create real external clientset: %w", err)
@@ -96,21 +101,33 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	serverConfig.SharedInformerFactory = versionedInformer
 	audiences := []string{adminGroup, "ui"}
 	serverConfig.Authentication.APIAudiences = audiences
-	tokens, err := tokenfile.NewCSV("/etc/kubemate/tokens")
+	accountsFile := "/etc/kubemate/tokens"
+	var authz authenticator.Request
+	tokens, err := tokenfile.NewCSV(accountsFile)
 	if err != nil {
-		return nil, err
+		if !os.IsNotExist(err) {
+			return nil, err
+		}
+		logrus.Warnf("Accounts file not found at %s - generating token...", accountsFile)
+		token, err := generateRandomString(8)
+		if err != nil {
+			return nil, fmt.Errorf("generate token: %w", err)
+		}
+		logrus.Infof("Generated token: %s", token)
+		generatedToken := map[string]*user.DefaultInfo{
+			token: &user.DefaultInfo{
+				Name:   "admin",
+				UID:    "admin",
+				Groups: []string{adminGroup},
+				Extra:  map[string][]string{},
+			},
+		}
+		authz = authenticatorfactory.NewFromTokens(generatedToken, audiences)
+	} else {
+		authz = bearertoken.New(tokens)
 	}
-	/*defaultTokens := map[string]*user.DefaultInfo{
-		"secret": &user.DefaultInfo{
-			Name:   adminUser,
-			UID:    adminUser,
-			Groups: []string{adminGroup},
-			Extra:  map[string][]string{},
-		},
-	}*/
 	serverConfig.Authentication.Authenticator = union.New(
-		//authenticatorfactory.NewFromTokens(defaultTokens, audiences),
-		bearertoken.New(tokens),
+		authz,
 		anonymous.NewAuthenticator(),
 	)
 	serverConfig.Authorization.Authorizer = NewDeviceAuthorizer()

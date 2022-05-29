@@ -4,20 +4,40 @@ TOOLS_DIR:=$(BUILD_DIR)/tools
 OAPI_CODEGEN_VERSION = v1.9.0
 OAPI_CODEGEN = $(TOOLS_DIR)/oapi-codegen
 
+KUBE_OPENAPI_GEN = $(TOOLS_DIR)/openapi-gen
+KUBE_OPENAPI_GEN_VERSION = 5e7f5fdc6da62df0ce329920a63eda22f95b9614
+
 CONTROLLER_GEN = $(TOOLS_DIR)/controller-gen
 CONTROLLER_GEN_VERSION = v0.4.1
 
 all: image
 
+.PHONY: kubemate
 kubemate:
 	go build -o $(BUILD_DIR)/bin/kubemate .
 
 image:
 	docker build --force-rm -t kubemate .
 
-generate: $(OAPI_CODEGEN) $(CONTROLLER_GEN)
+generate: generate-types generate-openapi
+
+generate-types: $(OAPI_CODEGEN) $(CONTROLLER_GEN) $(KUBE_OPENAPI_GEN)
 	#PATH="$(TOOLS_DIR):$$PATH" go generate ./pkg/server
 	$(CONTROLLER_GEN) object paths=./pkg/apis/...
+	$(KUBE_OPENAPI_GEN) --output-base=./pkg/generated --output-package=openapi -O zz_generated.openapi -h ./boilerplate/boilerplate.go.txt \
+		--input-dirs=github.com/mgoltzsche/kubemate/pkg/apis/devices/v1,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/apimachinery/pkg/runtime
+
+generate-openapi: generate-types kubemate
+	@echo Load OpenAPI spec from freshly built server binary
+	@{ \
+	set -eu; \
+	$(BUILD_DIR)/bin/kubemate connect & \
+	PID=$$!; \
+	sleep 1; \
+	printf '# This file is generated using `make generate-openapi`.\n# DO NOT EDIT MANUALLY!\n\n' > openapi.yaml; \
+	curl -fsS http://localhost:8080/openapi/v2 >> openapi.yaml; \
+	kill -9 $$PID; \
+	}
 
 clean:
 	[ "`id -u`" -eq  0 ]
@@ -49,6 +69,9 @@ $(OAPI_CODEGEN): ## Installs oapi-codegen
 
 $(CONTROLLER_GEN):
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION))
+
+$(KUBE_OPENAPI_GEN):
+	$(call go-get-tool,$(KUBE_OPENAPI_GEN),k8s.io/kube-openapi/cmd/openapi-gen@$(KUBE_OPENAPI_GEN_VERSION))
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 define go-get-tool

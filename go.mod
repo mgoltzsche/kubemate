@@ -83,4 +83,5 @@ require (
 	k8s.io/apimachinery v0.23.6
 	k8s.io/apiserver v0.23.6
 	k8s.io/client-go v11.0.1-0.20190409021438-1a26190bd76a+incompatible
+	k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65
 )
