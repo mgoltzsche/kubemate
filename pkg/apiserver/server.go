@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"time"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
@@ -41,7 +42,8 @@ type ServerOptions struct {
 	HTTPSAddress string
 	HTTPSPort    int
 	WebDir       string
-	ConfigDir    string
+	ManifestDir  string
+	DataDir      string
 	Docker       bool
 }
 
@@ -54,7 +56,9 @@ func NewServerOptions() ServerOptions {
 		DeviceName:   hostname,
 		HTTPSAddress: "0.0.0.0",
 		HTTPSPort:    8443,
-		WebDir:       "/var/lib/kubemate/web",
+		WebDir:       "/usr/share/kubemate/web",
+		ManifestDir:  "/usr/share/kubemate/manifests",
+		DataDir:      "/var/lib/kubemate",
 	}
 }
 
@@ -75,6 +79,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	tlsOpts := options.NewSecureServingOptions()
 	tlsOpts.BindAddress = net.ParseIP(o.HTTPSAddress)
 	tlsOpts.BindPort = o.HTTPSPort
+	tlsOpts.ServerCert.CertDirectory = filepath.Join(o.DataDir, "certificates")
 	ips := []net.IP{net.ParseIP("127.0.0.1")}
 	err := tlsOpts.MaybeDefaultWithSelfSignedCerts(serverConfig.ExternalAddress, nil, ips)
 	if err != nil {
@@ -111,7 +116,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		logrus.Warnf("Accounts file not found at %s - generating token...", accountsFile)
 		token, err := generateRandomString(8)
 		if err != nil {
-			return nil, fmt.Errorf("generate token: %w", err)
+			return nil, fmt.Errorf("generate admin token: %w", err)
 		}
 		logrus.Infof("Generated token: %s", token)
 		generatedToken := map[string]*user.DefaultInfo{
@@ -131,7 +136,8 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		anonymous.NewAuthenticator(),
 	)
 	serverConfig.Authorization.Authorizer = NewDeviceAuthorizer()
-	delegate := newReverseProxy("127.0.0.1:6443")
+	k3sDataDir := filepath.Join(o.DataDir, "k3s")
+	delegate := newReverseProxy("127.0.0.1:6443", filepath.Join(k3sDataDir, "server", "tls"))
 	genericServer, err := serverConfig.Complete().New("kubemate", delegate)
 	if err != nil {
 		return nil, err
@@ -139,7 +145,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known"}
 	genericServer.Handler.FullHandlerChain = NewWebUIHandler(o.WebDir, genericServer.Handler.FullHandlerChain, apiPaths)
 	deviceREST := NewDeviceREST(o.DeviceName)
-	deviceTokenREST, err := NewDeviceTokenREST(o.ConfigDir)
+	deviceTokenREST, err := NewDeviceTokenREST(filepath.Join(o.DataDir, "devicetokens"), scheme, o.DeviceName)
 	if err != nil {
 		return nil, err
 	}
@@ -159,15 +165,31 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("install apigroup: %w", err)
 	}
-	installK3sRunner(genericServer, deviceREST.rest.Store, o.DeviceName, o.Docker)
+	installK3sRunner(genericServer, deviceREST.rest.Store, deviceTokenREST.Store, o.DeviceName, k3sDataDir, o.ManifestDir, o.Docker)
+	/*if o.Docker {
+		// TODO Move into server.Prepare method
+		// TODO: start cri-dockerd binary
+		go func() {
+			err := cridocker.RunCriDockerd(&cridockerdopts.DockerCRIFlags{}, context.Background())
+			if err != nil {
+				logrus.Error(fmt.Errorf("cri-dockerd: %w", err))
+			}
+		}()
+	}*/
 	return genericServer, nil
 }
 
 // TODO: support joining nodes to a cluster via the UI. for custom (dynamic) CORS filter, see https://github.com/kubernetes/apiserver/blob/master/pkg/server/filters/cors.go
 
-func installK3sRunner(genericServer *genericapiserver.GenericAPIServer, devices storage.Interface, deviceName string, docker bool) {
+func installK3sRunner(genericServer *genericapiserver.GenericAPIServer, devices, clusterTokens storage.Interface, deviceName, dataDir, manifestDir string, docker bool) {
 	daemon := runner.NewRunner()
+	//daemon.Listener = &controllerManager{}
 	genericServer.AddPostStartHookOrDie("kubemate", func(ctx genericapiserver.PostStartHookContext) error {
+		// Add CRDs to k3s' manifest directory
+		err := copyManifests(manifestDir, filepath.Join(dataDir, "server", "manifests"))
+		if err != nil {
+			return err
+		}
 		// Update device resource's status
 		ch := daemon.Start()
 		go func() {
@@ -191,7 +213,7 @@ func installK3sRunner(genericServer *genericapiserver.GenericAPIServer, devices 
 		_ = devices.Get(d.Name, &d)
 		daemon.SetCommand(runner.CommandSpec{
 			Command: "/proc/self/exe",
-			Args:    buildK3sArgs(&d.Spec, docker),
+			Args:    buildK3sArgs(&d, dataDir, docker, clusterTokens),
 		})
 		w, err := devices.Watch(context.Background(), "")
 		if err != nil {
@@ -209,7 +231,7 @@ func installK3sRunner(genericServer *genericapiserver.GenericAPIServer, devices 
 					_ = devices.Get(d.Name, d)
 					daemon.SetCommand(runner.CommandSpec{
 						Command: "/proc/self/exe",
-						Args:    buildK3sArgs(&d.Spec, docker),
+						Args:    buildK3sArgs(d, dataDir, docker, clusterTokens),
 					})
 				}
 			}
@@ -221,13 +243,23 @@ func installK3sRunner(genericServer *genericapiserver.GenericAPIServer, devices 
 	})
 }
 
-func buildK3sArgs(spec *deviceapi.DeviceSpec, docker bool) []string {
+func buildK3sArgs(d *deviceapi.Device, dataDir string, docker bool, clusterTokens storage.Interface) []string {
 	args := []string{
 		"server",
 		"--disable-cloud-controller",
 		"--disable-helm-controller",
 		"--no-deploy=servicelb,traefik,metrics-server",
+		"--kube-apiserver-arg=--insecure-bind-address=127.0.0.1",
+		"--kube-apiserver-arg=--insecure-port=0",
 		fmt.Sprintf("--kube-apiserver-arg=--token-auth-file=%s", "/etc/kubemate/tokens"),
+		fmt.Sprintf("--data-dir=%s", dataDir),
+	}
+	token := &deviceapi.DeviceToken{}
+	err := clusterTokens.Get(d.Name, token)
+	if err != nil {
+		logrus.Error(err)
+	} else {
+		args = append(args, fmt.Sprintf("--token=%s", token.Data.Token))
 	}
 	if docker {
 		args = append(args, "--docker")

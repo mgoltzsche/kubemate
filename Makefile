@@ -50,7 +50,7 @@ run: image
 	mkdir -p ./data/pod-log
 	docker run --name kubemate --rm --network host --pid host --privileged \
 		--tmpfs /run --tmpfs /var/run \
-		-v `pwd`/data/k3s-server:/var/lib/rancher/k3s \
+		-v `pwd`/data/kubemate:/var/lib/kubemate \
 		--mount type=bind,src=/etc/machine-id,dst=/etc/machine-id \
 		--mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
 		--mount type=bind,src=/var/lib/docker,dst=/var/lib/docker,bind-propagation=rshared \

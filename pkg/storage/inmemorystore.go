@@ -6,11 +6,13 @@ import (
 	"reflect"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/mgoltzsche/kubemate/pkg/pubsub"
 	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -50,7 +52,8 @@ func (s *inMemoryStore) List(l runtime.Object) error {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		appendItem(v, s.items[k])
+		res := s.items[k].DeepCopyObject().(resource.Resource)
+		appendItem(v, res)
 	}
 	return nil
 }
@@ -72,20 +75,31 @@ func (s *inMemoryStore) Create(key string, res resource.Resource) error {
 	if existing != nil {
 		return errors.NewAlreadyExists(res.GetGroupVersionResource().GroupResource(), key)
 	}
+	s.setGVK(res)
+	s.setNameAndCreationTimestamp(res, key)
 	s.setResourceVersion(res)
 	s.items[key] = res
 	s.emit(pubsub.Added, res)
 	return nil
 }
 
-func (s *inMemoryStore) Delete(key string) error {
+func (s *inMemoryStore) Delete(key string, o resource.Resource, validate func() error) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	existing := s.items[key]
-	delete(s.items, key)
-	if existing != nil {
-		s.emit(pubsub.Deleted, existing)
+	if existing == nil {
+		return fmt.Errorf("delete %s %s: resource does not exist", o.GetObjectKind().GroupVersionKind().Kind, key)
 	}
+	err := existing.DeepCopyIntoResource(o)
+	if err != nil {
+		return fmt.Errorf("delete resource: %w", err)
+	}
+	err = validate()
+	if err != nil {
+		return fmt.Errorf("delete resource: %w", err)
+	}
+	delete(s.items, key)
+	s.emit(pubsub.Deleted, existing)
 	return nil
 }
 
@@ -108,15 +122,39 @@ func (s *inMemoryStore) Update(key string, res resource.Resource, modify func() 
 		err := fmt.Errorf("resource was changed concurrently, please fetch the latest resource version and apply your changes again")
 		return errors.NewConflict(res.GetGroupVersionResource().GroupResource(), key, err)
 	}
-	s.setResourceVersion(res)
-	s.items[key] = res.DeepCopyObject().(resource.Resource)
-	s.emit(pubsub.Modified, res)
+	updated := res.DeepCopyObject().(resource.Resource)
+	s.setGVK(updated)
+	s.setResourceVersion(updated)
+	s.items[key] = updated
+	s.emit(pubsub.Modified, updated)
 	return nil
 }
 
 func (s *inMemoryStore) setResourceVersion(o resource.Resource) {
 	s.seq++
 	o.SetResourceVersion(fmt.Sprintf("%d", s.seq))
+}
+
+func (s *inMemoryStore) setNameAndCreationTimestamp(o resource.Resource, name string) {
+	m, err := meta.Accessor(o)
+	if err != nil {
+		return
+	}
+	m.SetName(name)
+	t := m.GetCreationTimestamp()
+	if t.IsZero() {
+		m.SetCreationTimestamp(metav1.Time{Time: time.Now()})
+	}
+}
+
+func (s *inMemoryStore) setGVK(res resource.Resource) {
+	m, err := meta.TypeAccessor(res)
+	if err != nil {
+		return
+	}
+	gvk := res.GetObjectKind().GroupVersionKind()
+	m.SetAPIVersion(gvk.GroupVersion().String())
+	m.SetKind(gvk.Kind)
 }
 
 func (s *inMemoryStore) emit(action pubsub.EventType, res resource.Resource) {

@@ -15,9 +15,10 @@ import (
 )
 
 var (
-	_ registryrest.Lister  = &REST{}
-	_ registryrest.Getter  = &REST{}
-	_ registryrest.Updater = &REST{}
+	_ registryrest.Lister          = &REST{}
+	_ registryrest.Getter          = &REST{}
+	_ registryrest.Updater         = &REST{}
+	_ registryrest.GracefulDeleter = &REST{}
 )
 
 type REST struct {
@@ -91,4 +92,15 @@ func (r *REST) Update(ctx context.Context, key string, objInfo registryrest.Upda
 		return nil, false, err
 	}
 	return obj, false, nil
+}
+
+func (r *REST) Delete(ctx context.Context, key string, deleteValidation registryrest.ValidateObjectFunc, options *metav1.DeleteOptions) (runtime.Object, bool, error) {
+	res := r.New().(resource.Resource)
+	err := r.Store.Delete(key, res, func() error {
+		return deleteValidation(ctx, res)
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	return res, false, err
 }

@@ -28,6 +28,8 @@ import (
 
 // Copied from https://github.com/k3s-io/k3s/blob/v1.23.6%2Bk3s1/cmd/server/main.go and added `connect` command.
 
+var Version = "dev"
+
 func init() {
 	reexec.Register("containerd", containerd.Main)
 	reexec.Register("kubectl", kubectl2.Main)
@@ -44,6 +46,7 @@ func main() {
 	os.Args[0] = cmd
 
 	app := cmds.NewApp()
+	app.Version = Version
 	app.Commands = []cli.Command{
 		addcmds.NewConnectCommand(addcmds.RunConnectServer),
 		cmds.NewServerCommand(server.Run),

@@ -55,10 +55,24 @@ var ConnectFlags = []cli.Flag{
 	},
 	cli.StringFlag{
 		Name:        "web-dir",
-		Usage:       "(agent/runtime) enable docker support",
+		Usage:       "(agent/runtime) directory that holds the static web application",
 		EnvVar:      "KUBEMATE_WEB_DIR",
 		Destination: &Connect.WebDir,
 		Value:       Connect.WebDir,
+	},
+	cli.StringFlag{
+		Name:        "manifest-dir",
+		Usage:       "(agent/runtime) directory that holds additional manifests the server should be initialized with",
+		EnvVar:      "KUBEMATE_MANIFEST_DIR",
+		Destination: &Connect.ManifestDir,
+		Value:       Connect.ManifestDir,
+	},
+	cli.StringFlag{
+		Name:        "data-dir",
+		Usage:       "(agent/runtime) directory that holds the apiserver state",
+		EnvVar:      "KUBEMATE_DATA_DIR",
+		Destination: &Connect.DataDir,
+		Value:       Connect.DataDir,
 	},
 	cli.BoolFlag{
 		Name:        "docker",

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"path/filepath"
 
 	"github.com/sirupsen/logrus"
 	"k8s.io/apiserver/pkg/authentication/user"
@@ -16,12 +17,13 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 )
 
-func newReverseProxy(host string) genericapiserver.DelegationTarget {
+func newReverseProxy(host, tlsDir string) genericapiserver.DelegationTarget {
 	r := &apiServerProxy{
 		targetURL: &url.URL{
 			Scheme: "https",
 			Host:   host,
 		},
+		tlsDir: tlsDir,
 	}
 	r.DelegationTarget = genericapiserver.NewEmptyDelegateWithCustomHandler(r)
 	return r
@@ -30,6 +32,7 @@ func newReverseProxy(host string) genericapiserver.DelegationTarget {
 type apiServerProxy struct {
 	genericapiserver.DelegationTarget
 	targetURL *url.URL
+	tlsDir    string
 }
 
 func (s *apiServerProxy) ListedPaths() []string {
@@ -110,13 +113,13 @@ func (s *apiServerProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 }
 
 func (s *apiServerProxy) tlsTransport() (*http.Transport, error) {
-	clientCertFile := "/var/lib/rancher/k3s/server/tls/client-admin.crt"
-	clientKeyFile := "/var/lib/rancher/k3s/server/tls/client-admin.key"
+	clientCertFile := filepath.Join(s.tlsDir, "client-admin.crt")
+	clientKeyFile := filepath.Join(s.tlsDir, "client-admin.key")
 	clientCert, err := tls.LoadX509KeyPair(clientCertFile, clientKeyFile)
 	if err != nil {
 		return nil, fmt.Errorf("load apiserver client cert: %w", err)
 	}
-	caCert, err := ioutil.ReadFile("/var/lib/rancher/k3s/server/tls/server-ca.crt")
+	caCert, err := ioutil.ReadFile(filepath.Join(s.tlsDir, "server-ca.crt"))
 	if err != nil {
 		return nil, err
 	}

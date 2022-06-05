@@ -133,7 +133,7 @@ func populateDevicesFromMDNS(deviceName string, devices storage.Interface) error
 	}
 	for _, d := range l.Items {
 		if _, ok := foundDevices[d.Name]; !ok {
-			if e := devices.Delete(d.Name); e != nil && err == nil {
+			if e := devices.Delete(d.Name, &d, func() error { return nil }); e != nil && err == nil {
 				err = e
 			}
 		}

@@ -38,7 +38,7 @@ func FileStore(dir string, obj resource.Resource, scheme *runtime.Scheme) (Inter
 	}
 	inmemory, err := loadFromFiles(dir, obj, codec)
 	if err != nil {
-		return nil, fmt.Errorf("filestore: read %s: %w", obj.GetGroupVersionResource().Resource, err)
+		return nil, fmt.Errorf("init filestore: read %s: %w", obj.GetGroupVersionResource().Resource, err)
 	}
 	return &filestore{
 		mutex:         &sync.RWMutex{},
@@ -72,7 +72,8 @@ func loadFromFiles(dir string, obj runtime.Object, codec runtime.Codec) (*inMemo
 			if err != nil {
 				return nil, err
 			}
-			err = inmemory.Create(filepath.Base(file.Name()), res.(resource.Resource))
+			fileName := filepath.Base(file.Name())
+			err = inmemory.Create(fileName[:len(fileName)-5], res.(resource.Resource))
 			if err != nil {
 				return nil, err
 			}
@@ -87,24 +88,32 @@ func (s *filestore) Create(key string, res resource.Resource) error {
 	if err := s.inMemoryStore.Get(key, res); err == nil {
 		return errors.NewAlreadyExists(res.GetGroupVersionResource().GroupResource(), key)
 	}
+	s.setNameAndCreationTimestamp(res, key)
 	s.setResourceVersion(res)
 	err := s.writeFile(key, res)
 	if err != nil {
 		return fmt.Errorf("create resource: %w", err)
 	}
+	s.setGVK(res)
 	s.items[key] = res
 	s.emit(pubsub.Added, res)
 	return nil
 }
 
-func (s *filestore) Delete(key string) error {
+func (s *filestore) Delete(key string, res resource.Resource, validate func() error) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	err := os.Remove(filepath.Join(s.dir, fmt.Sprintf("%s.yaml", key)))
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("delete resource: %w", err)
-	}
-	return s.inMemoryStore.Delete(key)
+	return s.inMemoryStore.Delete(key, res, func() error {
+		err := validate()
+		if err != nil {
+			return err
+		}
+		err = os.Remove(filepath.Join(s.dir, fmt.Sprintf("%s.yaml", key)))
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("delete resource: %w", err)
+		}
+		return nil
+	})
 }
 
 func (s *filestore) Update(key string, res resource.Resource, modify func() (resource.Resource, error)) error {
@@ -170,5 +179,6 @@ func (s *filestore) writeFile(key string, obj resource.Resource) error {
 	if err != nil {
 		return err
 	}
-	return os.Rename(f.Name(), fmt.Sprintf("%s.yaml", key))
+	dstFile := filepath.Join(s.dir, fmt.Sprintf("%s.yaml", key))
+	return os.Rename(f.Name(), dstFile)
 }
