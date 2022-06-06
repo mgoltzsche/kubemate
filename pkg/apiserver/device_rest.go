@@ -2,9 +2,7 @@ package apiserver
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/hashicorp/mdns"
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
 	"github.com/mgoltzsche/kubemate/pkg/runner"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
@@ -26,13 +24,14 @@ var (
 )
 
 type DeviceREST struct {
-	rest       *REST
-	runner     *runner.Runner
-	deviceName string
+	rest            *REST
+	runner          *runner.Runner
+	deviceName      string
+	deviceDiscovery func(store storage.Interface) error
 	registryrest.TableConvertor
 }
 
-func NewDeviceREST(deviceName string) *DeviceREST {
+func NewDeviceREST(deviceName string, deviceDiscovery func(store storage.Interface) error) *DeviceREST {
 	device := &deviceapi.Device{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: deviceName,
@@ -51,11 +50,11 @@ func NewDeviceREST(deviceName string) *DeviceREST {
 	}
 	r.TableConvertor = &deviceTableConvertor{}
 	devices := &DeviceREST{
-		rest:           r,
-		deviceName:     device.Name,
-		TableConvertor: r,
+		rest:            r,
+		deviceName:      device.Name,
+		deviceDiscovery: deviceDiscovery,
+		TableConvertor:  r,
 	}
-	go devices.populate()
 	return devices
 }
 
@@ -92,51 +91,8 @@ func (r *DeviceREST) Get(ctx context.Context, name string, options *metav1.GetOp
 }
 
 func (r *DeviceREST) populate() {
-	err := populateDevicesFromMDNS(r.deviceName, r.rest.Store)
+	err := r.deviceDiscovery(r.rest.Store)
 	if err != nil {
-		logrus.WithError(err).Error("failed to find devices via mdns")
+		logrus.WithError(err).Error("failed to discover devices via mdns")
 	}
-}
-
-func populateDevicesFromMDNS(deviceName string, devices storage.Interface) error {
-	foundDevices := map[string]struct{}{
-		deviceName: struct{}{},
-	}
-	ch := make(chan *mdns.ServiceEntry, 4)
-	go func() {
-		for entry := range ch {
-			fmt.Printf("## Found mdns entry: %v\n", entry)
-			d := &deviceapi.Device{}
-			d.Name = entry.Host
-			foundDevices[d.Name] = struct{}{}
-			if d.Name == deviceName {
-				continue
-			}
-			err := devices.Get(d.Name, d)
-			if errors.IsNotFound(err) {
-				err = devices.Create(d.Name, d)
-			}
-			if err != nil {
-				logrus.WithError(err).Error("failed to register device")
-			}
-		}
-	}()
-
-	mdns.Lookup("_tcp", ch)
-	close(ch)
-
-	// Remove old devices
-	l := &deviceapi.DeviceList{}
-	err := devices.List(l)
-	if err != nil {
-		return fmt.Errorf("scan for devices: %w", err)
-	}
-	for _, d := range l.Items {
-		if _, ok := foundDevices[d.Name]; !ok {
-			if e := devices.Delete(d.Name, &d, func() error { return nil }); e != nil && err == nil {
-				err = e
-			}
-		}
-	}
-	return err
 }

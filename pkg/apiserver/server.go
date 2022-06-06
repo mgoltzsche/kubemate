@@ -144,11 +144,13 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	}
 	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known"}
 	genericServer.Handler.FullHandlerChain = NewWebUIHandler(o.WebDir, genericServer.Handler.FullHandlerChain, apiPaths)
-	deviceREST := NewDeviceREST(o.DeviceName)
+	discovery := NewDeviceDiscovery(o.DeviceName, o.HTTPSPort)
+	deviceREST := NewDeviceREST(o.DeviceName, discovery.Discover)
 	deviceTokenREST, err := NewDeviceTokenREST(filepath.Join(o.DataDir, "devicetokens"), scheme, o.DeviceName)
 	if err != nil {
 		return nil, err
 	}
+	installDeviceDiscovery(genericServer, discovery, deviceREST.rest.Store)
 	apiGroup := &genericapiserver.APIGroupInfo{
 		PrioritizedVersions:  scheme.PrioritizedVersionsForGroup(deviceapi.GroupVersion.Group),
 		Scheme:               scheme,
@@ -179,6 +181,17 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	return genericServer, nil
 }
 
+func installDeviceDiscovery(genericServer *genericapiserver.GenericAPIServer, discovery *DeviceDiscovery, devices storage.Interface) {
+	genericServer.AddPostStartHookOrDie("device-discovery", func(ctx genericapiserver.PostStartHookContext) error {
+		err := discovery.Advertise()
+		if err != nil {
+			return err
+		}
+		return discovery.Discover(devices)
+	})
+	genericServer.AddPreShutdownHookOrDie("device-discovery", discovery.Close)
+}
+
 // TODO: support joining nodes to a cluster via the UI. for custom (dynamic) CORS filter, see https://github.com/kubernetes/apiserver/blob/master/pkg/server/filters/cors.go
 
 func installK3sRunner(genericServer *genericapiserver.GenericAPIServer, devices, clusterTokens storage.Interface, deviceName, dataDir, manifestDir string, docker bool) {
@@ -188,7 +201,7 @@ func installK3sRunner(genericServer *genericapiserver.GenericAPIServer, devices,
 		// Add CRDs to k3s' manifest directory
 		err := copyManifests(manifestDir, filepath.Join(dataDir, "server", "manifests"))
 		if err != nil {
-			return err
+			return fmt.Errorf("copy default manifests into data dir: %w", err)
 		}
 		// Update device resource's status
 		ch := daemon.Start()

@@ -31,7 +31,8 @@ generate-openapi: generate-types kubemate
 	@echo Load OpenAPI spec from freshly built server binary
 	@{ \
 	set -eu; \
-	$(BUILD_DIR)/bin/kubemate connect & \
+	mkdir -p /tmp/kubemate-gen; \
+	$(BUILD_DIR)/bin/kubemate connect --data-dir=/tmp/kubemate-gen --manifest-dir=/tmp/kubemate-gen & \
 	PID=$$!; \
 	sleep 1; \
 	printf '# This file is generated using `make generate-openapi`.\n# DO NOT EDIT MANUALLY!\n\n' > openapi.yaml; \
@@ -63,6 +64,12 @@ run: image
 			#--no-deploy=servicelb,traefik,metrics-server \
 			#--disable-cloud-controller \
 			#--disable-helm-controller
+
+run-other:
+	docker run --name kubemate2 --rm -p 9090:8443 --privileged \
+		--mount type=bind,src=/etc/machine-id,dst=/etc/machine-id \
+		-v `pwd`/output:/output \
+		kubemate:latest connect
 
 $(OAPI_CODEGEN): ## Installs oapi-codegen
 	$(call go-get-tool,$(OAPI_CODEGEN),github.com/deepmap/oapi-codegen/cmd/oapi-codegen@$(OAPI_CODEGEN_VERSION))

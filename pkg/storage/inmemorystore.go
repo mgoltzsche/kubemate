@@ -46,6 +46,11 @@ func (s *inMemoryStore) List(l runtime.Object) error {
 	if err != nil {
 		return err
 	}
+	m, err := meta.ListAccessor(l)
+	if err != nil {
+		return err
+	}
+	m.SetResourceVersion(fmt.Sprintf("%d", s.seq))
 	keys := make([]string, 0, len(s.items))
 	for k := range s.items {
 		keys = append(keys, k)
@@ -53,6 +58,7 @@ func (s *inMemoryStore) List(l runtime.Object) error {
 	sort.Strings(keys)
 	for _, k := range keys {
 		res := s.items[k].DeepCopyObject().(resource.Resource)
+		s.setGVK(res)
 		appendItem(v, res)
 	}
 	return nil
