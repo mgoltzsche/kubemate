@@ -30,7 +30,8 @@ const (
 // +k8s:openapi-gen=true
 // DeviceSpec defines the desired state of Cache
 type DeviceSpec struct {
-	Mode DeviceMode `json:"mode"`
+	Mode   DeviceMode `json:"mode"`
+	Server string     `json:"server,omitempty"`
 }
 
 // +k8s:openapi-gen=true

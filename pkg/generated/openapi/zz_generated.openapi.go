@@ -188,6 +188,12 @@ func schema_pkg_apis_devices_v1_DeviceSpec(ref common.ReferenceCallback) common.
 							Format:      "",
 							Enum:        []interface{}{"agent", "server"}},
 					},
+					"server": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 				},
 				Required: []string{"mode"},
 			},

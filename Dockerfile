@@ -68,7 +68,7 @@ RUN set -ex; \
 COPY --from=build /work/kubemate /bin/kubemate
 #COPY --from=manifests /manifests /usr/share/kubemate/manifests
 COPY --from=manifests /manifests/ /usr/share/kubemate/manifests/
-COPY ./ui/dist /usr/share/kubemate/web
+COPY ./ui/dist/spa /usr/share/kubemate/web
 VOLUME /var/lib/kubelet
 VOLUME /var/lib/kubemate
 VOLUME /var/lib/cni

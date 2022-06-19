@@ -40,6 +40,13 @@ generate-openapi: generate-types kubemate
 	kill -9 $$PID; \
 	}
 
+.PHONY: ui
+ui: ui/node_modules
+	cd ui && yarn generate && yarn build
+
+ui/node_modules:
+	cd ui && yarn install
+
 clean:
 	[ "`id -u`" -eq  0 ]
 	docker rm -f `docker ps -qa` || true
@@ -59,7 +66,8 @@ run: image
 		--mount type=bind,src=`pwd`/data/pod-log,dst=/var/log/pods,bind-propagation=rshared \
 		--mount type=bind,src=/sys,dst=/sys \
 		-v `pwd`:/output \
-		kubemate:latest connect --docker
+		--mount type=bind,src=`pwd`/ui/dist,dst=/usr/share/kubemate/web \
+		kubemate:latest connect --docker --web-dir=/usr/share/kubemate/web/spa
 			#--http-port=80 --https-port=443
 			#--no-deploy=servicelb,traefik,metrics-server \
 			#--disable-cloud-controller \
@@ -69,7 +77,8 @@ run-other:
 	docker run --name kubemate2 --rm -p 9090:8443 --privileged \
 		--mount type=bind,src=/etc/machine-id,dst=/etc/machine-id \
 		-v `pwd`/output:/output \
-		kubemate:latest connect
+		--mount type=bind,src=`pwd`/ui/dist,dst=/usr/share/kubemate/web \
+		kubemate:latest connect --web-dir=/usr/share/kubemate/web/spa
 
 $(OAPI_CODEGEN): ## Installs oapi-codegen
 	$(call go-get-tool,$(OAPI_CODEGEN),github.com/deepmap/oapi-codegen/cmd/oapi-codegen@$(OAPI_CODEGEN_VERSION))
