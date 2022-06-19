@@ -7,8 +7,15 @@
         <div class="text-h6">{{ device.metadata.name }}</div>
       </q-card-section>
 
-      <q-card-section class="q-pt-none">
-        Status: {{ device.status.state }} {{ device.spec.mode }}
+      <q-card-section class="q-pt-none q-gutter-y-md">
+        <div>
+          Address:
+          <a
+            :href="`${device.status.address}#/devices/${device.metadata.name}`"
+            >{{ device.status.address }}</a
+          >
+        </div>
+        <div>Status: {{ device.status.state }} {{ device.spec.mode }}</div>
       </q-card-section>
 
       <q-card-section class="q-pt-none" v-if="device.status.message">
@@ -61,8 +68,8 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, reactive, ref, Ref, toRefs } from 'vue';
-import { useDeviceStore } from 'src/stores/resource-store';
+import { computed, defineComponent, reactive, toRefs } from 'vue';
+import { useDeviceStore } from 'src/stores/resources';
 
 export default defineComponent({
   name: 'DeviceDetails',

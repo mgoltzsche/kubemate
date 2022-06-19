@@ -142,6 +142,11 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, err
 	}
+	ips, err = publicIPs()
+	if err != nil {
+		return nil, err
+	}
+	genericServer.ExternalAddress = fmt.Sprintf("%s:%d", ips[0], o.HTTPSPort)
 	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known"}
 	genericServer.Handler.FullHandlerChain = NewWebUIHandler(o.WebDir, genericServer.Handler.FullHandlerChain, apiPaths)
 	discovery := NewDeviceDiscovery(o.DeviceName, o.HTTPSPort)
@@ -213,6 +218,8 @@ func installK3sRunner(genericServer *genericapiserver.GenericAPIServer, devices,
 					// TODO: map properly
 					device.Status.State = deviceapi.DeviceState(cmd.Status.State)
 					device.Status.Message = cmd.Status.Message
+					device.Status.Address = fmt.Sprintf("https://%s", genericServer.ExternalAddress)
+					device.Status.Current = true
 					return device, nil
 				})
 				if err != nil {

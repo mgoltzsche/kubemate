@@ -116,7 +116,7 @@ func schema_pkg_apis_devices_v1_Device(ref common.ReferenceCallback) common.Open
 						},
 					},
 				},
-				Required: []string{"metadata", "spec", "status"},
+				Required: []string{"metadata", "status"},
 			},
 		},
 		Dependencies: []string{
@@ -208,6 +208,13 @@ func schema_pkg_apis_devices_v1_DeviceStatus(ref common.ReferenceCallback) commo
 				Description: "DeviceStatus defines the observed state of Cache",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"current": {
+						SchemaProps: spec.SchemaProps{
+							Default: false,
+							Type:    []string{"boolean"},
+							Format:  "",
+						},
+					},
 					"state": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Possible enum values:\n - `\"error\"`\n - `\"exited\"`\n - `\"running\"`\n - `\"starting\"`\n - `\"unknown\"`",
@@ -221,7 +228,14 @@ func schema_pkg_apis_devices_v1_DeviceStatus(ref common.ReferenceCallback) commo
 							Format: "",
 						},
 					},
+					"address": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 				},
+				Required: []string{"current"},
 			},
 		},
 	}

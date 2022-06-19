@@ -35,11 +35,7 @@ func (d *DeviceDiscovery) Advertise() error {
 	info := []string{"kubemate"}
 	ips, err := publicIPs()
 	if err != nil {
-		if len(ips) == 0 {
-			return fmt.Errorf("detect public IPs: %w", err)
-		} else {
-			logrus.WithError(err).Warn("error when detecting devices")
-		}
+		return err
 	}
 	svc, err := mdns.NewMDNSService(d.deviceName, mdnsZone, "", "", d.port, ips, info)
 	if err != nil {
@@ -79,7 +75,16 @@ func publicIPs() ([]net.IP, error) {
 			ips = append(ips, v4)
 		}
 	}
-	return ips, err
+	if err != nil {
+		if len(ips) == 0 {
+			return nil, fmt.Errorf("detect public IPs: %w", err)
+		}
+		logrus.WithError(err).Warn("error when detecting devices")
+	}
+	if len(ips) == 0 {
+		return nil, fmt.Errorf("detect public IPs: no public IP availble")
+	}
+	return ips, nil
 }
 
 func (d *DeviceDiscovery) Discover(store storage.Interface) error {
@@ -112,8 +117,14 @@ func populateDevicesFromMDNS(deviceName string, devices storage.Interface) error
 			}
 			err := devices.Get(d.Name, d)
 			if errors.IsNotFound(err) {
-				logrus.Infof("discovered new device %s (%s) via mdns", d.Name, entry.Name)
 				d.Labels = map[string]string{mdnsDiscoveryLabel: "true"}
+				addr := entry.AddrV4.String()
+				if addr == "" {
+					addr = entry.AddrV6.String()
+				}
+				addr = fmt.Sprintf("https://%s:%d", addr, entry.Port)
+				d.Status.Address = addr
+				logrus.WithField("address", addr).WithField("device", entry.Name).Infof("discovered new device %s via mdns", d.Name)
 				err = devices.Create(d.Name, d)
 			}
 			if err != nil && !errors.IsAlreadyExists(err) {

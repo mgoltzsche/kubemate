@@ -13,6 +13,7 @@
 
         <q-toolbar-title> Kubemate </q-toolbar-title>
 
+        <q-btn flat dense round icon="login" aria-label="Login" to="/login" />
         <div>Quasar v{{ $q.version }}</div>
       </q-toolbar>
     </q-header>

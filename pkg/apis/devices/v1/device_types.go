@@ -37,19 +37,22 @@ type DeviceSpec struct {
 // +k8s:openapi-gen=true
 // DeviceStatus defines the observed state of Cache
 type DeviceStatus struct {
+	Current bool        `json:"current"`
 	State   DeviceState `json:"state,omitempty"`
 	Message string      `json:"message,omitempty"`
+	Address string      `json:"address,omitempty"`
+	// TODO: add ips (currently this makes the code generation fail):
+	//IPs []string `json:"ips,omitempty"`
 }
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Device is the Schema for the devices API
 // +k8s:openapi-gen=true
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type Device struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 
-	Spec   DeviceSpec   `json:"spec"`
+	Spec   DeviceSpec   `json:"spec,omitempty"`
 	Status DeviceStatus `json:"status"`
 }
 

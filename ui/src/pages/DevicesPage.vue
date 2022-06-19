@@ -2,7 +2,7 @@
   <div class="row">
     <device-list :class="className" />
     <div class="col-xs-12 col-sm-7 col-md-8">
-      <router-view />
+      <router-view :key="$route.fullPath" />
     </div>
   </div>
 </template>

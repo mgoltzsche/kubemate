@@ -23,7 +23,7 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 import { storeToRefs } from 'pinia';
-import { useDeviceStore } from 'src/stores/resource-store';
+import { useDeviceStore } from 'src/stores/resources';
 
 export default defineComponent({
   name: 'DeviceList',
