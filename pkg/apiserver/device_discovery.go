@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	mdnsZone           = "_kubemate._tcp"
+	mdnsZone   = "_kubemate._tcp"
 	mdnsDiscoveryLabel = "kubemate.mgoltzsche.github.com/mdns-discovery"
 )
 

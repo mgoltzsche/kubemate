@@ -8,6 +8,7 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	registryrest "k8s.io/apiserver/pkg/registry/rest"
@@ -44,9 +45,20 @@ func NewDeviceTokenREST(dir string, scheme *runtime.Scheme, deviceName string) (
 
 func (r *deviceTokenREST) Update(ctx context.Context, key string, objInfo registryrest.UpdatedObjectInfo, createValidation registryrest.ValidateObjectFunc, updateValidation registryrest.ValidateObjectUpdateFunc, forceAllowCreate bool, options *metav1.UpdateOptions) (runtime.Object, bool, error) {
 	if key == r.deviceName {
-		return nil, false, fmt.Errorf("refusing to update cluster join token manually. please delete it to force regeneration")
+		return nil, false, fmt.Errorf("refusing to update cluster join token on the server manually. please delete it to force regeneration")
 	}
 	return r.REST.Update(ctx, key, objInfo, createValidation, updateValidation, forceAllowCreate, options)
+}
+
+func (r *deviceTokenREST) Create(ctx context.Context, obj runtime.Object, createValidation registryrest.ValidateObjectFunc, options *metav1.CreateOptions) (runtime.Object, error) {
+	m, err := meta.Accessor(obj)
+	if err != nil {
+		return nil, err
+	}
+	if m.GetName() == r.deviceName {
+		return nil, fmt.Errorf("refusing to create cluster join token on the server manually. please delete it to force regeneration")
+	}
+	return r.REST.Create(ctx, obj, createValidation, options)
 }
 
 func (r *deviceTokenREST) Delete(ctx context.Context, key string, deleteValidation registryrest.ValidateObjectFunc, options *metav1.DeleteOptions) (runtime.Object, bool, error) {

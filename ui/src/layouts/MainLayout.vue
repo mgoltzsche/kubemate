@@ -13,8 +13,15 @@
 
         <q-toolbar-title> Kubemate </q-toolbar-title>
 
-        <q-btn flat dense round icon="login" aria-label="Login" to="/login" />
-        <div>Quasar v{{ $q.version }}</div>
+        <q-btn
+          flat
+          dense
+          round
+          icon="login"
+          aria-label="Login"
+          @click="loginDialogOpen = true"
+        />
+        <div>Kubemate {{ version }} @ {{ deviceName }}</div>
       </q-toolbar>
     </q-header>
 
@@ -29,6 +36,8 @@
         />
       </q-list>
     </q-drawer>
+
+    <login-dialog v-model="loginDialogOpen" />
 
     <q-page-container>
       <q-breadcrumbs v-if="$route.path != '/'" class="q-pa-md">
@@ -49,8 +58,11 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref } from 'vue';
+import { defineComponent, ref, toRefs, computed, reactive } from 'vue';
 import EssentialLink from 'components/EssentialLink.vue';
+import { version } from '../../package.json';
+import { useDeviceStore } from 'src/stores/resources';
+import LoginDialog from 'src/components/LoginDialog.vue';
 
 const linksList = [
   {
@@ -83,22 +95,55 @@ const linksList = [
   },
 ];
 
+function useLeftDrawerToggle() {
+  const leftDrawerOpen = ref(false);
+  return {
+    leftDrawerOpen,
+    toggleLeftDrawer() {
+      leftDrawerOpen.value = !leftDrawerOpen.value;
+    },
+  };
+}
+
+function useLoginDialog() {
+  const loginDialogOpen = ref(false);
+  return {
+    loginDialogOpen,
+    toggleLoginDialog() {
+      console.log('logindialog', !loginDialogOpen.value);
+      loginDialogOpen.value = !loginDialogOpen.value;
+    },
+  };
+}
+
+function useDeviceName() {
+  const store = useDeviceStore();
+  store.sync();
+  const state = reactive({
+    deviceName: computed(
+      () => store.resources.find((d) => d.status.current)?.metadata.name || ''
+    ),
+  });
+  return {
+    ...toRefs(state),
+  };
+}
+
 export default defineComponent({
   name: 'MainLayout',
 
   components: {
     EssentialLink,
+    LoginDialog,
   },
 
   setup() {
-    const leftDrawerOpen = ref(false);
-
     return {
       essentialLinks: linksList,
-      leftDrawerOpen,
-      toggleLeftDrawer() {
-        leftDrawerOpen.value = !leftDrawerOpen.value;
-      },
+      ...useLeftDrawerToggle(),
+      ...useLoginDialog(),
+      ...useDeviceName(),
+      version,
     };
   },
 });

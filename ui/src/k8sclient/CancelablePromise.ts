@@ -24,12 +24,12 @@ export class CancelablePromise<T> implements Promise<T> {
   readonly #cancelHandlers: (() => void)[];
   readonly #promise: Promise<T>;
   #resolve?: (value: T | PromiseLike<T>) => void;
-  #reject?: (reason?: any) => void;
+  #reject?: (reason?: unknown) => void;
 
   constructor(
     executor: (
       resolve: (value: T | PromiseLike<T>) => void,
-      reject: (reason?: any) => void,
+      reject: (reason?: unknown) => void,
       onCancel: OnCancel
     ) => void
   ) {
@@ -47,7 +47,7 @@ export class CancelablePromise<T> implements Promise<T> {
         }
       };
 
-      const onReject = (reason?: any): void => {
+      const onReject = (reason?: unknown): void => {
         this.#isPending = false;
         this.#reject?.(reason);
       };
@@ -72,13 +72,13 @@ export class CancelablePromise<T> implements Promise<T> {
 
   public then<TResult1 = T, TResult2 = never>(
     onFulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
-    onRejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null
+    onRejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
   ): Promise<TResult1 | TResult2> {
     return this.#promise.then(onFulfilled, onRejected);
   }
 
   public catch<TResult = never>(
-    onRejected?: ((reason: any) => TResult | PromiseLike<TResult>) | null
+    onRejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null
   ): Promise<T | TResult> {
     return this.#promise.catch(onRejected);
   }

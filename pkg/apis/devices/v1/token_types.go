@@ -35,13 +35,13 @@ func (in *DeviceToken) NewList() runtime.Object {
 }
 
 func (in *DeviceToken) GetGroupVersionResource() schema.GroupVersionResource {
-	return GroupVersion.WithResource("devices")
+	return GroupVersion.WithResource("devicetokens")
 }
 
 func (in *DeviceToken) DeepCopyIntoResource(res resource.Resource) error {
 	d, ok := res.(*DeviceToken)
 	if !ok {
-		return fmt.Errorf("expected resource of type Device but received %T", res)
+		return fmt.Errorf("expected resource of type DeviceToken but received %T", res)
 	}
 	in.DeepCopyInto(d)
 	return nil

@@ -116,7 +116,7 @@ func schema_pkg_apis_devices_v1_Device(ref common.ReferenceCallback) common.Open
 						},
 					},
 				},
-				Required: []string{"metadata", "status"},
+				Required: []string{"metadata", "spec", "status"},
 			},
 		},
 		Dependencies: []string{
@@ -194,6 +194,12 @@ func schema_pkg_apis_devices_v1_DeviceSpec(ref common.ReferenceCallback) common.
 							Format: "",
 						},
 					},
+					"allowOrigin": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
 				},
 				Required: []string{"mode"},
 			},
@@ -229,6 +235,12 @@ func schema_pkg_apis_devices_v1_DeviceStatus(ref common.ReferenceCallback) commo
 						},
 					},
 					"address": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"joinAddress": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",

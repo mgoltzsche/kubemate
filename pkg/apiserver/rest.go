@@ -6,6 +6,7 @@ import (
 
 	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -17,6 +18,7 @@ import (
 var (
 	_ registryrest.Lister          = &REST{}
 	_ registryrest.Getter          = &REST{}
+	_ registryrest.Creater         = &REST{}
 	_ registryrest.Updater         = &REST{}
 	_ registryrest.GracefulDeleter = &REST{}
 )
@@ -70,6 +72,22 @@ func (r *REST) Get(ctx context.Context, name string, options *metav1.GetOptions)
 		return nil, err
 	}
 	return o, nil
+}
+
+func (r *REST) Create(ctx context.Context, obj runtime.Object, createValidation registryrest.ValidateObjectFunc, options *metav1.CreateOptions) (runtime.Object, error) {
+	err := createValidation(ctx, obj)
+	if err != nil {
+		return nil, err
+	}
+	m, err := meta.Accessor(obj)
+	if err != nil {
+		return nil, err
+	}
+	err = r.Store.Create(m.GetName(), obj.(resource.Resource))
+	if err != nil {
+		return nil, err
+	}
+	return obj, nil
 }
 
 func (r *REST) Update(ctx context.Context, key string, objInfo registryrest.UpdatedObjectInfo, createValidation registryrest.ValidateObjectFunc, updateValidation registryrest.ValidateObjectUpdateFunc, forceAllowCreate bool, options *metav1.UpdateOptions) (runtime.Object, bool, error) {

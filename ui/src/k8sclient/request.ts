@@ -11,9 +11,9 @@ export type ApiRequestOptions = {
     | 'HEAD'
     | 'PATCH';
   readonly url: string;
-  readonly headers?: Record<string, any>;
-  readonly query?: Record<string, any>;
-  readonly formData?: Record<string, any>;
+  readonly headers?: Record<string, unknown>;
+  readonly query?: Record<string, unknown>;
+  readonly formData?: Record<string, unknown>;
   readonly body?: any;
   readonly responseHeader?: string;
   readonly errors?: Record<number, string>;
@@ -50,15 +50,15 @@ function isDefined<T>(
   return value !== undefined && value !== null;
 }
 
-function isString(value: any): value is string {
+function isString(value: unknown): value is string {
   return typeof value === 'string';
 }
 
-function isBlob(value: any): value is Blob {
+function isBlob(value: unknown): value is Blob {
   return value instanceof Blob;
 }
 
-function getQueryString(params: Record<string, any>): string {
+function getQueryString(params: Record<string, unknown>): string {
   const qs: string[] = [];
 
   Object.keys(params).forEach((key) => {
@@ -109,18 +109,6 @@ function getFormData(options: ApiRequestOptions): FormData | undefined {
     return formData;
   }
   return;
-}
-
-type Resolver<T> = (options: ApiRequestOptions) => Promise<T>;
-
-async function resolve<T>(
-  options: ApiRequestOptions,
-  resolver?: T | Resolver<T>
-): Promise<T | undefined> {
-  if (typeof resolver === 'function') {
-    return (resolver as Resolver<T>)(options);
-  }
-  return resolver;
 }
 
 async function getHeaders(options: ApiRequestOptions): Promise<Headers> {

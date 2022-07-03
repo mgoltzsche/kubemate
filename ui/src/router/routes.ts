@@ -8,12 +8,6 @@ const routes: RouteRecordRaw[] = [
     children: [{ path: '', component: () => import('pages/IndexPage.vue') }],
   },
   {
-    name: 'login',
-    path: '/login',
-    component: () => import('layouts/MainLayout.vue'),
-    children: [{ path: '', component: () => import('pages/LoginPage.vue') }],
-  },
-  {
     name: 'devices',
     path: '/devices',
     component: () => import('layouts/MainLayout.vue'),
@@ -29,6 +23,27 @@ const routes: RouteRecordRaw[] = [
             component: () => import('pages/DevicePage.vue'),
           },
         ],
+      },
+    ],
+  },
+
+  {
+    name: 'request-join-token',
+    path: '/setup/request-join-token/:agent',
+    component: () => import('layouts/MainLayout.vue'),
+    children: [
+      { path: '', component: () => import('pages/RequestJoinTokenPage.vue') },
+    ],
+  },
+  {
+    name: 'setup',
+    path: '/setup',
+    component: () => import('layouts/IframeLayout.vue'),
+    children: [
+      {
+        name: 'accept-join-token',
+        path: '/setup/accept-join-token/:server/:token',
+        component: () => import('pages/AcceptJoinTokenPage.vue'),
       },
     ],
   },

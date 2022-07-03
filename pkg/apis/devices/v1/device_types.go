@@ -30,17 +30,19 @@ const (
 // +k8s:openapi-gen=true
 // DeviceSpec defines the desired state of Cache
 type DeviceSpec struct {
-	Mode   DeviceMode `json:"mode"`
-	Server string     `json:"server,omitempty"`
+	Mode        DeviceMode `json:"mode"`
+	Server      string     `json:"server,omitempty"`
+	AllowOrigin bool       `json:"allowOrigin,omitempty"`
 }
 
 // +k8s:openapi-gen=true
 // DeviceStatus defines the observed state of Cache
 type DeviceStatus struct {
-	Current bool        `json:"current"`
-	State   DeviceState `json:"state,omitempty"`
-	Message string      `json:"message,omitempty"`
-	Address string      `json:"address,omitempty"`
+	Current     bool        `json:"current"`
+	State       DeviceState `json:"state,omitempty"`
+	Message     string      `json:"message,omitempty"`
+	Address     string      `json:"address,omitempty"`
+	JoinAddress string      `json:"joinAddress,omitempty"`
 	// TODO: add ips (currently this makes the code generation fail):
 	//IPs []string `json:"ips,omitempty"`
 }
@@ -52,7 +54,7 @@ type Device struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 
-	Spec   DeviceSpec   `json:"spec,omitempty"`
+	Spec   DeviceSpec   `json:"spec"`
 	Status DeviceStatus `json:"status"`
 }
 

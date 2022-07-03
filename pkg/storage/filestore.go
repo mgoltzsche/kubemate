@@ -88,13 +88,13 @@ func (s *filestore) Create(key string, res resource.Resource) error {
 	if err := s.inMemoryStore.Get(key, res); err == nil {
 		return errors.NewAlreadyExists(res.GetGroupVersionResource().GroupResource(), key)
 	}
+	s.setGVK(res)
 	s.setNameAndCreationTimestamp(res, key)
 	s.setResourceVersion(res)
 	err := s.writeFile(key, res)
 	if err != nil {
 		return fmt.Errorf("create resource: %w", err)
 	}
-	s.setGVK(res)
 	s.items[key] = res
 	s.emit(pubsub.Added, res)
 	return nil

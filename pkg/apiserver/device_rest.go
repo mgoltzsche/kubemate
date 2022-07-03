@@ -15,8 +15,6 @@ import (
 	registryrest "k8s.io/apiserver/pkg/registry/rest"
 )
 
-// TODO: advertise as mdns service, see https://github.com/holoplot/go-avahi#publishing
-
 var (
 	_ registryrest.Lister  = &DeviceREST{}
 	_ registryrest.Getter  = &DeviceREST{}

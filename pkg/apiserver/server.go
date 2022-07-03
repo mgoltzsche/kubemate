@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -131,6 +133,10 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	} else {
 		authz = bearertoken.New(tokens)
 	}
+	ips, err = publicIPs()
+	if err != nil {
+		return nil, err
+	}
 	serverConfig.Authentication.Authenticator = union.New(
 		authz,
 		anonymous.NewAuthenticator(),
@@ -142,13 +148,6 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, err
 	}
-	ips, err = publicIPs()
-	if err != nil {
-		return nil, err
-	}
-	genericServer.ExternalAddress = fmt.Sprintf("%s:%d", ips[0], o.HTTPSPort)
-	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known"}
-	genericServer.Handler.FullHandlerChain = NewWebUIHandler(o.WebDir, genericServer.Handler.FullHandlerChain, apiPaths)
 	discovery := NewDeviceDiscovery(o.DeviceName, o.HTTPSPort)
 	deviceREST := NewDeviceREST(o.DeviceName, discovery.Discover)
 	deviceTokenREST, err := NewDeviceTokenREST(filepath.Join(o.DataDir, "devicetokens"), scheme, o.DeviceName)
@@ -156,6 +155,29 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		return nil, err
 	}
 	installDeviceDiscovery(genericServer, discovery, deviceREST.rest.Store)
+	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known", "/version"}
+	var handler http.Handler = NewWebUIHandler(o.WebDir, genericServer.Handler.FullHandlerChain, apiPaths)
+	/*handler = &corsHandler{
+		Config: func() (c CorsConfig) {
+			var d deviceapi.Device
+			_ = deviceREST.rest.Store.Get(o.DeviceName, &d)
+			if d.Spec.AllowOrigin {
+				c.AllowedOrigins = append(c.AllowedOrigins, d.Name, d.Status.Address)
+			}
+			if d.Spec.Server != "" {
+				c.AllowedOrigins = []string{d.Spec.Server}
+				_ = deviceREST.rest.Store.Get(d.Name, &d)
+				if d.Status.Address != "" {
+					c.AllowedOrigins = append(c.AllowedOrigins, d.Status.Address)
+				}
+			}
+			fmt.Printf("## %+v\n", c.AllowedOrigins)
+			return
+		},
+		Delegate: handler,
+	}*/
+	genericServer.Handler.FullHandlerChain = handler
+	genericServer.ExternalAddress = fmt.Sprintf("%s:%d", ips[0], o.HTTPSPort)
 	apiGroup := &genericapiserver.APIGroupInfo{
 		PrioritizedVersions:  scheme.PrioritizedVersionsForGroup(deviceapi.GroupVersion.Group),
 		Scheme:               scheme,
@@ -229,17 +251,15 @@ func installK3sRunner(genericServer *genericapiserver.GenericAPIServer, devices,
 			}
 		}()
 		// Listen for device spec changes
-		d := deviceapi.Device{}
-		_ = devices.Get(d.Name, &d)
-		daemon.SetCommand(runner.CommandSpec{
-			Command: "/proc/self/exe",
-			Args:    buildK3sArgs(&d, dataDir, docker, clusterTokens),
-		})
 		w, err := devices.Watch(context.Background(), "")
 		if err != nil {
 			return err
 		}
 		defer w.Stop()
+		err = reconcileCommand(devices, clusterTokens, deviceName, dataDir, docker, daemon)
+		if err != nil {
+			return err
+		}
 		deviceCh := w.ResultChan()
 		go func() {
 			for evt := range deviceCh {
@@ -248,11 +268,11 @@ func installK3sRunner(genericServer *genericapiserver.GenericAPIServer, devices,
 					if d.Name != deviceName {
 						continue
 					}
-					_ = devices.Get(d.Name, d)
-					daemon.SetCommand(runner.CommandSpec{
-						Command: "/proc/self/exe",
-						Args:    buildK3sArgs(d, dataDir, docker, clusterTokens),
-					})
+					err = reconcileCommand(devices, clusterTokens, deviceName, dataDir, docker, daemon)
+					if err != nil {
+						logrus.WithError(err).Error("failed to reconcile device command")
+						continue
+					}
 				}
 			}
 		}()
@@ -263,7 +283,74 @@ func installK3sRunner(genericServer *genericapiserver.GenericAPIServer, devices,
 	})
 }
 
-func buildK3sArgs(d *deviceapi.Device, dataDir string, docker bool, clusterTokens storage.Interface) []string {
+func reconcileCommand(devices, clusterTokens storage.Interface, deviceName, dataDir string, docker bool, daemon *runner.Runner) error {
+	logrus.Info("reconcile device")
+	d := deviceapi.Device{}
+	err := devices.Get(deviceName, &d)
+	if err != nil {
+		return err
+	}
+	if m := d.Spec.Mode; m != deviceapi.DeviceModeServer && m != deviceapi.DeviceModeAgent {
+		logrus.Warnf("unsupported device mode %q specified", d.Spec.Mode)
+		return nil
+	}
+	var args []string
+	var k3sServerAddress string
+	var statusMessage string
+	fn := func() error {
+		switch d.Spec.Mode {
+		case deviceapi.DeviceModeServer:
+			k3sServerAddress = ""
+			args = buildK3sServerArgs(&d, dataDir, docker, clusterTokens)
+		case deviceapi.DeviceModeAgent:
+			if d.Spec.Server == "" {
+				return fmt.Errorf("no server specified to join")
+			}
+			if d.Spec.Server == d.Name {
+				return fmt.Errorf("cannot join itself")
+			}
+			var server deviceapi.Device
+			err := devices.Get(d.Spec.Server, &d)
+			if err != nil {
+				return err
+			}
+			k3sServerAddress = ""
+			u, err := url.Parse(server.Status.Address)
+			if err != nil {
+				return fmt.Errorf("server device.status.address is not a valid address: %w", err)
+			}
+			k3sServerAddress = fmt.Sprintf("%s:6443", u.Hostname())
+			statusMessage = ""
+			// TODO: impl
+			args = []string{"true"}
+		}
+		return nil
+	}
+	if err = fn(); err != nil {
+		logrus.WithError(err).Warn("failed to reconcile device")
+		statusMessage = err.Error()
+	}
+	if d.Status.JoinAddress != k3sServerAddress || d.Status.Message != statusMessage {
+		// Update device status
+		err = devices.Update(d.Name, &d, func() (resource.Resource, error) {
+			d.Status.JoinAddress = k3sServerAddress
+			d.Status.Message = statusMessage
+			return &d, nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+	if len(args) > 0 {
+		daemon.SetCommand(runner.CommandSpec{
+			Command: "/proc/self/exe",
+			Args:    args,
+		})
+	}
+	return nil
+}
+
+func buildK3sServerArgs(d *deviceapi.Device, dataDir string, docker bool, clusterTokens storage.Interface) []string {
 	args := []string{
 		"server",
 		"--disable-cloud-controller",
