@@ -94,7 +94,7 @@ func (s *inMemoryStore) Delete(key string, o resource.Resource, validate func() 
 	defer s.mutex.Unlock()
 	existing := s.items[key]
 	if existing == nil {
-		return fmt.Errorf("delete %s %s: resource does not exist", o.GetObjectKind().GroupVersionKind().Kind, key)
+		return errors.NewNotFound(o.GetGroupVersionResource().GroupResource(), key)
 	}
 	err := existing.DeepCopyIntoResource(o)
 	if err != nil {
@@ -164,7 +164,7 @@ func (s *inMemoryStore) setGVK(res resource.Resource) {
 }
 
 func (s *inMemoryStore) emit(action pubsub.EventType, res resource.Resource) {
-	s.pubsub.Publish(pubsub.Event{Type: pubsub.Added, Object: res})
+	s.pubsub.Publish(pubsub.Event{Type: action, Object: res})
 }
 
 func appendItem(v reflect.Value, obj runtime.Object) {

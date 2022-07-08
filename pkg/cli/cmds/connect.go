@@ -18,6 +18,7 @@ type ConnectConfig struct {
 	apiserver.ServerOptions
 	HTTPAddress string
 	HTTPPort    int
+	LogLevel    string
 }
 
 var appName = "kubemate"
@@ -80,6 +81,13 @@ var ConnectFlags = []cli.Flag{
 		EnvVar:      "KUBEMATE_DOCKER",
 		Destination: &Connect.Docker,
 	},
+	cli.StringFlag{
+		Name:        "log-level",
+		Usage:       "(agent/runtime) log level",
+		EnvVar:      "KUBEMATE_LOG_LEVEL",
+		Destination: &Connect.LogLevel,
+		Value:       Connect.LogLevel,
+	},
 }
 
 func NewConnectCommand(action func(*cli.Context) error) cli.Command {
@@ -100,6 +108,13 @@ func run(ctx context.Context) error {
 	genericServer, err := apiserver.NewServer(Connect.ServerOptions)
 	if err != nil {
 		return err
+	}
+	if Connect.LogLevel != "" {
+		lvl, err := logrus.ParseLevel(Connect.LogLevel)
+		if err != nil {
+			return fmt.Errorf("unsupported --log-level %q specified", lvl)
+		}
+		logrus.SetLevel(lvl)
 	}
 	prepared := genericServer.PrepareRun()
 	srv := &http.Server{

@@ -57,10 +57,15 @@ type watcher struct {
 }
 
 func (w *watcher) Stop() {
+	var ch chan Event
 	w.pubsub.mutex.Lock()
 	delete(w.pubsub.watchers, w.id)
+	ch = w.ch
+	w.ch = nil
 	w.pubsub.mutex.Unlock()
-	close(w.ch)
+	if ch != nil {
+		close(ch)
+	}
 }
 
 func (w *watcher) ResultChan() <-chan Event {

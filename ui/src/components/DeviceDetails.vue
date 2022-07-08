@@ -98,7 +98,6 @@ import {
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_DeviceToken as DeviceToken,
 } from 'src/gen';
 import { useQuasar } from 'quasar';
-import { ApiError } from 'src/k8sclient/request';
 
 function serverJoinTokenRequestURL(server: Device) {
   const addrRegex = new RegExp('https://([^/]+)');
@@ -121,22 +120,77 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const store = useDeviceStore();
-    store.sync();
+    const deviceStore = useDeviceStore();
+    deviceStore.sync();
     const selectedServer = ref(null as unknown) as Ref<{ value: Device }>;
     const quasar = useQuasar();
+
+    async function joinServer(d: Device) {
+      if (selectedServer.value == null) return;
+      const serverName = selectedServer.value.value.metadata.name;
+      const serverAddr = selectedServer.value.value.status.address;
+      if (!serverName || !serverAddr) return;
+      d.spec.mode = DeviceSpec.mode.AGENT;
+      d.spec.server = serverName;
+      console.log(
+        `switching device ${d.metadata.name} to ${d.spec.mode} mode, joining ${serverName}`
+      );
+      try {
+        await deviceStore.client.update(d);
+        try {
+          await client.get(serverName);
+          console.log(
+            `join token for server device ${serverName} already exists on agent device ${props.deviceName}`
+          );
+        } catch (e) {
+          const url = serverJoinTokenRequestURL(selectedServer.value.value);
+          console.log(
+            `join token for server ${serverName} does not exist - redirecting user to retrieve token to ${url}`
+          );
+          window.location.href = url;
+        }
+      } catch (e: any) {
+        quasar.notify({
+          type: 'negative',
+          message: e.body?.message
+            ? `${e.message}: ${e.body?.message}`
+            : e.message,
+        });
+      }
+    }
+
+    async function hostServer(d: Device) {
+      d.spec.mode = DeviceSpec.mode.SERVER;
+      d.spec.server = undefined;
+      console.log(`switching device ${d.metadata.name} to ${d.spec.mode} mode`);
+      try {
+        await deviceStore.client.update(d);
+      } catch (e: any) {
+        quasar.notify({
+          type: 'negative',
+          message: e.body?.message
+            ? `${e.message}: ${e.body?.message}`
+            : e.message,
+        });
+      }
+    }
+
     const state = reactive({
       selectedServer: selectedServer,
-      synchronizing: store.synchronizing,
+      synchronizing: deviceStore.synchronizing,
       currentDeviceName: computed(
-        () => store.resources.find((d) => d.status.current)?.metadata.name || ''
+        () =>
+          deviceStore.resources.find((d) => d.status.current)?.metadata.name ||
+          ''
       ),
       device: computed(() =>
-        store.resources.find((d) => d.metadata.name == props.deviceName)
+        deviceStore.resources.find((d) => d.metadata.name == props.deviceName)
       ),
       availableDevices: computed(() =>
-        store.resources
-          .filter((d) => d.metadata.name != props.deviceName)
+        deviceStore.resources
+          .filter(
+            (d) => d.metadata.name != props.deviceName && d.status.address
+          )
           .map((d) => ({ label: d.metadata.name, value: d }))
       ),
       availableDeviceModes: [
@@ -158,59 +212,28 @@ export default defineComponent({
           }
         }
       },
-      apply: () => {
-        const d = store.resources.find(
+      apply: async () => {
+        const d = deviceStore.resources.find(
           (d) => d.metadata.name == props.deviceName
         );
         if (!d) {
-          // TODO: error notification
-          return;
-        }
-        if (selectedServer.value == null) {
-          // TODO: error notification
-          return;
-        }
-        const serverName = selectedServer.value.value.metadata.name;
-        const serverAddr = selectedServer.value.value.status.address;
-        if (!serverName || !serverAddr) {
-          // TODO: error notification
-          return;
-        }
-        d.spec.mode = DeviceSpec.mode.AGENT;
-        d.spec.server = serverName;
-        console.log('update device', d);
-        store.client
-          .update(d)
-          .then(() => {
-            console.log('device updated');
-            client
-              .get(serverName)
-              .then(() => {
-                console.log(
-                  `join token for server device ${serverName} already exists on agent device ${props.deviceName}`
-                );
-              })
-              .catch((e) => {
-                const url = serverJoinTokenRequestURL(
-                  selectedServer.value.value
-                );
-                console.log(
-                  `join token for server ${serverName} does not exist - redirecting user to retrieve token to ${url}`
-                );
-                window.location.href = url;
-              });
-          })
-          .catch((e) => {
-            quasar.notify({
-              type: 'negative',
-              message: e.body?.message
-                ? `${e.message}: ${e.body?.message}`
-                : e.message,
-            });
+          quasar.notify({
+            type: 'negative',
+            message: `Device ${props.deviceName} not found!`,
           });
+          return;
+        }
+        switch (d.spec.mode) {
+          case DeviceSpec.mode.AGENT:
+            await joinServer(d);
+          case DeviceSpec.mode.SERVER:
+            await hostServer(d);
+          default:
+            console.log(`ERROR: unsupported device mode: ${d.spec.mode}`);
+        }
       },
       switchDevice: () => {
-        const a = store.resources.find(
+        const a = deviceStore.resources.find(
           (d) => d.metadata.name == props.deviceName
         )?.status.address;
         if (a) window.location.href = `${a}/#/devices/${props.deviceName}`;

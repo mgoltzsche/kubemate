@@ -234,7 +234,11 @@ func installK3sRunner(genericServer *genericapiserver.GenericAPIServer, devices,
 		ch := daemon.Start()
 		go func() {
 			for cmd := range ch {
-				logrus.Printf("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
+				if cmd.Status.State == runner.ProcessStateFailed {
+					logrus.Warnf("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
+				} else {
+					logrus.Printf("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
+				}
 				device := &deviceapi.Device{}
 				err := devices.Update(deviceName, device, func() (resource.Resource, error) {
 					// TODO: map properly
@@ -251,17 +255,22 @@ func installK3sRunner(genericServer *genericapiserver.GenericAPIServer, devices,
 			}
 		}()
 		// Listen for device spec changes
-		w, err := devices.Watch(context.Background(), "")
+		goCtx, cancel := context.WithCancel(context.Background())
+		go func() {
+			<-ctx.StopCh
+			cancel()
+		}()
+		w, err := devices.Watch(goCtx, "")
 		if err != nil {
 			return err
 		}
-		defer w.Stop()
 		err = reconcileCommand(devices, clusterTokens, deviceName, dataDir, docker, daemon)
 		if err != nil {
 			return err
 		}
 		deviceCh := w.ResultChan()
 		go func() {
+			defer w.Stop()
 			for evt := range deviceCh {
 				if evt.Type == watch.Modified {
 					d := evt.Object.(*deviceapi.Device)
@@ -275,6 +284,7 @@ func installK3sRunner(genericServer *genericapiserver.GenericAPIServer, devices,
 					}
 				}
 			}
+			logrus.Debug("device controller terminated")
 		}()
 		return nil
 	})
@@ -310,7 +320,7 @@ func reconcileCommand(devices, clusterTokens storage.Interface, deviceName, data
 				return fmt.Errorf("cannot join itself")
 			}
 			var server deviceapi.Device
-			err := devices.Get(d.Spec.Server, &d)
+			err := devices.Get(d.Spec.Server, &server)
 			if err != nil {
 				return err
 			}
@@ -319,10 +329,10 @@ func reconcileCommand(devices, clusterTokens storage.Interface, deviceName, data
 			if err != nil {
 				return fmt.Errorf("server device.status.address is not a valid address: %w", err)
 			}
-			k3sServerAddress = fmt.Sprintf("%s:6443", u.Hostname())
+			k3sServerAddress = fmt.Sprintf("https://%s:6443", u.Hostname())
 			statusMessage = ""
-			// TODO: impl
-			args = []string{"true"}
+			// TODO: provide token as env var
+			args = buildK3sAgentArgs(&server, k3sServerAddress, dataDir, docker, clusterTokens)
 		}
 		return nil
 	}
@@ -368,6 +378,27 @@ func buildK3sServerArgs(d *deviceapi.Device, dataDir string, docker bool, cluste
 	} else {
 		args = append(args, fmt.Sprintf("--token=%s", token.Data.Token))
 	}
+	if docker {
+		args = append(args, "--docker")
+	}
+	return args
+}
+
+func buildK3sAgentArgs(server *deviceapi.Device, joinAddress string, dataDir string, docker bool, clusterTokens storage.Interface) []string {
+	args := []string{
+		"agent",
+		fmt.Sprintf("--data-dir=%s", dataDir),
+	}
+	token := &deviceapi.DeviceToken{}
+	err := clusterTokens.Get(server.Name, token)
+	if err != nil {
+		logrus.Warn(fmt.Errorf("join server %s: %w", server.Name, err))
+		return nil
+	}
+	args = append(args,
+		fmt.Sprintf("--server=%s", joinAddress),
+		fmt.Sprintf("--token=%s", token.Data.Token),
+	)
 	if docker {
 		args = append(args, "--docker")
 	}
