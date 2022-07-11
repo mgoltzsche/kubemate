@@ -25,7 +25,7 @@ generate-types: $(OAPI_CODEGEN) $(CONTROLLER_GEN) $(KUBE_OPENAPI_GEN)
 	#PATH="$(TOOLS_DIR):$$PATH" go generate ./pkg/server
 	$(CONTROLLER_GEN) object paths=./pkg/apis/...
 	$(KUBE_OPENAPI_GEN) --output-base=./pkg/generated --output-package=openapi -O zz_generated.openapi -h ./boilerplate/boilerplate.go.txt \
-		--input-dirs=github.com/mgoltzsche/kubemate/pkg/apis/devices/v1,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/apimachinery/pkg/runtime
+		--input-dirs=github.com/mgoltzsche/kubemate/pkg/apis/devices/v1,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/apimachinery/pkg/runtime,k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
 
 generate-openapi: generate-types kubemate
 	@echo Load OpenAPI spec from freshly built server binary

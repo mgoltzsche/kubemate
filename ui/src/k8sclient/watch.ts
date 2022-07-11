@@ -17,9 +17,10 @@ export enum EventType {
 
 export function watch<T>(
   url: string,
+  headers: Record<string, string>,
   handler: (evt: WatchEvent<T>) => void
 ): void {
-  streamFromURL<WatchEvent<T>>(url)
+  streamFromURL<WatchEvent<T>>(url, headers)
     .then((stream) => {
       return consumeStream(stream, (evt) => {
         console.log('watch: received event:', evt);
@@ -30,7 +31,7 @@ export function watch<T>(
       console.log('ERROR: watch failed:', new Date(), e);
       console.log('watch: restarting...');
       setTimeout(() => {
-        watch(url, handler);
+        watch(url, headers, handler);
       }, 1000); // retry after 1s
     });
 }
@@ -52,8 +53,11 @@ async function consumeStream<T>(
   }
 }
 
-function streamFromURL<T>(url: string): Promise<ReadableStream<T>> {
-  return fetch(url).then((response) => {
+function streamFromURL<T>(
+  url: string,
+  headers: Record<string, string>
+): Promise<ReadableStream<T>> {
+  return fetch(url, { headers: headers }).then((response) => {
     if (response.status != 200) {
       return Promise.reject(
         `request ${url}: server responded with status code ${response.status}`

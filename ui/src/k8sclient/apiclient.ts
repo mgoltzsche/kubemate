@@ -34,7 +34,7 @@ export class ApiClient<T extends Resource> {
     console.log(`client: update ${this.resourceUrl}`);
     return request({
       method: 'PUT',
-      url: `${this.resourceUrl}/${obj.metadata.name || ''}`,
+      url: `${this.resourceUrl}/${obj.metadata?.name || ''}`,
       query: {
         timeoutSeconds: 10,
       },
@@ -100,6 +100,9 @@ export class ApiClient<T extends Resource> {
     // TODO: pass through auth token
     watch(
       `${this.resourceUrl}?watch=1&resourceVersion=${resourceVersion}`,
+      {
+        Authorization: 'Bearer ' + this.auth.token,
+      },
       handler
     );
   }

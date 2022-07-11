@@ -34,6 +34,22 @@
           :key="link.title"
           v-bind="link"
         />
+
+        <q-item-label header> Settings </q-item-label>
+
+        <q-item
+          clickable
+          tag="a"
+          :href="`#/customresourcedefinition/${crd.metadata?.name}`"
+          :title="crd.metadata?.name"
+          :key="crd.metadata?.name"
+          v-for="crd in customResourceDefinitions"
+        >
+          <q-item-section>
+            <q-item-label>{{ crd.spec.names.plural }}</q-item-label>
+            <q-item-label caption>{{ crd.metadata?.name }}</q-item-label>
+          </q-item-section>
+        </q-item>
       </q-list>
     </q-drawer>
 
@@ -61,7 +77,10 @@
 import { defineComponent, ref, toRefs, computed, reactive } from 'vue';
 import EssentialLink from 'components/EssentialLink.vue';
 import { version } from '../../package.json';
-import { useDeviceStore } from 'src/stores/resources';
+import {
+  useCustomResourceDefinitionStore,
+  useDeviceStore,
+} from 'src/stores/resources';
 import LoginDialog from 'src/components/LoginDialog.vue';
 
 const linksList = [
@@ -70,7 +89,7 @@ const linksList = [
     caption: 'devices',
     icon: 'devices',
     link: '#/devices',
-    target: '',
+    target: '_self',
   },
   {
     title: 'Docs',
@@ -129,6 +148,17 @@ function useDeviceName() {
   };
 }
 
+function useCustomResourceDefinitions() {
+  const store = useCustomResourceDefinitionStore();
+  store.sync();
+  const state = reactive({
+    customResourceDefinitions: computed(() => store.resources),
+  });
+  return {
+    ...toRefs(state),
+  };
+}
+
 export default defineComponent({
   name: 'MainLayout',
 
@@ -143,6 +173,7 @@ export default defineComponent({
       ...useLeftDrawerToggle(),
       ...useLoginDialog(),
       ...useDeviceName(),
+      ...useCustomResourceDefinitions(),
       version,
     };
   },

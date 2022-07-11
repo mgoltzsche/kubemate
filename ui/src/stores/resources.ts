@@ -1,5 +1,8 @@
 import { defineStore } from 'pinia';
-import { com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_Device as Device } from 'src/gen';
+import {
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_Device as Device,
+  io_k8s_apiextensions_apiserver_pkg_apis_apiextensions_v1_CustomResourceDefinition as CustomResourceDefinition,
+} from 'src/gen';
 import { Resource } from 'src/k8sclient';
 import apiclient from 'src/k8sclient';
 import { Ref, ref } from 'vue';
@@ -62,3 +65,9 @@ export const useDeviceStore = defineResourceStore<Device>(
   '/apis/kubemate.mgoltzsche.github.com/v1',
   'devices'
 );
+
+export const useCustomResourceDefinitionStore =
+  defineResourceStore<CustomResourceDefinition>(
+    '/apis/apiextensions.k8s.io/v1',
+    'customresourcedefinitions'
+  );

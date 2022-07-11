@@ -1,5 +1,5 @@
 export interface Resource {
-  readonly metadata: ObjectMeta;
+  readonly metadata?: ObjectMeta;
 }
 
 export interface ResourceList<T> {
