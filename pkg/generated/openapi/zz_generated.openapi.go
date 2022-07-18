@@ -221,12 +221,6 @@ func schema_pkg_apis_devices_v1_DeviceSpec(ref common.ReferenceCallback) common.
 							Format: "",
 						},
 					},
-					"allowOrigin": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
 				},
 				Required: []string{"mode"},
 			},
@@ -241,6 +235,12 @@ func schema_pkg_apis_devices_v1_DeviceStatus(ref common.ReferenceCallback) commo
 				Description: "DeviceStatus defines the observed state of Cache",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"generation": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
 					"current": {
 						SchemaProps: spec.SchemaProps{
 							Default: false,

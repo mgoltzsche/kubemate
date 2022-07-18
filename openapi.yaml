@@ -29,8 +29,6 @@ definitions:
   com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceSpec:
     description: DeviceSpec defines the desired state of Cache
     properties:
-      allowOrigin:
-        type: boolean
       mode:
         default: ""
         description: |-
@@ -54,6 +52,9 @@ definitions:
       current:
         default: false
         type: boolean
+      generation:
+        format: int64
+        type: integer
       joinAddress:
         type: string
       message:

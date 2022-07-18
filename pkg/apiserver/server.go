@@ -1,26 +1,21 @@
 package apiserver
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"time"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
 	generatedopenapi "github.com/mgoltzsche/kubemate/pkg/generated/openapi"
-	"github.com/mgoltzsche/kubemate/pkg/resource"
-	"github.com/mgoltzsche/kubemate/pkg/runner"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/authentication/authenticator"
 	"k8s.io/apiserver/pkg/authentication/request/anonymous"
 	"k8s.io/apiserver/pkg/authentication/request/union"
@@ -194,7 +189,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("install apigroup: %w", err)
 	}
-	installK3sRunner(genericServer, deviceREST.rest.Store, deviceTokenREST.Store, o.DeviceName, k3sDataDir, o.ManifestDir, o.Docker)
+	installDeviceController(genericServer, deviceREST.rest.Store, deviceTokenREST.Store, o.DeviceName, discovery, k3sDataDir, o.ManifestDir, o.Docker)
 	/*if o.Docker {
 		// TODO Move into server.Prepare method
 		// TODO: start cri-dockerd binary
@@ -210,197 +205,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 
 func installDeviceDiscovery(genericServer *genericapiserver.GenericAPIServer, discovery *DeviceDiscovery, devices storage.Interface) {
 	genericServer.AddPostStartHookOrDie("device-discovery", func(ctx genericapiserver.PostStartHookContext) error {
-		err := discovery.Advertise()
-		if err != nil {
-			return err
-		}
 		return discovery.Discover(devices)
 	})
 	genericServer.AddPreShutdownHookOrDie("device-discovery", discovery.Close)
-}
-
-// TODO: support joining nodes to a cluster via the UI. for custom (dynamic) CORS filter, see https://github.com/kubernetes/apiserver/blob/master/pkg/server/filters/cors.go
-
-func installK3sRunner(genericServer *genericapiserver.GenericAPIServer, devices, clusterTokens storage.Interface, deviceName, dataDir, manifestDir string, docker bool) {
-	daemon := runner.NewRunner()
-	//daemon.Listener = &controllerManager{}
-	genericServer.AddPostStartHookOrDie("kubemate", func(ctx genericapiserver.PostStartHookContext) error {
-		// Add CRDs to k3s' manifest directory
-		err := copyManifests(manifestDir, filepath.Join(dataDir, "server", "manifests"))
-		if err != nil {
-			return fmt.Errorf("copy default manifests into data dir: %w", err)
-		}
-		// Update device resource's status
-		ch := daemon.Start()
-		go func() {
-			for cmd := range ch {
-				if cmd.Status.State == runner.ProcessStateFailed {
-					logrus.Warnf("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
-				} else {
-					logrus.Printf("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
-				}
-				device := &deviceapi.Device{}
-				err := devices.Update(deviceName, device, func() (resource.Resource, error) {
-					// TODO: map properly
-					device.Status.State = deviceapi.DeviceState(cmd.Status.State)
-					device.Status.Message = cmd.Status.Message
-					device.Status.Address = fmt.Sprintf("https://%s", genericServer.ExternalAddress)
-					device.Status.Current = true
-					return device, nil
-				})
-				if err != nil {
-					logrus.WithError(err).Error("failed to update device status")
-					continue
-				}
-			}
-		}()
-		// Listen for device spec changes
-		goCtx, cancel := context.WithCancel(context.Background())
-		go func() {
-			<-ctx.StopCh
-			cancel()
-		}()
-		w, err := devices.Watch(goCtx, "")
-		if err != nil {
-			return err
-		}
-		err = reconcileCommand(devices, clusterTokens, deviceName, dataDir, docker, daemon)
-		if err != nil {
-			return err
-		}
-		deviceCh := w.ResultChan()
-		go func() {
-			defer w.Stop()
-			for evt := range deviceCh {
-				if evt.Type == watch.Modified {
-					d := evt.Object.(*deviceapi.Device)
-					if d.Name != deviceName {
-						continue
-					}
-					err = reconcileCommand(devices, clusterTokens, deviceName, dataDir, docker, daemon)
-					if err != nil {
-						logrus.WithError(err).Error("failed to reconcile device command")
-						continue
-					}
-				}
-			}
-			logrus.Debug("device controller terminated")
-		}()
-		return nil
-	})
-	genericServer.AddPreShutdownHookOrDie("kubemate", func() error {
-		return daemon.Close()
-	})
-}
-
-func reconcileCommand(devices, clusterTokens storage.Interface, deviceName, dataDir string, docker bool, daemon *runner.Runner) error {
-	logrus.Info("reconcile device")
-	d := deviceapi.Device{}
-	err := devices.Get(deviceName, &d)
-	if err != nil {
-		return err
-	}
-	if m := d.Spec.Mode; m != deviceapi.DeviceModeServer && m != deviceapi.DeviceModeAgent {
-		logrus.Warnf("unsupported device mode %q specified", d.Spec.Mode)
-		return nil
-	}
-	var args []string
-	var k3sServerAddress string
-	var statusMessage string
-	fn := func() error {
-		switch d.Spec.Mode {
-		case deviceapi.DeviceModeServer:
-			k3sServerAddress = ""
-			args = buildK3sServerArgs(&d, dataDir, docker, clusterTokens)
-		case deviceapi.DeviceModeAgent:
-			if d.Spec.Server == "" {
-				return fmt.Errorf("no server specified to join")
-			}
-			if d.Spec.Server == d.Name {
-				return fmt.Errorf("cannot join itself")
-			}
-			var server deviceapi.Device
-			err := devices.Get(d.Spec.Server, &server)
-			if err != nil {
-				return err
-			}
-			k3sServerAddress = ""
-			u, err := url.Parse(server.Status.Address)
-			if err != nil {
-				return fmt.Errorf("server device.status.address is not a valid address: %w", err)
-			}
-			k3sServerAddress = fmt.Sprintf("https://%s:6443", u.Hostname())
-			statusMessage = ""
-			// TODO: provide token as env var
-			args = buildK3sAgentArgs(&server, k3sServerAddress, dataDir, docker, clusterTokens)
-		}
-		return nil
-	}
-	if err = fn(); err != nil {
-		logrus.WithError(err).Warn("failed to reconcile device")
-		statusMessage = err.Error()
-	}
-	if d.Status.JoinAddress != k3sServerAddress || d.Status.Message != statusMessage {
-		// Update device status
-		err = devices.Update(d.Name, &d, func() (resource.Resource, error) {
-			d.Status.JoinAddress = k3sServerAddress
-			d.Status.Message = statusMessage
-			return &d, nil
-		})
-		if err != nil {
-			return err
-		}
-	}
-	if len(args) > 0 {
-		daemon.SetCommand(runner.CommandSpec{
-			Command: "/proc/self/exe",
-			Args:    args,
-		})
-	}
-	return nil
-}
-
-func buildK3sServerArgs(d *deviceapi.Device, dataDir string, docker bool, clusterTokens storage.Interface) []string {
-	args := []string{
-		"server",
-		"--disable-cloud-controller",
-		"--disable-helm-controller",
-		"--no-deploy=servicelb,traefik,metrics-server",
-		"--kube-apiserver-arg=--insecure-bind-address=127.0.0.1",
-		"--kube-apiserver-arg=--insecure-port=0",
-		fmt.Sprintf("--kube-apiserver-arg=--token-auth-file=%s", "/etc/kubemate/tokens"),
-		fmt.Sprintf("--data-dir=%s", dataDir),
-	}
-	token := &deviceapi.DeviceToken{}
-	err := clusterTokens.Get(d.Name, token)
-	if err != nil {
-		logrus.Error(err)
-	} else {
-		args = append(args, fmt.Sprintf("--token=%s", token.Data.Token))
-	}
-	if docker {
-		args = append(args, "--docker")
-	}
-	return args
-}
-
-func buildK3sAgentArgs(server *deviceapi.Device, joinAddress string, dataDir string, docker bool, clusterTokens storage.Interface) []string {
-	args := []string{
-		"agent",
-		fmt.Sprintf("--data-dir=%s", dataDir),
-	}
-	token := &deviceapi.DeviceToken{}
-	err := clusterTokens.Get(server.Name, token)
-	if err != nil {
-		logrus.Warn(fmt.Errorf("join server %s: %w", server.Name, err))
-		return nil
-	}
-	args = append(args,
-		fmt.Sprintf("--server=%s", joinAddress),
-		fmt.Sprintf("--token=%s", token.Data.Token),
-	)
-	if docker {
-		args = append(args, "--docker")
-	}
-	return args
 }

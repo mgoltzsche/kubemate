@@ -20,21 +20,6 @@ const (
 	ProcessStateTerminated ProcessState = "terminated"
 )
 
-type ProcessListener interface {
-	PostStart(CommandSpec, *os.Process) error
-	PreStop() error
-}
-
-type noopListener struct{}
-
-func (_ *noopListener) PostStart(CommandSpec, *os.Process) error {
-	return nil
-}
-
-func (_ *noopListener) PreStop() error {
-	return nil
-}
-
 type Command struct {
 	Spec   CommandSpec
 	Status CommandStatus
@@ -63,16 +48,14 @@ type CommandStatus struct {
 }
 
 type Runner struct {
-	mutex    sync.Mutex
-	spec     chan CommandSpec
-	done     sync.WaitGroup
-	Listener ProcessListener
+	mutex sync.Mutex
+	spec  chan CommandSpec
+	done  sync.WaitGroup
 }
 
 func NewRunner() *Runner {
 	return &Runner{
-		spec:     make(chan CommandSpec),
-		Listener: &noopListener{},
+		spec: make(chan CommandSpec),
 	}
 }
 
@@ -108,7 +91,7 @@ func (l *Runner) run(ch chan<- Command) {
 			if p != nil {
 				p.Stop()
 			}
-			p = startProcess(c, l.Listener, ch)
+			p = startProcess(c, ch)
 		}
 	}
 	if p != nil {
@@ -118,18 +101,14 @@ func (l *Runner) run(ch chan<- Command) {
 }
 
 type Process struct {
-	spec     CommandSpec
-	proc     *os.Process
-	running  *sync.WaitGroup
-	listener ProcessListener
+	spec    CommandSpec
+	proc    *os.Process
+	running *sync.WaitGroup
 }
 
 func (p *Process) Stop() {
-	err := p.listener.PreStop()
-	if err != nil {
-		logrus.Warnf("pre stop listener: %s", err)
-	}
-	err = p.proc.Signal(os.Interrupt)
+	logrus.Debug("stopping process")
+	err := p.proc.Signal(os.Interrupt)
 	if err != nil && err != os.ErrProcessDone {
 		logrus.Warnf("interrupting process: %s", err)
 	}
@@ -140,7 +119,7 @@ func (p *Process) Wait() {
 	p.running.Wait()
 }
 
-func startProcess(cmd CommandSpec, l ProcessListener, ch chan<- Command) *Process {
+func startProcess(cmd CommandSpec, ch chan<- Command) *Process {
 	c := exec.Command(cmd.Command, cmd.Args...)
 	c.Env = os.Environ()
 	stdout, err := c.StdoutPipe()
@@ -166,6 +145,7 @@ func startProcess(cmd CommandSpec, l ProcessListener, ch chan<- Command) *Proces
 		}
 		return nil
 	}
+	logrus.Debugf("starting process: %s %s", cmd.Command, strings.Join(cmd.Args, " "))
 	err = c.Start()
 	if err != nil {
 		ch <- Command{
@@ -207,22 +187,9 @@ func startProcess(cmd CommandSpec, l ProcessListener, ch chan<- Command) *Proces
 			Status: s,
 		}
 	}()
-	p := &Process{
-		spec:     cmd,
-		proc:     c.Process,
-		running:  wg,
-		listener: l,
+	return &Process{
+		spec:    cmd,
+		proc:    c.Process,
+		running: wg,
 	}
-	err = l.PostStart(cmd, p.proc)
-	if err != nil {
-		p.Stop()
-		ch <- Command{
-			Spec: cmd,
-			Status: CommandStatus{
-				State:   ProcessStateFailed,
-				Message: fmt.Sprintf("post start: %s", err),
-			},
-		}
-	}
-	return p
 }

@@ -19,26 +19,12 @@ kubemate:
 image:
 	docker build --force-rm -t kubemate .
 
-generate: generate-types generate-openapi
-
-generate-types: $(OAPI_CODEGEN) $(CONTROLLER_GEN) $(KUBE_OPENAPI_GEN)
+.PHONY: generate
+generate: $(OAPI_CODEGEN) $(CONTROLLER_GEN) $(KUBE_OPENAPI_GEN)
 	#PATH="$(TOOLS_DIR):$$PATH" go generate ./pkg/server
 	$(CONTROLLER_GEN) object paths=./pkg/apis/...
 	$(KUBE_OPENAPI_GEN) --output-base=./pkg/generated --output-package=openapi -O zz_generated.openapi -h ./boilerplate/boilerplate.go.txt \
 		--input-dirs=github.com/mgoltzsche/kubemate/pkg/apis/devices/v1,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/apimachinery/pkg/runtime,k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
-
-generate-openapi: generate-types kubemate
-	@echo Load OpenAPI spec from freshly built server binary
-	@{ \
-	set -eu; \
-	mkdir -p /tmp/kubemate-gen; \
-	$(BUILD_DIR)/bin/kubemate connect --data-dir=/tmp/kubemate-gen --manifest-dir=/tmp/kubemate-gen & \
-	PID=$$!; \
-	sleep 1; \
-	printf '# This file is generated using `make generate-openapi`.\n# DO NOT EDIT MANUALLY!\n\n' > openapi.yaml; \
-	curl -fsS http://localhost:8080/openapi/v2 >> openapi.yaml; \
-	kill -9 $$PID; \
-	}
 
 .PHONY: ui
 ui: ui/node_modules
