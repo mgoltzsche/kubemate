@@ -18,7 +18,7 @@ import (
 )
 
 func installDeviceController(genericServer *genericapiserver.GenericAPIServer, devices, clusterTokens storage.Interface, deviceName string, discovery *DeviceDiscovery, dataDir, manifestDir string, docker bool) {
-	daemon := runner.NewRunner()
+	k3sRunner := runner.NewRunner()
 	genericServer.AddPostStartHookOrDie("kubemate", func(ctx genericapiserver.PostStartHookContext) error {
 		// Add CRDs to k3s' manifest directory
 		err := copyManifests(manifestDir, filepath.Join(dataDir, "server", "manifests"))
@@ -26,9 +26,9 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 			return fmt.Errorf("copy default manifests into data dir: %w", err)
 		}
 		// Update device resource's status
-		ch := daemon.Start()
+		k3sCh := k3sRunner.Start()
 		go func() {
-			for cmd := range ch {
+			for cmd := range k3sCh {
 				if cmd.Status.State == runner.ProcessStateFailed {
 					logrus.Warnf("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
 				} else {
@@ -50,6 +50,24 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 				}
 			}
 		}()
+		if docker {
+			// Launch the docker shim
+			criDockerdRunner := runner.NewRunner()
+			criDockerdCh := criDockerdRunner.Start()
+			criDockerdRunner.SetCommand(runner.CommandSpec{
+				Command: "cri-dockerd",
+				Args:    []string{},
+			})
+			go func() {
+				for cmd := range criDockerdCh {
+					if cmd.Status.State == runner.ProcessStateFailed {
+						logrus.Errorf("cri-dockerd %s: %s", cmd.Status.State, cmd.Status.Message)
+					} else {
+						logrus.Printf("cri-dockerd %s: %s", cmd.Status.State, cmd.Status.Message)
+					}
+				}
+			}()
+		}
 		// Listen for device spec changes
 		goCtx, cancel := context.WithCancel(context.Background()) // TODO: fix termination
 		go func() {
@@ -64,7 +82,7 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 		if err != nil {
 			return err
 		}
-		err = reconcileCommand(devices, clusterTokens, deviceName, discovery, dataDir, docker, daemon)
+		err = reconcileCommand(devices, clusterTokens, deviceName, discovery, dataDir, docker, k3sRunner)
 		if err != nil {
 			return err
 		}
@@ -97,7 +115,7 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 		}()
 		go func() {
 			for _ = range reconcileRequests {
-				err = reconcileCommand(devices, clusterTokens, deviceName, discovery, dataDir, docker, daemon)
+				err = reconcileCommand(devices, clusterTokens, deviceName, discovery, dataDir, docker, k3sRunner)
 				if err != nil {
 					logrus.WithError(err).Error("failed to reconcile device command")
 					go scheduleRetry(reconcileRequests)
@@ -109,7 +127,7 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 		return nil
 	})
 	genericServer.AddPreShutdownHookOrDie("kubemate", func() error {
-		return daemon.Close()
+		return k3sRunner.Close()
 	})
 }
 
@@ -119,7 +137,7 @@ func scheduleRetry(ch chan<- struct{}) {
 	ch <- struct{}{}
 }
 
-func reconcileCommand(devices, clusterTokens storage.Interface, deviceName string, discovery *DeviceDiscovery, dataDir string, docker bool, daemon *runner.Runner) error {
+func reconcileCommand(devices, clusterTokens storage.Interface, deviceName string, discovery *DeviceDiscovery, dataDir string, docker bool, k3s *runner.Runner) error {
 	logrus.Info("reconcile device")
 	d := deviceapi.Device{}
 	err := devices.Get(deviceName, &d)
@@ -182,7 +200,7 @@ func reconcileCommand(devices, clusterTokens storage.Interface, deviceName strin
 		}
 	}
 	if len(args) > 0 {
-		daemon.SetCommand(runner.CommandSpec{
+		k3s.SetCommand(runner.CommandSpec{
 			Command: "/proc/self/exe",
 			Args:    args,
 		})
@@ -208,8 +226,6 @@ func buildK3sServerArgs(d *deviceapi.Device, dataDir string, docker bool, cluste
 		"--disable-cloud-controller",
 		"--disable-helm-controller",
 		"--no-deploy=servicelb,traefik,metrics-server",
-		"--kube-apiserver-arg=--insecure-bind-address=127.0.0.1",
-		"--kube-apiserver-arg=--insecure-port=0",
 		fmt.Sprintf("--kube-apiserver-arg=--token-auth-file=%s", "/etc/kubemate/tokens"),
 		fmt.Sprintf("--data-dir=%s", dataDir),
 	}
@@ -221,7 +237,7 @@ func buildK3sServerArgs(d *deviceapi.Device, dataDir string, docker bool, cluste
 		args = append(args, fmt.Sprintf("--token=%s", token.Data.Token))
 	}
 	if docker {
-		args = append(args, "--docker")
+		args = append(args, "--container-runtime-endpoint=unix:///var/run/cri-dockerd.sock")
 	}
 	return args
 }

@@ -1,4 +1,4 @@
-FROM golang:1.17-alpine3.15 AS build
+FROM golang:1.18-alpine3.15 AS build
 RUN apk add --update --no-cache musl-dev gcc
 COPY go.mod go.sum /work/
 WORKDIR /work
@@ -9,10 +9,10 @@ ARG VERSION=dev
 ENV CGO_CFLAGS=-DSQLITE_ENABLE_DBSTAT_VTAB=1
 RUN go build -o kubemate -ldflags "-X main.Version=$VERSION -s -w -extldflags \"-static\"" .
 
-FROM golang:1.17-alpine3.15 AS cridockerd
+FROM golang:1.18-alpine3.15 AS cridockerd
 RUN apk add --update --no-cache musl-dev gcc
 RUN apk add --update --no-cache git
-ARG CRI_DOCKERD_VERSION=v0.2.1
+ARG CRI_DOCKERD_VERSION=v0.2.3
 RUN git -c advice.detachedHead=false clone --branch=$CRI_DOCKERD_VERSION --depth=1 https://github.com/Mirantis/cri-dockerd.git /work
 WORKDIR /work
 RUN set -eux; \
@@ -38,7 +38,7 @@ RUN set -eux; \
 	printf '\n---\n%s' "$(cat /manifests/source-deploy.yaml)" >> /manifests/source-controller.yaml; \
 	rm -f /manifests/source-deploy.yaml /manifests/kustomize-deploy.yaml
 
-FROM rancher/k3s:v1.23.6-k3s1 AS k3s
+FROM rancher/k3s:v1.24.3-k3s1 AS k3s
 COPY --from=build /work/kubemate /bin/kubemate
 
 FROM alpine:3.15
@@ -53,7 +53,7 @@ COPY --from=k3s /bin/containerd /bin/
 COPY --from=k3s /bin/containerd-shim-runc-v2 /bin/
 COPY --from=k3s /bin/runc /bin/
 COPY --from=k3s /bin/conntrack /bin/
-#COPY --from=cridockerd /work/cri-dockerd /bin/cri-dockerd
+COPY --from=cridockerd /work/cri-dockerd /bin/cri-dockerd
 RUN set -ex; \
 	mkdir -m2775 /output; \
 	ln -s cni /bin/host-local; \
