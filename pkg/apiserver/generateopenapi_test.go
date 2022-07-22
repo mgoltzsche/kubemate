@@ -36,6 +36,7 @@ func TestGenerateOpenAPI(t *testing.T) {
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.Device",
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceToken",
 		"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.CustomResourceDefinition",
+		"k8s.io/api/networking/v1.Ingress",
 	}
 	for _, typeName := range typeNames {
 		err := addType(defs, typeName, &swagger)

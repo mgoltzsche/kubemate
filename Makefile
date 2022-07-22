@@ -1,30 +1,80 @@
-BUILD_DIR:=$(CURDIR)/build
-TOOLS_DIR:=$(BUILD_DIR)/tools
+VERSION ?= dev
+IMAGE_REGISTRY ?= local
+IMAGE = $(IMAGE_REGISTRY)/kubemate:$(VERSION)
+
+BUILD_DIR := $(CURDIR)/build
+TOOLS_DIR := $(BUILD_DIR)/tools
 
 OAPI_CODEGEN_VERSION = v1.9.0
 OAPI_CODEGEN = $(TOOLS_DIR)/oapi-codegen
 
-KUBE_OPENAPI_GEN = $(TOOLS_DIR)/openapi-gen
-KUBE_OPENAPI_GEN_VERSION = 5e7f5fdc6da62df0ce329920a63eda22f95b9614
-
 CONTROLLER_GEN = $(TOOLS_DIR)/controller-gen
 CONTROLLER_GEN_VERSION = v0.4.1
 
-all: image
+KUBE_OPENAPI_GEN = $(TOOLS_DIR)/openapi-gen
+KUBE_OPENAPI_GEN_VERSION = 5e7f5fdc6da62df0ce329920a63eda22f95b9614
+
+KUSTOMIZE := $(TOOLS_DIR)/kustomize
+KUSTOMIZE_VERSION ?= v4.5.5
+
+DOCKER ?= docker
+PLATFORM ?= linux/amd64
+BUILDX_OUTPUT ?= type=docker
+BUILDX_BUILDER ?= kubemate-builder
+BUILDX_INTERNAL_OPTS = --builder=$(BUILDX_BUILDER) --output=$(BUILDX_OUTPUT) --platform=$(PLATFORM)
+BUILDX_OPTS ?=
+
+all: container
 
 .PHONY: kubemate
-kubemate:
+kubemate: ## Build the kubemate Go binary (without docker).
 	go build -o $(BUILD_DIR)/bin/kubemate .
 
-image:
-	docker build --force-rm -t kubemate .
+.PHONY: container
+container: create-builder ## Build a linux/amd64 container image.
+	mkdir -p ./build/container
+	$(DOCKER) buildx build $(BUILDX_INTERNAL_OPTS) $(BUILDX_OPTS) --force-rm --build-arg VERSION=$(VERSION) -t $(IMAGE) .
+
+.PHONY: container-multiarch
+container-multiarch: PLATFORM = linux/arm64/v8,linux/amd64
+container-multiarch: BUILDX_OUTPUT = type=image
+container-multiarch: container ## Build a multi-arch container image.
+
+.PHONY: container-tar
+container-tar: PLATFORM = linux/arm64/v8
+container-tar: BUILDX_OUTPUT = type=oci,dest=./build/container/kubemate-arm64.tar
+container-tar: container ## Build the arm64 container OCI image tar file.
+
+.PHONY: release
+release: IMAGE_REGISTRY = docker.io/mgoltzsche
+release: VERSION = latest
+release: BUILDX_OPTS = --push
+release: container-multiarch
+
+.PHONY: create-builder
+create-builder: ## Create the buildx builder container.
+	$(DOCKER) buildx inspect $(BUILDX_BUILDER) >/dev/null 2<&1 || $(DOCKER) buildx create --name=$(BUILDX_BUILDER) >/dev/null
+
+.PHONY: delete-builder
+delete-builder: ## Delete the buildx builder container.
+	$(DOCKER) buildx rm $(BUILDX_BUILDER)
+
+.PHONY: configure-qemu
+configure-qemu: ## Enable multiarch support on the host (configuring binfmt).
+	$(DOCKER) run --rm --privileged multiarch/qemu-user-static:7.0.0-7 --reset -p yes
 
 .PHONY: generate
-generate: $(OAPI_CODEGEN) $(CONTROLLER_GEN) $(KUBE_OPENAPI_GEN)
+generate: $(CONTROLLER_GEN) $(KUBE_OPENAPI_GEN) ## Generate code.
 	#PATH="$(TOOLS_DIR):$$PATH" go generate ./pkg/server
 	$(CONTROLLER_GEN) object paths=./pkg/apis/...
+	$(CONTROLLER_GEN) crd paths="./pkg/apis/apps/..." output:crd:artifacts:config=config/crd
 	$(KUBE_OPENAPI_GEN) --output-base=./pkg/generated --output-package=openapi -O zz_generated.openapi -h ./boilerplate/boilerplate.go.txt \
-		--input-dirs=github.com/mgoltzsche/kubemate/pkg/apis/devices/v1,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/apimachinery/pkg/runtime,k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
+		--input-dirs=github.com/mgoltzsche/kubemate/pkg/apis/devices/v1,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/api/core/v1,k8s.io/apimachinery/pkg/runtime,k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1,k8s.io/api/networking/v1
+
+.PHONY: manifests
+manifests: $(KUSTOMIZE) ## Generate static Kubernetes manifests.
+	$(KUSTOMIZE) build ./config/crd > ./config/generated/kubemate-crd.yaml
+	$(KUSTOMIZE) build ./config/fluxcd > ./config/generated/fluxcd.yaml
 
 .PHONY: ui
 ui: ui/node_modules
@@ -33,13 +83,16 @@ ui: ui/node_modules
 ui/node_modules:
 	cd ui && yarn install
 
-clean:
+.PHONY: clean
+clean: ## Purge local storage and docker containers created by kubemate.
 	[ "`id -u`" -eq  0 ]
 	docker rm -f `docker ps -qa` || true
 	rm -rf ./data
 	docker volume rm `docker volume ls -q` || true
+	rm -rf ./build
 
-run: image
+.PHONY: run
+run: container ## Run a kubemate container locally within the host network.
 	chmod 2775 .
 	mkdir -p ./data/pod-log
 	docker run --name kubemate --rm -it --network host --pid host --privileged \
@@ -53,18 +106,43 @@ run: image
 		--mount type=bind,src=/sys,dst=/sys \
 		-v `pwd`:/output \
 		--mount type=bind,src=`pwd`/ui/dist,dst=/usr/share/kubemate/web \
-		kubemate:latest connect --docker --web-dir=/usr/share/kubemate/web/spa --log-level=debug
+		$(IMAGE) connect --docker --web-dir=/usr/share/kubemate/web/spa --log-level=debug
 			#--http-port=80 --https-port=443
 			#--no-deploy=servicelb,traefik,metrics-server \
 			#--disable-cloud-controller \
 			#--disable-helm-controller
 
-run-other:
+.PHONY: run-other
+run-other: ## Run a kubemate container locally to test joining a cluster.
 	docker run --name kubemate2 --rm -it -p 9090:8443 --privileged \
 		--mount type=bind,src=/etc/machine-id,dst=/etc/machine-id \
 		-v `pwd`/output:/output \
 		--mount type=bind,src=`pwd`/ui/dist,dst=/usr/share/kubemate/web \
-		kubemate:latest connect --web-dir=/usr/share/kubemate/web/spa --log-level=debug
+		$(IMAGE) connect --web-dir=/usr/share/kubemate/web/spa --log-level=debug
+
+.PHONY: raspios-image
+raspios-image: PACKER_FILE = ./packer/kubemate-raspios.pkr.hcl
+raspios-image: ## Build the Raspberry Pi image.
+	mkdir -p ./build
+	docker run --rm --privileged \
+		-v /dev:/dev \
+		-v $(CURDIR):/build:ro \
+		-v $(CURDIR)/build/packer_cache:/packer_cache \
+		-v $(CURDIR)/output-raspios:/build/output-raspios \
+		--mount type=bind,src=$(HOME)/.ssh/id_rsa.pub,dst=/root/.ssh/id_rsa.pub \
+		-e PACKER_CACHE_DIR=/packer_cache \
+		ghcr.io/solo-io/packer-plugin-arm-image:v0.2.6 \
+		build $(PACKER_FILE)
+
+.PHONY: packer-fmt
+packer-fmt: ## Format the packer hcl file.
+	docker run --rm -v $(CURDIR):/build \
+		ghcr.io/solo-io/packer-plugin-arm-image:v0.2.6 \
+		fmt ./packer/*.hcl
+
+.PHONY: help
+help: ## Display this help.
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 $(OAPI_CODEGEN): ## Installs oapi-codegen
 	$(call go-get-tool,$(OAPI_CODEGEN),github.com/deepmap/oapi-codegen/cmd/oapi-codegen@$(OAPI_CODEGEN_VERSION))
@@ -74,6 +152,9 @@ $(CONTROLLER_GEN):
 
 $(KUBE_OPENAPI_GEN):
 	$(call go-get-tool,$(KUBE_OPENAPI_GEN),k8s.io/kube-openapi/cmd/openapi-gen@$(KUBE_OPENAPI_GEN_VERSION))
+
+$(KUSTOMIZE):
+	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION))
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 define go-get-tool

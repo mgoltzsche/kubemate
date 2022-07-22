@@ -70,7 +70,9 @@ func (l *Runner) SetCommand(p CommandSpec) {
 func (l *Runner) Close() error {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-	close(l.spec)
+	if l.spec != nil {
+		close(l.spec)
+	}
 	l.done.Wait()
 	l.spec = nil
 	return nil

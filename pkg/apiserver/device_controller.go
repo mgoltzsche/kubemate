@@ -19,6 +19,7 @@ import (
 
 func installDeviceController(genericServer *genericapiserver.GenericAPIServer, devices, clusterTokens storage.Interface, deviceName string, discovery *DeviceDiscovery, dataDir, manifestDir string, docker bool) {
 	k3sRunner := runner.NewRunner()
+	criDockerdRunner := runner.NewRunner()
 	genericServer.AddPostStartHookOrDie("kubemate", func(ctx genericapiserver.PostStartHookContext) error {
 		// Add CRDs to k3s' manifest directory
 		err := copyManifests(manifestDir, filepath.Join(dataDir, "server", "manifests"))
@@ -32,7 +33,7 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 				if cmd.Status.State == runner.ProcessStateFailed {
 					logrus.Warnf("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
 				} else {
-					logrus.Printf("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
+					logrus.Infof("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
 				}
 				device := &deviceapi.Device{}
 				err := devices.Update(deviceName, device, func() (resource.Resource, error) {
@@ -52,7 +53,6 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 		}()
 		if docker {
 			// Launch the docker shim
-			criDockerdRunner := runner.NewRunner()
 			criDockerdCh := criDockerdRunner.Start()
 			criDockerdRunner.SetCommand(runner.CommandSpec{
 				Command: "cri-dockerd",
@@ -63,7 +63,7 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 					if cmd.Status.State == runner.ProcessStateFailed {
 						logrus.Errorf("cri-dockerd %s: %s", cmd.Status.State, cmd.Status.Message)
 					} else {
-						logrus.Printf("cri-dockerd %s: %s", cmd.Status.State, cmd.Status.Message)
+						logrus.Infof("cri-dockerd %s: %s", cmd.Status.State, cmd.Status.Message)
 					}
 				}
 			}()
@@ -127,7 +127,15 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 		return nil
 	})
 	genericServer.AddPreShutdownHookOrDie("kubemate", func() error {
-		return k3sRunner.Close()
+		err := k3sRunner.Close()
+		if err != nil {
+			logrus.Error(fmt.Errorf("close k3s runner: %w", err))
+		}
+		err = criDockerdRunner.Close()
+		if err != nil {
+			logrus.Error(fmt.Errorf("close cri-dockerd runner: %w", err))
+		}
+		return nil
 	})
 }
 

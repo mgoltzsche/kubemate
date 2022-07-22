@@ -25,4 +25,3 @@ spec:
   path: ./kustomize
   targetNamespace: default
   prune: true
-

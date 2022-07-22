@@ -1,0 +1,58 @@
+[Unit]
+Description=Kubemate system service
+Documentation=https://github.com/mgoltzsche/kubemate
+After=network-online.target firewalld.service docker.service
+Wants=network-online.target docker.service
+Requires=docker.socket
+
+[Service]
+Type=exec
+ExecStartPre=-/bin/mkdir -p /var/log/pods /var/lib/kubelet
+ExecStartPre=-/bin/docker rm -f kubemate
+ExecStart=/bin/docker run --name kubemate --rm --network host --pid host --privileged \
+		--tmpfs /run \
+		--tmpfs /var/run \
+		--mount type=bind,src=/etc/machine-id,dst=/etc/machine-id \
+		--mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
+		--mount type=bind,src=/var/lib/docker,dst=/var/lib/docker,bind-propagation=rshared \
+		--mount type=bind,src=/var/lib/kubelet,dst=/var/lib/kubelet,bind-propagation=rshared \
+		--mount type=bind,src=/var/log/pods,dst=/var/log/pods,bind-propagation=rshared \
+		--mount type=bind,src=/sys,dst=/sys \
+		-v /data/kubemate:/var/lib/kubemate \
+		-v /etc/kubemate:/output \
+		mgoltzsche/kubemate:latest \
+		connect --docker --https-port=443 --http-port=80
+ExecReload=/bin/kill -s HUP $MAINPID
+#TimeoutSec=0
+RestartSec=2
+Restart=always
+
+# Note that StartLimit* options were moved from "Service" to "Unit" in systemd 229.
+# Both the old, and new location are accepted by systemd 229 and up, so using the old location
+# to make them work for either version of systemd.
+#StartLimitBurst=3
+
+# Note that StartLimitInterval was renamed to StartLimitIntervalSec in systemd 230.
+# Both the old, and new name are accepted by systemd 230 and up, so using the old name to make
+# this option work for either version of systemd.
+#StartLimitInterval=30s
+
+# Having non-zero Limit*s causes performance problems due to accounting overhead
+# in the kernel. We recommend using cgroups to do container-local accounting.
+LimitNOFILE=infinity
+LimitNPROC=infinity
+LimitCORE=infinity
+
+# Comment TasksMax if your systemd version does not support it.
+# Only systemd 226 and above support this option.
+TasksMax=infinity
+
+# set delegate yes so that systemd does not reset the cgroups of docker containers
+Delegate=yes
+
+# kill only the docker process, not all processes in the cgroup
+KillMode=process
+OOMScoreAdjust=-500
+
+[Install]
+WantedBy=multi-user.target
