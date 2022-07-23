@@ -95,6 +95,7 @@ clean: ## Purge local storage and docker containers created by kubemate.
 run: container ## Run a kubemate container locally within the host network.
 	chmod 2775 .
 	mkdir -p ./data/pod-log
+	docker rm -f kubemate 2>/dev/null || true
 	docker run --name kubemate --rm -it --network host --pid host --privileged \
 		--tmpfs /run --tmpfs /var/run \
 		-v `pwd`/data/kubemate:/var/lib/kubemate \

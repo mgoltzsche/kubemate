@@ -35,13 +35,14 @@ import (
 )
 
 type ServerOptions struct {
-	DeviceName   string
-	HTTPSAddress string
-	HTTPSPort    int
-	WebDir       string
-	ManifestDir  string
-	DataDir      string
-	Docker       bool
+	DeviceName      string
+	HTTPSAddress    string
+	HTTPSPort       int
+	AdvertiseIfaces []string
+	WebDir          string
+	ManifestDir     string
+	DataDir         string
+	Docker          bool
 }
 
 func NewServerOptions() ServerOptions {
@@ -63,6 +64,16 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if o.DeviceName == "" {
 		return nil, fmt.Errorf("no device name specified")
 	}
+	if len(o.AdvertiseIfaces) == 0 {
+		ifaces, err := detectIfaces()
+		if err != nil {
+			return nil, fmt.Errorf("detect default network interfaces: %w", err)
+		}
+		o.AdvertiseIfaces = ifaces
+		if len(ifaces) == 0 {
+			logrus.Warn("could not detect default network interfaces. please specify --advertise-iface")
+		}
+	}
 	scheme := runtime.NewScheme()
 	metav1.AddToGroupVersion(scheme, deviceapi.GroupVersion)
 	scheme.AddKnownTypes(deviceapi.GroupVersion,
@@ -77,8 +88,14 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	tlsOpts.BindAddress = net.ParseIP(o.HTTPSAddress)
 	tlsOpts.BindPort = o.HTTPSPort
 	tlsOpts.ServerCert.CertDirectory = filepath.Join(o.DataDir, "certificates")
-	ips := []net.IP{net.ParseIP("127.0.0.1")}
-	err := tlsOpts.MaybeDefaultWithSelfSignedCerts(serverConfig.ExternalAddress, nil, ips)
+	if o.HTTPSPort == 443 {
+		serverConfig.ExternalAddress = fmt.Sprintf("%s", o.DeviceName)
+	} else {
+		serverConfig.ExternalAddress = fmt.Sprintf("%s:%d", o.DeviceName, o.HTTPSPort)
+	}
+	tlsCertIPs := []net.IP{net.ParseIP("127.0.0.1")}
+	// TODO: use hostname as external address
+	err := tlsOpts.MaybeDefaultWithSelfSignedCerts(serverConfig.ExternalAddress, nil, tlsCertIPs)
 	if err != nil {
 		return nil, err
 	}
@@ -128,10 +145,6 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	} else {
 		authz = bearertoken.New(tokens)
 	}
-	ips, err = publicIPs()
-	if err != nil {
-		return nil, err
-	}
 	serverConfig.Authentication.Authenticator = union.New(
 		authz,
 		anonymous.NewAuthenticator(),
@@ -143,7 +156,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, err
 	}
-	discovery := NewDeviceDiscovery(o.DeviceName, o.HTTPSPort)
+	discovery := NewDeviceDiscovery(o.DeviceName, o.HTTPSPort, o.AdvertiseIfaces)
 	deviceREST := NewDeviceREST(o.DeviceName, discovery.Discover)
 	deviceTokenREST, err := NewDeviceTokenREST(filepath.Join(o.DataDir, "devicetokens"), scheme, o.DeviceName)
 	if err != nil {
@@ -172,7 +185,6 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		Delegate: handler,
 	}*/
 	genericServer.Handler.FullHandlerChain = handler
-	genericServer.ExternalAddress = fmt.Sprintf("%s:%d", ips[0], o.HTTPSPort)
 	apiGroup := &genericapiserver.APIGroupInfo{
 		PrioritizedVersions:  scheme.PrioritizedVersionsForGroup(deviceapi.GroupVersion.Group),
 		Scheme:               scheme,

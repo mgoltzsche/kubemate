@@ -3,6 +3,7 @@ package apiserver
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/url"
 	"path/filepath"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/runner"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
 	"k8s.io/apimachinery/pkg/watch"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 )
@@ -113,12 +115,17 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 			wg.Wait()
 			close(reconcileRequests)
 		}()
+		err = reconcileOnNetworkInterfaceLinkUpdate(goCtx, reconcileRequests)
+		if err != nil {
+			return err
+		}
 		go func() {
 			for _ = range reconcileRequests {
 				err = reconcileCommand(devices, clusterTokens, deviceName, discovery, dataDir, docker, k3sRunner)
 				if err != nil {
 					logrus.WithError(err).Error("failed to reconcile device command")
-					go scheduleRetry(reconcileRequests)
+					time.Sleep(time.Second)
+					go scheduleReconciliation(reconcileRequests)
 					continue
 				}
 			}
@@ -139,9 +146,8 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 	})
 }
 
-func scheduleRetry(ch chan<- struct{}) {
+func scheduleReconciliation(ch chan<- struct{}) {
 	defer recover()
-	time.Sleep(time.Second)
 	ch <- struct{}{}
 }
 
@@ -156,11 +162,16 @@ func reconcileCommand(devices, clusterTokens storage.Interface, deviceName strin
 		logrus.Warnf("unsupported device mode %q specified", d.Spec.Mode)
 		return nil
 	}
+	ips, err := discovery.ExternalIPs()
+	if err != nil {
+		return err
+	}
+	nodeIP := ips[0]
 	var args []string
 	fn := func() error {
 		switch d.Spec.Mode {
 		case deviceapi.DeviceModeServer:
-			args = buildK3sServerArgs(&d, dataDir, docker, clusterTokens)
+			args = buildK3sServerArgs(&d, nodeIP, dataDir, docker, clusterTokens)
 		case deviceapi.DeviceModeAgent:
 			if d.Spec.Server == "" {
 				return fmt.Errorf("no server specified to join")
@@ -181,7 +192,7 @@ func reconcileCommand(devices, clusterTokens storage.Interface, deviceName strin
 				return err
 			}
 			// TODO: provide token as env var
-			args = buildK3sAgentArgs(&server, joinAddr, dataDir, docker, clusterTokens)
+			args = buildK3sAgentArgs(&server, joinAddr, nodeIP, dataDir, docker, clusterTokens)
 		}
 		return nil
 	}
@@ -202,7 +213,7 @@ func reconcileCommand(devices, clusterTokens storage.Interface, deviceName strin
 	}
 	if d.Generation == d.Status.Generation {
 		// TODO: advertize only when status changed
-		err = discovery.Advertise(&d)
+		err = discovery.Advertise(&d, ips)
 		if err != nil {
 			return err
 		}
@@ -228,9 +239,10 @@ func joinAddress(d *deviceapi.Device) (string, error) {
 	return a, nil
 }
 
-func buildK3sServerArgs(d *deviceapi.Device, dataDir string, docker bool, clusterTokens storage.Interface) []string {
+func buildK3sServerArgs(d *deviceapi.Device, nodeIP net.IP, dataDir string, docker bool, clusterTokens storage.Interface) []string {
 	args := []string{
 		"server",
+		fmt.Sprintf("--node-external-ip=%s", nodeIP.String()),
 		"--disable-cloud-controller",
 		"--disable-helm-controller",
 		"--no-deploy=servicelb,traefik,metrics-server",
@@ -250,9 +262,10 @@ func buildK3sServerArgs(d *deviceapi.Device, dataDir string, docker bool, cluste
 	return args
 }
 
-func buildK3sAgentArgs(server *deviceapi.Device, joinAddress string, dataDir string, docker bool, clusterTokens storage.Interface) []string {
+func buildK3sAgentArgs(server *deviceapi.Device, joinAddress string, nodeIP net.IP, dataDir string, docker bool, clusterTokens storage.Interface) []string {
 	args := []string{
 		"agent",
+		fmt.Sprintf("--node-external-ip=%s", nodeIP.String()),
 		fmt.Sprintf("--data-dir=%s", dataDir),
 	}
 	token := &deviceapi.DeviceToken{}
@@ -269,4 +282,19 @@ func buildK3sAgentArgs(server *deviceapi.Device, joinAddress string, dataDir str
 		args = append(args, "--docker")
 	}
 	return args
+}
+
+func reconcileOnNetworkInterfaceLinkUpdate(ctx context.Context, ch chan<- struct{}) error {
+	linkCh := make(chan netlink.LinkUpdate)
+	err := netlink.LinkSubscribe(linkCh, ctx.Done())
+	if err != nil {
+		return err
+	}
+	go func() {
+		for _ = range linkCh {
+			logrus.Debug("received network link update")
+			ch <- struct{}{}
+		}
+	}()
+	return nil
 }

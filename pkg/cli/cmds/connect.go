@@ -16,15 +16,17 @@ import (
 
 type ConnectConfig struct {
 	apiserver.ServerOptions
-	HTTPAddress string
-	HTTPPort    int
-	LogLevel    string
+	HTTPAddress     string
+	HTTPPort        int
+	AdvertiseIfaces []string
+	LogLevel        string
 }
 
 var appName = "kubemate"
 var Connect = ConnectConfig{
 	ServerOptions: apiserver.NewServerOptions(),
 }
+var listenIfaces = cli.StringSlice(Connect.AdvertiseIfaces)
 var ConnectFlags = []cli.Flag{
 	cli.StringFlag{
 		Name:        "http-address",
@@ -53,6 +55,12 @@ var ConnectFlags = []cli.Flag{
 		EnvVar:      "KUBEMATE_SECURE_PORT",
 		Destination: &Connect.HTTPSPort,
 		Value:       Connect.HTTPSPort,
+	},
+	cli.StringSliceFlag{
+		Name:   "advertise-iface",
+		Usage:  "(agent/runtime) Name(s) of the network interface(s) to advertise via mdns",
+		EnvVar: "KUBEMATE_ADVERTISE_IFACE",
+		Value:  &listenIfaces,
 	},
 	cli.StringFlag{
 		Name:        "web-dir",
