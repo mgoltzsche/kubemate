@@ -19,7 +19,7 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 )
 
-func installDeviceController(genericServer *genericapiserver.GenericAPIServer, devices, clusterTokens storage.Interface, deviceName string, discovery *DeviceDiscovery, dataDir, manifestDir string, docker bool) {
+func installDeviceController(genericServer *genericapiserver.GenericAPIServer, devices, clusterTokens storage.Interface, deviceName string, discovery *DeviceDiscovery, dataDir, manifestDir string, docker bool, kubeletArgs []string) {
 	k3sRunner := runner.NewRunner()
 	criDockerdRunner := runner.NewRunner()
 	genericServer.AddPostStartHookOrDie("kubemate", func(ctx genericapiserver.PostStartHookContext) error {
@@ -84,7 +84,7 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 		if err != nil {
 			return err
 		}
-		err = reconcileCommand(devices, clusterTokens, deviceName, discovery, dataDir, docker, k3sRunner)
+		err = reconcileCommand(devices, clusterTokens, deviceName, discovery, dataDir, docker, kubeletArgs, k3sRunner)
 		if err != nil {
 			return err
 		}
@@ -121,7 +121,7 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 		}
 		go func() {
 			for _ = range reconcileRequests {
-				err = reconcileCommand(devices, clusterTokens, deviceName, discovery, dataDir, docker, k3sRunner)
+				err = reconcileCommand(devices, clusterTokens, deviceName, discovery, dataDir, docker, kubeletArgs, k3sRunner)
 				if err != nil {
 					logrus.WithError(err).Error("failed to reconcile device command")
 					time.Sleep(time.Second)
@@ -151,7 +151,7 @@ func scheduleReconciliation(ch chan<- struct{}) {
 	ch <- struct{}{}
 }
 
-func reconcileCommand(devices, clusterTokens storage.Interface, deviceName string, discovery *DeviceDiscovery, dataDir string, docker bool, k3s *runner.Runner) error {
+func reconcileCommand(devices, clusterTokens storage.Interface, deviceName string, discovery *DeviceDiscovery, dataDir string, docker bool, kubeletArgs []string, k3s *runner.Runner) error {
 	logrus.Info("reconcile device")
 	d := deviceapi.Device{}
 	err := devices.Get(deviceName, &d)
@@ -171,7 +171,7 @@ func reconcileCommand(devices, clusterTokens storage.Interface, deviceName strin
 	fn := func() error {
 		switch d.Spec.Mode {
 		case deviceapi.DeviceModeServer:
-			args = buildK3sServerArgs(&d, nodeIP, dataDir, docker, clusterTokens)
+			args = buildK3sServerArgs(&d, nodeIP, dataDir, docker, kubeletArgs, clusterTokens)
 		case deviceapi.DeviceModeAgent:
 			if d.Spec.Server == "" {
 				return fmt.Errorf("no server specified to join")
@@ -192,7 +192,7 @@ func reconcileCommand(devices, clusterTokens storage.Interface, deviceName strin
 				return err
 			}
 			// TODO: provide token as env var
-			args = buildK3sAgentArgs(&server, joinAddr, nodeIP, dataDir, docker, clusterTokens)
+			args = buildK3sAgentArgs(&server, joinAddr, nodeIP, dataDir, docker, kubeletArgs, clusterTokens)
 		}
 		return nil
 	}
@@ -239,7 +239,7 @@ func joinAddress(d *deviceapi.Device) (string, error) {
 	return a, nil
 }
 
-func buildK3sServerArgs(d *deviceapi.Device, nodeIP net.IP, dataDir string, docker bool, clusterTokens storage.Interface) []string {
+func buildK3sServerArgs(d *deviceapi.Device, nodeIP net.IP, dataDir string, docker bool, kubeletArgs []string, clusterTokens storage.Interface) []string {
 	args := []string{
 		"server",
 		fmt.Sprintf("--node-external-ip=%s", nodeIP.String()),
@@ -257,12 +257,17 @@ func buildK3sServerArgs(d *deviceapi.Device, nodeIP net.IP, dataDir string, dock
 		args = append(args, fmt.Sprintf("--token=%s", token.Data.Token))
 	}
 	if docker {
-		args = append(args, "--container-runtime-endpoint=unix:///var/run/cri-dockerd.sock")
+		args = append(args,
+			"--container-runtime-endpoint=unix:///var/run/cri-dockerd.sock",
+		)
+	}
+	for _, a := range kubeletArgs {
+		args = append(args, fmt.Sprintf("--kubelet-arg=%s", a))
 	}
 	return args
 }
 
-func buildK3sAgentArgs(server *deviceapi.Device, joinAddress string, nodeIP net.IP, dataDir string, docker bool, clusterTokens storage.Interface) []string {
+func buildK3sAgentArgs(server *deviceapi.Device, joinAddress string, nodeIP net.IP, dataDir string, docker bool, kubeletArgs []string, clusterTokens storage.Interface) []string {
 	args := []string{
 		"agent",
 		fmt.Sprintf("--node-external-ip=%s", nodeIP.String()),
@@ -279,7 +284,12 @@ func buildK3sAgentArgs(server *deviceapi.Device, joinAddress string, nodeIP net.
 		fmt.Sprintf("--token=%s", token.Data.Token),
 	)
 	if docker {
-		args = append(args, "--docker")
+		args = append(args,
+			"--container-runtime-endpoint=unix:///var/run/cri-dockerd.sock",
+		)
+	}
+	for _, a := range kubeletArgs {
+		args = append(args, fmt.Sprintf("--kubelet-arg=%s", a))
 	}
 	return args
 }

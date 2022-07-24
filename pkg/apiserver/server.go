@@ -42,6 +42,7 @@ type ServerOptions struct {
 	WebDir          string
 	ManifestDir     string
 	DataDir         string
+	KubeletArgs     []string
 	Docker          bool
 }
 
@@ -71,7 +72,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		}
 		o.AdvertiseIfaces = ifaces
 		if len(ifaces) == 0 {
-			logrus.Warn("could not detect default network interfaces. please specify --advertise-iface")
+			logrus.Warn("could not detect default advertise network interfaces - advertising on all interfaces")
 		}
 	}
 	scheme := runtime.NewScheme()
@@ -165,25 +166,6 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	installDeviceDiscovery(genericServer, discovery, deviceREST.rest.Store)
 	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known", "/version"}
 	var handler http.Handler = NewWebUIHandler(o.WebDir, genericServer.Handler.FullHandlerChain, apiPaths)
-	/*handler = &corsHandler{
-		Config: func() (c CorsConfig) {
-			var d deviceapi.Device
-			_ = deviceREST.rest.Store.Get(o.DeviceName, &d)
-			if d.Spec.AllowOrigin {
-				c.AllowedOrigins = append(c.AllowedOrigins, d.Name, d.Status.Address)
-			}
-			if d.Spec.Server != "" {
-				c.AllowedOrigins = []string{d.Spec.Server}
-				_ = deviceREST.rest.Store.Get(d.Name, &d)
-				if d.Status.Address != "" {
-					c.AllowedOrigins = append(c.AllowedOrigins, d.Status.Address)
-				}
-			}
-			fmt.Printf("## %+v\n", c.AllowedOrigins)
-			return
-		},
-		Delegate: handler,
-	}*/
 	genericServer.Handler.FullHandlerChain = handler
 	apiGroup := &genericapiserver.APIGroupInfo{
 		PrioritizedVersions:  scheme.PrioritizedVersionsForGroup(deviceapi.GroupVersion.Group),
@@ -201,17 +183,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("install apigroup: %w", err)
 	}
-	installDeviceController(genericServer, deviceREST.rest.Store, deviceTokenREST.Store, o.DeviceName, discovery, k3sDataDir, o.ManifestDir, o.Docker)
-	/*if o.Docker {
-		// TODO Move into server.Prepare method
-		// TODO: start cri-dockerd binary
-		go func() {
-			err := cridocker.RunCriDockerd(&cridockerdopts.DockerCRIFlags{}, context.Background())
-			if err != nil {
-				logrus.Error(fmt.Errorf("cri-dockerd: %w", err))
-			}
-		}()
-	}*/
+	installDeviceController(genericServer, deviceREST.rest.Store, deviceTokenREST.Store, o.DeviceName, discovery, k3sDataDir, o.ManifestDir, o.Docker, o.KubeletArgs)
 	return genericServer, nil
 }
 
