@@ -78,7 +78,8 @@ manifests: $(KUSTOMIZE) ## Generate static Kubernetes manifests.
 
 .PHONY: ui
 ui: ui/node_modules
-	cd ui && yarn generate && yarn build
+	cd ui && yarn generate
+	cd ui && yarn build
 
 ui/node_modules:
 	cd ui && yarn install

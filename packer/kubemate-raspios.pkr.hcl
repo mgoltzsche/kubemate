@@ -40,15 +40,22 @@ build {
   sources = ["source.arm-image.raspios"]
 
   provisioner "shell" {
-	# Enable memory cgroup support.
-	# (Original contents: console=serial0,115200 console=tty1 root=PARTUUID=610a07ef-02 rootfstype=ext4 fsck.repair=yes rootwait)
+    # Enable memory cgroup support
+    # (Original contents: console=serial0,115200 console=tty1 root=PARTUUID=610a07ef-02 rootfstype=ext4 fsck.repair=yes rootwait)
     inline = [
       "sed -Ei 's/$/ cgroup_memory=1 cgroup_enable=memory/' /boot/cmdline.txt"
     ]
   }
 
   provisioner "shell" {
-	# Configure the wifi client.
+    # Configure the hostname
+    inline = [
+      "echo ${var.hostname} > /etc/hostname"
+    ]
+  }
+
+  provisioner "shell" {
+    # Configure the wifi client
     inline = [
       "mv /etc/wpa_supplicant/wpa_supplicant.conf /boot/wpa_supplicant.conf",
       "sed -Ei '/^country=/d' /boot/wpa_supplicant.conf",
@@ -63,13 +70,13 @@ build {
   }
 
   provisioner "file" {
-	# Register the build host/user's SSH key with the image.
+    # Register the build host/user's SSH key with the image
     destination = "${var.image_home_dir}/.ssh/authorized_keys"
     source      = "${var.ssh_authorized_keys_file}"
   }
 
   provisioner "shell" {
-	# Enable the SSH server.
+    # Enable the SSH server
     inline = [
       "chmod 644 ${var.image_home_dir}/.ssh/authorized_keys",
       "touch /boot/ssh"
@@ -77,34 +84,31 @@ build {
   }
 
   provisioner "shell" {
-	# Configure the hostname.
-    inline = [
-      "echo ${var.hostname} > /etc/hostname"
-    ]
-  }
-
-  provisioner "shell" {
-	# Install docker.
+    # Install docker
     inline = [
       "curl -fsSL https://get.docker.com | sh",
-      "usermod -a -G docker pi"
+      "usermod -a -G docker pi",
+      # Configure docker to use cgroup driver "cgroupfs" instead of "systemd" since k3s does not support systemd.
+      # This is due to static linking, see https://github.com/k3s-io/k3s/issues/797
+      "mkdir -p /etc/docker",
+      "printf '{\n  \"exec-opts\": [\"native.cgroupdriver=cgroupfs\"]\n}' > /etc/docker/daemon.json"
     ]
   }
 
   provisioner "file" {
-	# Add the kubemate systemd unit.
+    # Add the kubemate systemd unit
     destination = "/lib/systemd/system/kubemate.service"
     source      = "./packer/systemd/kubemate.service"
   }
 
   provisioner "file" {
-	# Add kubectl support to the host
+    # Add kubectl support to the host
     destination = "/usr/local/bin/kubectl"
     source      = "./packer/kubectl"
   }
 
   provisioner "shell" {
-	# Grant the default user administrative Kubernetes access.
+    # Grant the default user administrative Kubernetes access
     inline = [
       "mkdir ${var.image_home_dir}/.kube",
       "ln -s /etc/kubemate/kubeconfig.yaml ${var.image_home_dir}/.kube/config",
@@ -115,7 +119,7 @@ build {
   }
 
   provisioner "shell" {
-	# Enable the kubemate systemd unit.
+    # Enable the kubemate systemd unit
     inline = [
       "systemctl daemon-reload",
       "systemctl enable kubemate.service",
