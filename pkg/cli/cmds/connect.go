@@ -26,8 +26,6 @@ var appName = "kubemate"
 var Connect = ConnectConfig{
 	ServerOptions: apiserver.NewServerOptions(),
 }
-var listenIfaces = cli.StringSlice(Connect.AdvertiseIfaces)
-var kubeletArgs = cli.StringSlice(Connect.KubeletArgs)
 var ConnectFlags = []cli.Flag{
 	cli.StringFlag{
 		Name:        "http-address",
@@ -61,7 +59,7 @@ var ConnectFlags = []cli.Flag{
 		Name:   "advertise-iface",
 		Usage:  "(agent/runtime) Name(s) of the network interface(s) to advertise via mdns",
 		EnvVar: "KUBEMATE_ADVERTISE_IFACE",
-		Value:  &listenIfaces,
+		Value:  (*cli.StringSlice)(&Connect.AdvertiseIfaces),
 	},
 	cli.StringFlag{
 		Name:        "web-dir",
@@ -88,7 +86,7 @@ var ConnectFlags = []cli.Flag{
 		Name:   "kubelet-arg",
 		Usage:  "(agent/flags) Customized flag for kubelet process",
 		EnvVar: "KUBEMATE_KUBELET_ARG",
-		Value:  &kubeletArgs,
+		Value:  (*cli.StringSlice)(&Connect.KubeletArgs),
 	},
 	cli.BoolFlag{
 		Name:        "docker",
