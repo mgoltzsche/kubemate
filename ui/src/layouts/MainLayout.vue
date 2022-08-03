@@ -85,10 +85,17 @@ import LoginDialog from 'src/components/LoginDialog.vue';
 
 const linksList = [
   {
-    title: 'Device Management',
+    title: 'Devices & Clusters',
     caption: 'devices',
-    icon: 'devices',
+    icon: 'hub',
     link: '#/devices',
+    target: '_self',
+  },
+  {
+    title: 'Apps',
+    caption: 'apps',
+    icon: 'extension',
+    link: '#/apps',
     target: '_self',
   },
   {

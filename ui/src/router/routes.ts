@@ -26,6 +26,25 @@ const routes: RouteRecordRaw[] = [
       },
     ],
   },
+  {
+    name: 'apps',
+    path: '/apps',
+    component: () => import('layouts/MainLayout.vue'),
+    children: [
+      {
+        name: 'apps',
+        path: '',
+        component: () => import('pages/AppsPage.vue'),
+        children: [
+          {
+            name: 'app',
+            path: ':name',
+            component: () => import('pages/AppPage.vue'),
+          },
+        ],
+      },
+    ],
+  },
 
   {
     name: 'request-join-token',

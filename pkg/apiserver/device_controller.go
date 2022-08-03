@@ -22,6 +22,7 @@ import (
 func installDeviceController(genericServer *genericapiserver.GenericAPIServer, devices, clusterTokens storage.Interface, deviceName string, discovery *DeviceDiscovery, dataDir, manifestDir string, docker bool, kubeletArgs []string) {
 	k3sRunner := runner.NewRunner()
 	criDockerdRunner := runner.NewRunner()
+	controllers := newControllerManager(logrus.NewEntry(logrus.New()))
 	genericServer.AddPostStartHookOrDie("kubemate", func(ctx genericapiserver.PostStartHookContext) error {
 		// Add CRDs to k3s' manifest directory
 		err := copyManifests(manifestDir, filepath.Join(dataDir, "server", "manifests"))
@@ -84,7 +85,7 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 		if err != nil {
 			return err
 		}
-		err = reconcileCommand(devices, clusterTokens, deviceName, discovery, dataDir, docker, kubeletArgs, k3sRunner)
+		err = reconcileCommand(devices, clusterTokens, deviceName, discovery, dataDir, docker, kubeletArgs, k3sRunner, controllers)
 		if err != nil {
 			return err
 		}
@@ -121,7 +122,7 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 		}
 		go func() {
 			for _ = range reconcileRequests {
-				err = reconcileCommand(devices, clusterTokens, deviceName, discovery, dataDir, docker, kubeletArgs, k3sRunner)
+				err = reconcileCommand(devices, clusterTokens, deviceName, discovery, dataDir, docker, kubeletArgs, k3sRunner, controllers)
 				if err != nil {
 					logrus.WithError(err).Error("failed to reconcile device command")
 					time.Sleep(time.Second)
@@ -134,6 +135,7 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 		return nil
 	})
 	genericServer.AddPreShutdownHookOrDie("kubemate", func() error {
+		controllers.Stop()
 		err := k3sRunner.Close()
 		if err != nil {
 			logrus.Error(fmt.Errorf("close k3s runner: %w", err))
@@ -151,7 +153,7 @@ func scheduleReconciliation(ch chan<- struct{}) {
 	ch <- struct{}{}
 }
 
-func reconcileCommand(devices, clusterTokens storage.Interface, deviceName string, discovery *DeviceDiscovery, dataDir string, docker bool, kubeletArgs []string, k3s *runner.Runner) error {
+func reconcileCommand(devices, clusterTokens storage.Interface, deviceName string, discovery *DeviceDiscovery, dataDir string, docker bool, kubeletArgs []string, k3s *runner.Runner, controllers *controllerManager) error {
 	logrus.Info("reconcile device")
 	d := deviceapi.Device{}
 	err := devices.Get(deviceName, &d)
@@ -223,6 +225,11 @@ func reconcileCommand(devices, clusterTokens storage.Interface, deviceName strin
 			Command: "/proc/self/exe",
 			Args:    args,
 		})
+		if d.Spec.Mode == deviceapi.DeviceModeServer {
+			controllers.Start()
+		} else {
+			controllers.Stop()
+		}
 	}
 	return nil
 }

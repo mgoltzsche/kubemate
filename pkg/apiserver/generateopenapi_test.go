@@ -33,6 +33,7 @@ func TestGenerateOpenAPI(t *testing.T) {
 		},
 	}
 	typeNames := []string{
+		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.App",
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.Device",
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceToken",
 		"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.CustomResourceDefinition",

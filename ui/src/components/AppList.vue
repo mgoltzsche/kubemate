@@ -1,20 +1,18 @@
 <template>
   <q-list>
     <q-item
-      v-for="device in devices"
-      :key="device.metadata.name"
+      v-for="app in apps"
+      :key="app.metadata?.name"
       clickable
       v-ripple
-      :to="`/devices/${device.metadata.name}`"
+      :to="`/apps/${app.metadata?.name}`"
     >
       <q-item-section avatar>
         <q-avatar color="info" text-color="white"> </q-avatar>
       </q-item-section>
       <q-item-section>
-        <q-item-label lines="1">{{ device.metadata.name }}</q-item-label>
-        <q-item-label caption lines="1"
-          >{{ device.spec.mode }}, {{ device.status.state }}</q-item-label
-        >
+        <q-item-label lines="1">{{ app.metadata?.name }}</q-item-label>
+        <q-item-label caption lines="1">{{ app.status?.state }}</q-item-label>
       </q-item-section>
     </q-item>
   </q-list>
@@ -23,15 +21,15 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 import { storeToRefs } from 'pinia';
-import { useDeviceStore } from 'src/stores/resources';
+import { useAppStore } from 'src/stores/resources';
 
 export default defineComponent({
-  name: 'DeviceList',
+  name: 'AppList',
   setup() {
-    const store = useDeviceStore();
+    const store = useAppStore();
     store.sync();
     const { resources } = storeToRefs(store);
-    return { devices: resources };
+    return { apps: resources };
   },
 });
 </script>

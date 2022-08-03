@@ -1,4 +1,109 @@
 definitions:
+  com.github.mgoltzsche.kubemate.pkg.apis.apps.v1alpha1.App:
+    description: App is the Schema for the apps API
+    properties:
+      apiVersion:
+        description: 'APIVersion defines the versioned schema of this representation
+          of an object. Servers should convert recognized schemas to the latest internal
+          value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+        type: string
+      kind:
+        description: 'Kind is a string value representing the REST resource this object
+          represents. Servers may infer this from the endpoint the client submits
+          requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+        type: string
+      metadata:
+        $ref: '#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta'
+        default: {}
+      spec:
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.apps.v1alpha1.AppSpec'
+        default: {}
+      status:
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.apps.v1alpha1.AppStatus'
+        default: {}
+    required:
+    - spec
+    type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.apps.v1alpha1.AppSpec:
+    description: AppSpec defines the desired state of the App.
+    properties:
+      enabled:
+        type: boolean
+      kustomization:
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.apps.v1alpha1.KustomizationSpec'
+    type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.apps.v1alpha1.AppStatus:
+    description: AppStatus defines the observed state of the App.
+    properties:
+      lastAppliedRevision:
+        type: string
+      lastAttemptedRevision:
+        type: string
+      message:
+        type: string
+      observedGeneration:
+        format: int64
+        type: integer
+      state:
+        description: |-
+          Possible enum values:
+           - `"Deinstalling"`
+           - `"Error"`
+           - `"Installed"`
+           - `"Installing"`
+           - `"NotInstalled"`
+           - `"Upgrading"`
+        enum:
+        - Deinstalling
+        - Error
+        - Installed
+        - Installing
+        - NotInstalled
+        - Upgrading
+        type: string
+      targetNamespace:
+        type: string
+    type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.apps.v1alpha1.CrossNamespaceSourceReference:
+    description: CrossNamespaceSourceReference contains enough information to let
+      you locate the typed Kubernetes resource object at cluster level.
+    properties:
+      apiVersion:
+        description: API version of the referent.
+        type: string
+      kind:
+        default: ""
+        description: Kind of the referent.
+        type: string
+      name:
+        default: ""
+        description: Name of the referent.
+        type: string
+      namespace:
+        description: Namespace of the referent, defaults to the namespace of the Kubernetes
+          resource object that contains the reference.
+        type: string
+    required:
+    - kind
+    - name
+    type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.apps.v1alpha1.KustomizationSpec:
+    description: KustomizationSpec specifies the kustomization that should be installed.
+    properties:
+      path:
+        description: Path points to the kustomization directory within the sourceRef.
+        type: string
+      sourceRef:
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.apps.v1alpha1.CrossNamespaceSourceReference'
+        default: {}
+        description: Reference of the source where the kustomization file is.
+      targetNamespace:
+        description: TargetNamespace specifies the Kubernetes Namespace the kustomization
+          should be installed to.
+        type: string
+    required:
+    - sourceRef
+    type: object
   com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.Device:
     description: Device is the Schema for the devices API
     properties:
