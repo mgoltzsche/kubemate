@@ -10,6 +10,7 @@ import (
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
 	generatedopenapi "github.com/mgoltzsche/kubemate/pkg/generated/openapi"
+	"github.com/mgoltzsche/kubemate/pkg/ingress"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -164,8 +165,9 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		return nil, err
 	}
 	installDeviceDiscovery(genericServer, discovery, deviceREST.rest.Store)
+	ingressRouter := ingress.NewIngressController("kubemate", logrus.WithField("component", "kubemate-ingress-controller"))
 	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known", "/version"}
-	var handler http.Handler = NewWebUIHandler(o.WebDir, genericServer.Handler.FullHandlerChain, apiPaths)
+	var handler http.Handler = NewWebUIHandler(o.WebDir, apiPaths, genericServer.Handler.FullHandlerChain, ingressRouter)
 	genericServer.Handler.FullHandlerChain = handler
 	apiGroup := &genericapiserver.APIGroupInfo{
 		PrioritizedVersions:  scheme.PrioritizedVersionsForGroup(deviceapi.GroupVersion.Group),
@@ -183,7 +185,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("install apigroup: %w", err)
 	}
-	installDeviceController(genericServer, deviceREST.rest.Store, deviceTokenREST.Store, o.DeviceName, discovery, k3sDataDir, o.ManifestDir, o.Docker, o.KubeletArgs)
+	installDeviceController(genericServer, deviceREST.rest.Store, deviceTokenREST.Store, o.DeviceName, discovery, k3sDataDir, o.ManifestDir, o.Docker, o.KubeletArgs, ingressRouter)
 	return genericServer, nil
 }
 

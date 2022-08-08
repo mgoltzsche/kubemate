@@ -108,7 +108,7 @@ run: container ## Run a kubemate container locally within the host network.
 		--mount type=bind,src=/sys,dst=/sys \
 		-v `pwd`:/output \
 		--mount type=bind,src=`pwd`/ui/dist,dst=/usr/share/kubemate/web \
-		$(IMAGE) connect --docker --web-dir=/usr/share/kubemate/web/spa --log-level=debug
+		$(IMAGE) connect --docker --web-dir=/usr/share/kubemate/web/spa --log-level=trace
 			#--http-port=80 --https-port=443
 			#--no-deploy=servicelb,traefik,metrics-server \
 			#--disable-cloud-controller \
@@ -120,7 +120,7 @@ run-other: ## Run a kubemate container locally to test joining a cluster.
 		--mount type=bind,src=/etc/machine-id,dst=/etc/machine-id \
 		-v `pwd`/output:/output \
 		--mount type=bind,src=`pwd`/ui/dist,dst=/usr/share/kubemate/web \
-		$(IMAGE) connect --web-dir=/usr/share/kubemate/web/spa --log-level=debug
+		$(IMAGE) connect --web-dir=/usr/share/kubemate/web/spa --log-level=trace
 
 .PHONY: raspios-image
 raspios-image: PACKER_FILE = ./packer/kubemate-raspios.pkr.hcl

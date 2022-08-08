@@ -70,7 +70,9 @@ func (m *controllerManager) Start() error {
 			}
 			err := runControllerManager(ctx, m.scheme, m.logger)
 			if err != nil {
-				logrus.WithError(err).Log(logLevel, "run kubemate controller manager")
+				if e := ctx.Err(); e == nil {
+					logrus.WithError(err).Log(logLevel, "kubemate controller manager failed")
+				}
 			}
 			time.Sleep(time.Second)
 			attempt++

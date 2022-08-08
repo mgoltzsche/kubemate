@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -15,19 +17,26 @@ var (
 )
 
 type webUIHandler struct {
-	dir         string
-	delegate    http.Handler
-	fileHandler http.Handler
-	apiPaths    map[string]struct{}
+	dir             string
+	apiPaths        map[string]struct{}
+	apiHandler      http.Handler
+	fileHandler     http.Handler
+	fallbackHandler http.Handler
 }
 
-func NewWebUIHandler(dir string, delegate http.Handler, apiPaths []string) http.Handler {
+func NewWebUIHandler(dir string, apiPaths []string, apiHandler, fallbackHandler http.Handler) http.Handler {
 	m := make(map[string]struct{}, len(apiPaths))
 	for _, p := range apiPaths {
 		m[fmt.Sprintf("%s/", path.Clean(p))] = struct{}{}
 	}
 	fileHandler := http.FileServer(http.Dir(dir))
-	return &webUIHandler{dir: dir, delegate: delegate, fileHandler: fileHandler, apiPaths: m}
+	return &webUIHandler{
+		dir:             dir,
+		apiHandler:      apiHandler,
+		fileHandler:     fileHandler,
+		fallbackHandler: fallbackHandler,
+		apiPaths:        m,
+	}
 }
 
 func (h *webUIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -40,11 +49,15 @@ func (h *webUIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if serveStaticFile {
+		if _, err := os.Stat(filepath.Join(h.dir, filepath.FromSlash(r.URL.Path))); os.IsNotExist(err) {
+			h.fallbackHandler.ServeHTTP(w, r)
+			return
+		}
 		if !filePathRegex.Match([]byte(r.URL.Path)) {
 			r.URL = rootURL
 		}
 		h.fileHandler.ServeHTTP(w, r)
 		return
 	}
-	h.delegate.ServeHTTP(w, r)
+	h.apiHandler.ServeHTTP(w, r)
 }

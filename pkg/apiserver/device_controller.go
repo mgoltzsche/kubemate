@@ -10,6 +10,7 @@ import (
 	"time"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
+	"github.com/mgoltzsche/kubemate/pkg/ingress"
 	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"github.com/mgoltzsche/kubemate/pkg/runner"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
@@ -19,7 +20,7 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 )
 
-func installDeviceController(genericServer *genericapiserver.GenericAPIServer, devices, clusterTokens storage.Interface, deviceName string, discovery *DeviceDiscovery, dataDir, manifestDir string, docker bool, kubeletArgs []string) {
+func installDeviceController(genericServer *genericapiserver.GenericAPIServer, devices, clusterTokens storage.Interface, deviceName string, discovery *DeviceDiscovery, dataDir, manifestDir string, docker bool, kubeletArgs []string, ingressCtrl *ingress.IngressController) {
 	k3sRunner := runner.NewRunner()
 	criDockerdRunner := runner.NewRunner()
 	controllers := newControllerManager(logrus.NewEntry(logrus.New()))
@@ -85,7 +86,7 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 		if err != nil {
 			return err
 		}
-		err = reconcileCommand(devices, clusterTokens, deviceName, discovery, dataDir, docker, kubeletArgs, k3sRunner, controllers)
+		err = reconcileCommand(devices, clusterTokens, deviceName, discovery, dataDir, docker, kubeletArgs, k3sRunner, controllers, ingressCtrl)
 		if err != nil {
 			return err
 		}
@@ -122,7 +123,7 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 		}
 		go func() {
 			for _ = range reconcileRequests {
-				err = reconcileCommand(devices, clusterTokens, deviceName, discovery, dataDir, docker, kubeletArgs, k3sRunner, controllers)
+				err = reconcileCommand(devices, clusterTokens, deviceName, discovery, dataDir, docker, kubeletArgs, k3sRunner, controllers, ingressCtrl)
 				if err != nil {
 					logrus.WithError(err).Error("failed to reconcile device command")
 					time.Sleep(time.Second)
@@ -136,6 +137,7 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 	})
 	genericServer.AddPreShutdownHookOrDie("kubemate", func() error {
 		controllers.Stop()
+		ingressCtrl.Stop()
 		err := k3sRunner.Close()
 		if err != nil {
 			logrus.Error(fmt.Errorf("close k3s runner: %w", err))
@@ -153,7 +155,7 @@ func scheduleReconciliation(ch chan<- struct{}) {
 	ch <- struct{}{}
 }
 
-func reconcileCommand(devices, clusterTokens storage.Interface, deviceName string, discovery *DeviceDiscovery, dataDir string, docker bool, kubeletArgs []string, k3s *runner.Runner, controllers *controllerManager) error {
+func reconcileCommand(devices, clusterTokens storage.Interface, deviceName string, discovery *DeviceDiscovery, dataDir string, docker bool, kubeletArgs []string, k3s *runner.Runner, controllers *controllerManager, ingressCtrl *ingress.IngressController) error {
 	logrus.Info("reconcile device")
 	d := deviceapi.Device{}
 	err := devices.Get(deviceName, &d)
@@ -227,8 +229,10 @@ func reconcileCommand(devices, clusterTokens storage.Interface, deviceName strin
 		})
 		if d.Spec.Mode == deviceapi.DeviceModeServer {
 			controllers.Start()
+			ingressCtrl.Start()
 		} else {
 			controllers.Stop()
+			ingressCtrl.Stop()
 		}
 	}
 	return nil
@@ -301,6 +305,7 @@ func buildK3sAgentArgs(server *deviceapi.Device, joinAddress string, nodeIP net.
 	return args
 }
 
+// TODO: reconcile only when relevant external iface changed - not whenever a new iface for a container comes up.
 func reconcileOnNetworkInterfaceLinkUpdate(ctx context.Context, ch chan<- struct{}) error {
 	linkCh := make(chan netlink.LinkUpdate)
 	err := netlink.LinkSubscribe(linkCh, ctx.Done())
