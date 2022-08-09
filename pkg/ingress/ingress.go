@@ -217,7 +217,10 @@ func newRouter(ctx context.Context, c client.Client, ingressClass string, logger
 				paths[path] = k
 				rewriteTargetPath := ""
 				if ing.Annotations != nil {
-					rewriteTargetPath = ing.Annotations["nginx.ingress.kubernetes.io/rewrite-target"]
+					rewriteTargetPath = ing.Annotations["kubemate.mgoltzsche.github.com/rewrite-target"]
+					if rewriteTargetPath == "" {
+						rewriteTargetPath = ing.Annotations["nginx.ingress.kubernetes.io/rewrite-target"]
+					}
 				}
 				h := &ingressBackendHandler{
 					proxy:             httputil.NewSingleHostReverseProxy(backendURL),

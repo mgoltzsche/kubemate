@@ -9,6 +9,7 @@ import {
 import {
   com_github_mgoltzsche_kubemate_pkg_apis_apps_v1alpha1_App as App,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_Device as Device,
+  io_k8s_api_networking_v1_Ingress as Ingress,
   io_k8s_apiextensions_apiserver_pkg_apis_apiextensions_v1_CustomResourceDefinition as CustomResourceDefinition,
 } from 'src/gen';
 import { Resource } from 'src/k8sclient';
@@ -94,6 +95,11 @@ export const useDeviceStore = defineResourceStore<Device>(
 export const useAppStore = defineResourceStore<App>(
   '/apis/apps.kubemate.mgoltzsche.github.com/v1alpha1',
   'apps'
+);
+
+export const useIngressStore = defineResourceStore<Ingress>(
+  '/apis/networking.k8s.io/v1',
+  'ingresses'
 );
 
 export const useCustomResourceDefinitionStore =

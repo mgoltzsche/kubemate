@@ -27,29 +27,71 @@
 
     <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
       <q-list>
-        <q-item-label header> Essential Links </q-item-label>
-
-        <EssentialLink
-          v-for="link in essentialLinks"
-          :key="link.title"
-          v-bind="link"
-        />
-
-        <q-item-label header> Settings </q-item-label>
-
-        <q-item
-          clickable
-          tag="a"
-          :href="`#/customresourcedefinition/${crd.metadata?.name}`"
-          :title="crd.metadata?.name"
-          :key="crd.metadata?.name"
-          v-for="crd in customResourceDefinitions"
+        <q-expansion-item
+          group="main"
+          icon="apps"
+          label="Apps"
+          header-class="text-primary"
         >
-          <q-item-section>
-            <q-item-label>{{ crd.spec.names.plural }}</q-item-label>
-            <q-item-label caption>{{ crd.metadata?.name }}</q-item-label>
-          </q-item-section>
-        </q-item>
+          <q-list>
+            <q-item
+              clickable
+              tag="a"
+              :href="ingress.url"
+              :title="ingress.info"
+              :key="`${ingress.key}`"
+              v-for="ingress in ingresses"
+            >
+              <q-item-section avatar>
+                <q-icon
+                  :name="`img:${ingress.url}${ingress.iconPath}`"
+                  v-if="ingress.iconPath"
+                />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>{{ ingress.title }}</q-item-label>
+                <q-item-label caption>{{ ingress.caption }}</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-expansion-item>
+        <q-separator />
+        <q-expansion-item
+          group="main"
+          icon="explore"
+          label="Custom Resources"
+          header-class="text-primary"
+        >
+          <q-list>
+            <q-item
+              clickable
+              tag="a"
+              :href="`#/customresourcedefinition/${crd.metadata?.name}`"
+              :title="crd.metadata?.name"
+              :key="crd.metadata?.name"
+              v-for="crd in customResourceDefinitions"
+            >
+              <q-item-section>
+                <q-item-label>{{ crd.spec.names.plural }}</q-item-label>
+                <q-item-label caption>{{ crd.metadata?.name }}</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-expansion-item>
+        <q-separator />
+        <q-expansion-item
+          group="main"
+          icon="settings"
+          label="Settings"
+          default-opened
+          header-class="text-primary"
+        >
+          <EssentialLink
+            v-for="link in mainLinks"
+            :key="link.title"
+            v-bind="link"
+          />
+        </q-expansion-item>
       </q-list>
     </q-drawer>
 
@@ -80,8 +122,10 @@ import { version } from '../../package.json';
 import {
   useCustomResourceDefinitionStore,
   useDeviceStore,
+  useIngressStore,
 } from 'src/stores/resources';
 import LoginDialog from 'src/components/LoginDialog.vue';
+import { io_k8s_api_networking_v1_Ingress as Ingress } from 'src/gen';
 
 const linksList = [
   {
@@ -89,34 +133,18 @@ const linksList = [
     caption: 'devices',
     icon: 'hub',
     link: '#/devices',
-    target: '_self',
   },
   {
-    title: 'Apps',
+    title: 'Manage Apps',
     caption: 'apps',
     icon: 'extension',
     link: '#/apps',
-    target: '_self',
   },
   {
-    title: 'Docs',
-    caption: 'quasar.dev',
-    icon: 'school',
-    link: 'https://quasar.dev',
-    target: '_blank',
-  },
-  {
-    title: 'Github',
-    caption: 'github.com/quasarframework',
+    title: 'Source code and issue tracker',
+    caption: 'github.com/mgoltzsche/kubemate',
     icon: 'code',
-    link: 'https://github.com/quasarframework',
-    target: '_blank',
-  },
-  {
-    title: 'Quasar Awesome',
-    caption: 'Community Quasar projects',
-    icon: 'favorite',
-    link: 'https://awesome.quasar.dev',
+    link: 'https://github.com/mgoltzsche/kubemate',
     target: '_blank',
   },
 ];
@@ -166,6 +194,36 @@ function useCustomResourceDefinitions() {
   };
 }
 
+function useIngresses() {
+  const store = useIngressStore();
+  store.sync();
+  const state = reactive({
+    ingresses: computed(() =>
+      store.resources
+        .map((ing: Ingress) => {
+          const a = ing.metadata?.annotations;
+          const title = a ? a['kubemate.mgoltzsche.github.com/nav-title'] : '';
+          const key = `${ing.metadata?.namespace}/${ing.metadata?.name}`;
+          const url = ing.spec?.rules?.find((r) => {
+            return !r.host && r.http?.paths && r.http.paths.length > 0;
+          })?.http?.paths[0].path;
+          return {
+            key: key,
+            title: title ? title : key,
+            caption: title ? key : '',
+            info: title ? `${title} (${key})` : key,
+            url: url,
+            iconPath: a ? a['kubemate.mgoltzsche.github.com/nav-icon'] : '',
+          };
+        })
+        .filter((ing) => ing.url)
+    ),
+  });
+  return {
+    ...toRefs(state),
+  };
+}
+
 export default defineComponent({
   name: 'MainLayout',
 
@@ -176,10 +234,11 @@ export default defineComponent({
 
   setup() {
     return {
-      essentialLinks: linksList,
+      mainLinks: linksList,
       ...useLeftDrawerToggle(),
       ...useLoginDialog(),
       ...useDeviceName(),
+      ...useIngresses(),
       ...useCustomResourceDefinitions(),
       version,
     };
