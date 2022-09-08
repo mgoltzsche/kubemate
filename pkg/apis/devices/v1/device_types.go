@@ -18,20 +18,31 @@ type DeviceState string
 type DeviceMode string
 
 const (
-	DeviceStateUnknown  DeviceState = "unknown"
-	DeviceStateStarting DeviceState = "starting"
-	DeviceStateRunning  DeviceState = "running"
-	DeviceStateError    DeviceState = "error"
-	DeviceStateExited   DeviceState = "exited"
-	DeviceModeServer    DeviceMode  = "server"
-	DeviceModeAgent     DeviceMode  = "agent"
+	DeviceStateUnknown     DeviceState = "unknown"
+	DeviceStateStarting    DeviceState = "starting"
+	DeviceStateRunning     DeviceState = "running"
+	DeviceStateError       DeviceState = "error"
+	DeviceStateExited      DeviceState = "exited"
+	DeviceStateTerminating DeviceState = "terminating"
+	DeviceModeServer       DeviceMode  = "server"
+	DeviceModeAgent        DeviceMode  = "agent"
 )
 
 // +k8s:openapi-gen=true
-// DeviceSpec defines the desired state of Cache
+// DeviceSpec defines the desired state of the Device.
 type DeviceSpec struct {
 	Mode   DeviceMode `json:"mode"`
 	Server string     `json:"server,omitempty"`
+	Wifi   WifiConfig `json:"wifi"`
+}
+
+// +k8s:openapi-gen=true
+// WifiConfig defines the wifi configuration for the device.
+type WifiConfig struct {
+	Enabled bool `json:"enabled"`
+	//Mode        WifiMode         `json:"type,omitempty"`
+	CountryCode string `json:"countryCode,omitempty"`
+	SSID        string `json:'"ssid,omitempty"`
 }
 
 // +k8s:openapi-gen=true

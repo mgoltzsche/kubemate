@@ -8,6 +8,18 @@ const routes: RouteRecordRaw[] = [
     children: [{ path: '', component: () => import('pages/IndexPage.vue') }],
   },
   {
+    name: 'settings',
+    path: '/wifi',
+    component: () => import('layouts/MainLayout.vue'),
+    children: [
+      {
+        name: 'wifi',
+        path: '',
+        component: () => import('pages/WifiSettingsPage.vue'),
+      },
+    ],
+  },
+  {
     name: 'devices',
     path: '/devices',
     component: () => import('layouts/MainLayout.vue'),

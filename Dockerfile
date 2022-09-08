@@ -35,6 +35,7 @@ COPY --from=build /work/kubemate /bin/kubemate
 
 FROM alpine:3.15
 RUN apk add --update --no-cache iptables openssl ca-certificates apparmor
+RUN apk add --no-cache hostapd iptables dhcp docker iproute2 iw
 ARG VERSION="dev"
 RUN mkdir -p /etc && \
     echo 'hosts: files dns' > /etc/nsswitch.conf && \

@@ -29,6 +29,10 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceToken":                             schema_pkg_apis_devices_v1_DeviceToken(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenData":                         schema_pkg_apis_devices_v1_DeviceTokenData(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenList":                         schema_pkg_apis_devices_v1_DeviceTokenList(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiConfig":                              schema_pkg_apis_devices_v1_WifiConfig(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPassword":                            schema_pkg_apis_devices_v1_WifiPassword(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPasswordData":                        schema_pkg_apis_devices_v1_WifiPasswordData(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPasswordList":                        schema_pkg_apis_devices_v1_WifiPasswordList(ref),
 		"k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource":                                        schema_k8sio_api_core_v1_AWSElasticBlockStoreVolumeSource(ref),
 		"k8s.io/api/core/v1.Affinity":                                                                schema_k8sio_api_core_v1_Affinity(ref),
 		"k8s.io/api/core/v1.AttachedVolume":                                                          schema_k8sio_api_core_v1_AttachedVolume(ref),
@@ -698,7 +702,7 @@ func schema_pkg_apis_devices_v1_DeviceSpec(ref common.ReferenceCallback) common.
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DeviceSpec defines the desired state of Cache",
+				Description: "DeviceSpec defines the desired state of the Device.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"mode": {
@@ -715,10 +719,18 @@ func schema_pkg_apis_devices_v1_DeviceSpec(ref common.ReferenceCallback) common.
 							Format: "",
 						},
 					},
+					"wifi": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiConfig"),
+						},
+					},
 				},
-				Required: []string{"mode"},
+				Required: []string{"mode", "wifi"},
 			},
 		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiConfig"},
 	}
 }
 
@@ -744,10 +756,10 @@ func schema_pkg_apis_devices_v1_DeviceStatus(ref common.ReferenceCallback) commo
 					},
 					"state": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Possible enum values:\n - `\"error\"`\n - `\"exited\"`\n - `\"running\"`\n - `\"starting\"`\n - `\"unknown\"`",
+							Description: "Possible enum values:\n - `\"error\"`\n - `\"exited\"`\n - `\"running\"`\n - `\"starting\"`\n - `\"terminating\"`\n - `\"unknown\"`",
 							Type:        []string{"string"},
 							Format:      "",
-							Enum:        []interface{}{"error", "exited", "running", "starting", "unknown"}},
+							Enum:        []interface{}{"error", "exited", "running", "starting", "terminating", "unknown"}},
 					},
 					"message": {
 						SchemaProps: spec.SchemaProps{
@@ -883,6 +895,153 @@ func schema_pkg_apis_devices_v1_DeviceTokenList(ref common.ReferenceCallback) co
 		},
 		Dependencies: []string{
 			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceToken", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_devices_v1_WifiConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WifiConfig defines the wifi configuration for the device.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Default: false,
+							Type:    []string{"boolean"},
+							Format:  "",
+						},
+					},
+					"countryCode": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Mode        WifiMode         `json:\"type,omitempty\"`",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"SSID": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"enabled", "SSID"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_devices_v1_WifiPassword(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WifiPassword is the Schema for the wifi key API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"data": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPasswordData"),
+						},
+					},
+				},
+				Required: []string{"metadata", "data"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPasswordData", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_devices_v1_WifiPasswordData(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WifiPasswordData defines the desired state of Cache",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"token": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"token"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_devices_v1_WifiPasswordList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WifiPasswordList contains a list of Cache",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPassword"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPassword", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 

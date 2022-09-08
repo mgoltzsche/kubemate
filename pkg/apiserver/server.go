@@ -81,6 +81,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	scheme.AddKnownTypes(deviceapi.GroupVersion,
 		&deviceapi.Device{}, &deviceapi.DeviceList{},
 		&deviceapi.DeviceToken{}, &deviceapi.DeviceTokenList{},
+		&deviceapi.WifiPassword{}, &deviceapi.WifiPasswordList{},
 	)
 	codecs := serializer.NewCodecFactory(scheme)
 	paramScheme := runtime.NewScheme()
@@ -160,12 +161,18 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	}
 	discovery := NewDeviceDiscovery(o.DeviceName, o.HTTPSPort, o.AdvertiseIfaces)
 	deviceREST := NewDeviceREST(o.DeviceName, discovery.Discover)
-	deviceTokenREST, err := NewDeviceTokenREST(filepath.Join(o.DataDir, "devicetokens"), scheme, o.DeviceName)
+	joinTokenDir := filepath.Join(o.DataDir, "devicetokens")
+	deviceTokenREST, err := NewDeviceTokenREST(joinTokenDir, scheme, o.DeviceName)
+	if err != nil {
+		return nil, err
+	}
+	wifiPasswordDir := filepath.Join(o.DataDir, "wifipasswords")
+	wifiPasswordREST, err := NewWifiPasswordREST(wifiPasswordDir, scheme, o.DeviceName)
 	if err != nil {
 		return nil, err
 	}
 	installDeviceDiscovery(genericServer, discovery, deviceREST.rest.Store)
-	ingressRouter := ingress.NewIngressController("kubemate", logrus.WithField("component", "kubemate-ingress-controller"))
+	ingressRouter := ingress.NewIngressController("kubemate", logrus.WithField("comp", "ingress-controller"))
 	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known", "/version"}
 	var handler http.Handler = NewWebUIHandler(o.WebDir, apiPaths, genericServer.Handler.FullHandlerChain, ingressRouter)
 	genericServer.Handler.FullHandlerChain = handler
@@ -176,8 +183,9 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		NegotiatedSerializer: codecs,
 		VersionedResourcesStorageMap: map[string]map[string]registryrest.Storage{
 			"v1": map[string]registryrest.Storage{
-				"devices":      deviceREST,
-				"devicetokens": deviceTokenREST,
+				"devices":       deviceREST,
+				"devicetokens":  deviceTokenREST,
+				"wifipasswords": wifiPasswordREST,
 			},
 		},
 	}
@@ -185,7 +193,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("install apigroup: %w", err)
 	}
-	installDeviceController(genericServer, deviceREST.rest.Store, deviceTokenREST.Store, o.DeviceName, discovery, k3sDataDir, o.ManifestDir, o.Docker, o.KubeletArgs, ingressRouter)
+	installDeviceController(genericServer, o.DeviceName, deviceREST.rest.Store, deviceTokenREST.Store, wifiPasswordREST.Store, discovery, k3sDataDir, o.ManifestDir, o.Docker, o.KubeletArgs, ingressRouter)
 	return genericServer, nil
 }
 

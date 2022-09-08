@@ -1,12 +1,8 @@
 package runner
 
 import (
+	"context"
 	"fmt"
-	"io"
-	"os"
-	"os/exec"
-	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -15,9 +11,9 @@ import (
 type ProcessState string
 
 const (
-	ProcessStateRunning    ProcessState = "running" // TODO: add ready check to set this state
-	ProcessStateFailed     ProcessState = "failed"
-	ProcessStateTerminated ProcessState = "terminated"
+	ProcessStateRunning ProcessState = "running"
+	ProcessStateFailed  ProcessState = "failed"
+	ProcessStateExited  ProcessState = "exited"
 )
 
 type Command struct {
@@ -25,173 +21,84 @@ type Command struct {
 	Status CommandStatus
 }
 
-type CommandSpec struct {
-	Command string
-	Args    []string
-}
-
-func (c *CommandSpec) String() string {
-	cmd := make([]string, 1, len(c.Args)+1)
-	cmd[0] = c.Command
-	cmd = append(cmd, c.Args...)
-	for i, s := range cmd {
-		if strings.Contains(s, " ") {
-			cmd[i] = strconv.Quote(s)
-		}
-	}
-	return strings.Join(cmd, " ")
-}
-
 type CommandStatus struct {
 	State   ProcessState
 	Message string
 }
 
+type StatusReportFunc func(cmd Command)
+
+func noopStatusReporter(cmd Command) {}
+
 type Runner struct {
-	mutex sync.Mutex
-	spec  chan CommandSpec
-	done  sync.WaitGroup
+	proc     *Proc
+	mutex    sync.Mutex
+	Reporter StatusReportFunc
+	logger   *logrus.Entry
 }
 
-func NewRunner() *Runner {
+func New(logger *logrus.Entry) *Runner {
 	return &Runner{
-		spec: make(chan CommandSpec),
+		Reporter: noopStatusReporter,
+		logger:   logger,
 	}
 }
 
-func (l *Runner) SetCommand(p CommandSpec) {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
-	if l.spec != nil {
-		l.spec <- p
+func (m *Runner) Stop() (err error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	if m.proc != nil {
+		err = m.proc.Stop()
+		m.proc = nil
 	}
+	return
 }
 
-func (l *Runner) Close() error {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
-	if l.spec != nil {
-		close(l.spec)
-	}
-	l.done.Wait()
-	l.spec = nil
-	return nil
-}
-
-func (l *Runner) Start() <-chan Command {
-	ch := make(chan Command)
-	l.done.Add(1)
-	go l.run(ch)
-	return ch
-}
-
-func (l *Runner) run(ch chan<- Command) {
-	defer l.done.Done()
-	var p *Process
-	for c := range l.spec {
-		if p == nil || c.String() != p.spec.String() {
-			if p != nil {
-				p.Stop()
-			}
-			p = startProcess(c, ch)
+func (m *Runner) Start(ctx context.Context, cmd CommandSpec) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	if m.proc != nil {
+		if m.proc.cmd.String() == cmd.String() {
+			// Don't restart when corresponding process is already running
+			return nil
 		}
+		err := m.proc.Stop()
+		if err != nil {
+			return err
+		}
+		m.proc = nil
 	}
-	if p != nil {
-		p.Stop()
-	}
-	close(ch)
-}
-
-type Process struct {
-	spec    CommandSpec
-	proc    *os.Process
-	running *sync.WaitGroup
-}
-
-func (p *Process) Stop() {
-	logrus.Debug("stopping process")
-	err := p.proc.Signal(os.Interrupt)
-	if err != nil && err != os.ErrProcessDone {
-		logrus.Warnf("interrupting process: %s", err)
-	}
-	p.Wait()
-}
-
-func (p *Process) Wait() {
-	p.running.Wait()
-}
-
-func startProcess(cmd CommandSpec, ch chan<- Command) *Process {
-	c := exec.Command(cmd.Command, cmd.Args...)
-	c.Env = os.Environ()
-	stdout, err := c.StdoutPipe()
+	p, err := StartProcess(ctx, m.logger, cmd)
 	if err != nil {
-		ch <- Command{
-			Spec: cmd,
-			Status: CommandStatus{
-				State:   ProcessStateFailed,
-				Message: fmt.Sprintf("failed to start process: %s", err),
-			},
-		}
-		return nil
+		m.report(cmd, CommandStatus{
+			State:   ProcessStateFailed,
+			Message: fmt.Sprintf("failed to start process: %s", err),
+		})
+		return err
 	}
-	stderr, err := c.StderrPipe()
-	if err != nil {
-		stdout.Close()
-		ch <- Command{
-			Spec: cmd,
-			Status: CommandStatus{
-				State:   ProcessStateFailed,
-				Message: fmt.Sprintf("failed to start process: %s", err),
-			},
-		}
-		return nil
-	}
-	logrus.Debugf("starting process: %s %s", cmd.Command, strings.Join(cmd.Args, " "))
-	err = c.Start()
-	if err != nil {
-		ch <- Command{
-			Spec: cmd,
-			Status: CommandStatus{
-				State:   ProcessStateFailed,
-				Message: fmt.Sprintf("failed to start process: %s", err),
-			},
-		}
-		return nil
-	}
+	m.proc = p
 	go func() {
-		defer stdout.Close()
-		_, _ = io.Copy(os.Stdout, stdout)
-	}()
-	go func() {
-		defer stderr.Close()
-		_, _ = io.Copy(os.Stderr, stderr)
-	}()
-	ch <- Command{
-		Spec: cmd,
-		Status: CommandStatus{
+		m.report(cmd, CommandStatus{
 			State: ProcessStateRunning,
-		},
-	}
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err := c.Wait()
+		})
+		err := p.Wait()
 		s := CommandStatus{}
-		s.State = ProcessStateTerminated
+		s.State = ProcessStateExited
 		if err != nil {
 			s.State = ProcessStateFailed
 			s.Message = fmt.Sprintf("process failed: %s", err)
 		}
-		ch <- Command{
-			Spec:   cmd,
-			Status: s,
-		}
+		m.mutex.Lock()
+		m.proc = nil
+		m.mutex.Unlock()
+		m.report(cmd, s)
 	}()
-	return &Process{
-		spec:    cmd,
-		proc:    c.Process,
-		running: wg,
-	}
+	return nil
+}
+
+func (m *Runner) report(c CommandSpec, s CommandStatus) {
+	m.Reporter(Command{
+		Spec:   c,
+		Status: s,
+	})
 }

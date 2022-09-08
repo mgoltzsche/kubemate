@@ -141,6 +141,12 @@ const linksList = [
     link: '#/apps',
   },
   {
+    title: 'Wifi',
+    caption: 'Hotspot',
+    icon: 'wifi',
+    link: '#/wifi',
+  },
+  {
     title: 'Source code and issue tracker',
     caption: 'github.com/mgoltzsche/kubemate',
     icon: 'code',

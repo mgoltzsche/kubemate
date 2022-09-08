@@ -132,7 +132,7 @@ definitions:
     - status
     type: object
   com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceSpec:
-    description: DeviceSpec defines the desired state of Cache
+    description: DeviceSpec defines the desired state of the Device.
     properties:
       mode:
         default: ""
@@ -146,8 +146,12 @@ definitions:
         type: string
       server:
         type: string
+      wifi:
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiConfig'
+        default: {}
     required:
     - mode
+    - wifi
     type: object
   com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceStatus:
     description: DeviceStatus defines the observed state of Cache
@@ -171,12 +175,14 @@ definitions:
            - `"exited"`
            - `"running"`
            - `"starting"`
+           - `"terminating"`
            - `"unknown"`
         enum:
         - error
         - exited
         - running
         - starting
+        - terminating
         - unknown
         type: string
     required:
@@ -213,6 +219,22 @@ definitions:
         type: string
     required:
     - token
+    type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiConfig:
+    description: WifiConfig defines the wifi configuration for the device.
+    properties:
+      SSID:
+        default: ""
+        type: string
+      countryCode:
+        description: Mode        WifiMode         `json:"type,omitempty"`
+        type: string
+      enabled:
+        default: false
+        type: boolean
+    required:
+    - enabled
+    - SSID
     type: object
   io.k8s.api.core.v1.LoadBalancerIngress:
     description: 'LoadBalancerIngress represents the status of a load-balancer ingress

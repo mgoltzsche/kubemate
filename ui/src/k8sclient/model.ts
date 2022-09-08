@@ -12,3 +12,8 @@ export interface ObjectMeta {
   readonly namespace?: string;
   readonly resourceVersion?: string;
 }
+
+/*export interface CustomResource extends Resource {
+  readonly spec: any;
+  readonly status: any;
+}*/

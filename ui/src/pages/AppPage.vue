@@ -10,7 +10,7 @@ import AppDetails from 'src/components/AppDetails.vue';
 import { useRoute } from 'vue-router';
 
 export default defineComponent({
-  name: 'DevicePage',
+  name: 'AppPage',
   components: { AppDetails },
   setup() {
     const state = {

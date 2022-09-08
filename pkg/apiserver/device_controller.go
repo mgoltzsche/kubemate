@@ -14,70 +14,74 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"github.com/mgoltzsche/kubemate/pkg/runner"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
+	"github.com/mgoltzsche/kubemate/pkg/wifi"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"k8s.io/apimachinery/pkg/watch"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 )
 
-func installDeviceController(genericServer *genericapiserver.GenericAPIServer, devices, clusterTokens storage.Interface, deviceName string, discovery *DeviceDiscovery, dataDir, manifestDir string, docker bool, kubeletArgs []string, ingressCtrl *ingress.IngressController) {
-	k3sRunner := runner.NewRunner()
-	criDockerdRunner := runner.NewRunner()
-	controllers := newControllerManager(logrus.NewEntry(logrus.New()))
+func installDeviceController(genericServer *genericapiserver.GenericAPIServer, deviceName string, devices, clusterTokens, wifiPasswords storage.Interface, discovery *DeviceDiscovery, dataDir, manifestDir string, docker bool, kubeletArgs []string, ingressCtrl *ingress.IngressController) {
+	logger := logrus.NewEntry(logrus.StandardLogger())
+	k3sRunner := runner.New(logger.WithField("proc", "k3s"))
+	criDockerdRunner := runner.New(logger.WithField("proc", "cri-dockerd"))
+	controllers := newControllerManager(logrus.WithField("comp", "controller-manager"))
+	wifi := wifi.New(logger)
+	wifi.DHCPLeaseFile = filepath.Join(dataDir, "dhcpd.leases")
+	logger = logger.WithField("comp", "device-controller")
 	genericServer.AddPostStartHookOrDie("kubemate", func(ctx genericapiserver.PostStartHookContext) error {
+		// Apply wifi password
+		wifiPassword := deviceapi.WifiPassword{}
+		err := wifiPasswords.Get(deviceName, &wifiPassword)
+		if err != nil {
+			return fmt.Errorf("get ap wifi password: %w", err)
+		}
+		wifi.ApPassword = wifiPassword.Data.Password
 		// Add CRDs to k3s' manifest directory
-		err := copyManifests(manifestDir, filepath.Join(dataDir, "server", "manifests"))
+		err = copyManifests(manifestDir, filepath.Join(dataDir, "server", "manifests"))
 		if err != nil {
 			return fmt.Errorf("copy default manifests into data dir: %w", err)
 		}
 		// Update device resource's status
-		k3sCh := k3sRunner.Start()
-		go func() {
-			for cmd := range k3sCh {
-				if cmd.Status.State == runner.ProcessStateFailed {
-					logrus.Warnf("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
-				} else {
-					logrus.Infof("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
-				}
-				device := &deviceapi.Device{}
-				err := devices.Update(deviceName, device, func() (resource.Resource, error) {
-					device.Status.Generation = device.Generation
+		k3sRunner.Reporter = func(cmd runner.Command) {
+			if cmd.Status.State == runner.ProcessStateFailed {
+				logrus.Warnf("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
+			} else {
+				logrus.Infof("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
+			}
+			device := &deviceapi.Device{}
+			err := devices.Update(deviceName, device, func() (resource.Resource, error) {
+				device.Status.Generation = device.Generation
+				if device.Status.State != deviceapi.DeviceStateTerminating {
 					// TODO: map properly
 					device.Status.State = deviceapi.DeviceState(cmd.Status.State)
-					device.Status.Message = cmd.Status.Message
-					device.Status.Address = fmt.Sprintf("https://%s", genericServer.ExternalAddress)
-					device.Status.Current = true
-					return device, nil
-				})
-				if err != nil {
-					logrus.WithError(err).Error("failed to update device status")
-					continue
 				}
-			}
-		}()
-		if docker {
-			// Launch the docker shim
-			criDockerdCh := criDockerdRunner.Start()
-			criDockerdRunner.SetCommand(runner.CommandSpec{
-				Command: "cri-dockerd",
-				Args:    []string{},
+				device.Status.Message = cmd.Status.Message
+				device.Status.Address = fmt.Sprintf("https://%s", genericServer.ExternalAddress)
+				device.Status.Current = true
+				return device, nil
 			})
-			go func() {
-				for cmd := range criDockerdCh {
-					if cmd.Status.State == runner.ProcessStateFailed {
-						logrus.Errorf("cri-dockerd %s: %s", cmd.Status.State, cmd.Status.Message)
-					} else {
-						logrus.Infof("cri-dockerd %s: %s", cmd.Status.State, cmd.Status.Message)
-					}
-				}
-			}()
+			if err != nil {
+				logrus.WithError(err).Error("failed to update device status")
+			}
 		}
-		// Listen for device spec changes
 		goCtx, cancel := context.WithCancel(context.Background()) // TODO: fix termination
 		go func() {
 			<-ctx.StopCh
 			cancel()
 		}()
+		if docker {
+			// Launch the docker shim
+			criDockerdRunner.Reporter = func(cmd runner.Command) {
+				if cmd.Status.State == runner.ProcessStateFailed {
+					logrus.Errorf("cri-dockerd %s: %s", cmd.Status.State, cmd.Status.Message)
+				} else {
+					logrus.Infof("cri-dockerd %s: %s", cmd.Status.State, cmd.Status.Message)
+				}
+			}
+			criDockerdRunner.Start(goCtx, runner.Cmd("cri-dockerd"))
+		}
+		// Listen for device spec changes
 		deviceWatch, err := devices.Watch(goCtx, "")
 		if err != nil {
 			return err
@@ -86,7 +90,7 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 		if err != nil {
 			return err
 		}
-		err = reconcileCommand(devices, clusterTokens, deviceName, discovery, dataDir, docker, kubeletArgs, k3sRunner, controllers, ingressCtrl)
+		err = reconcileCommand(devices, clusterTokens, deviceName, wifi, discovery, dataDir, docker, kubeletArgs, k3sRunner, controllers, ingressCtrl, logger)
 		if err != nil {
 			return err
 		}
@@ -123,28 +127,40 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 		}
 		go func() {
 			for _ = range reconcileRequests {
-				err = reconcileCommand(devices, clusterTokens, deviceName, discovery, dataDir, docker, kubeletArgs, k3sRunner, controllers, ingressCtrl)
+				err = reconcileCommand(devices, clusterTokens, deviceName, wifi, discovery, dataDir, docker, kubeletArgs, k3sRunner, controllers, ingressCtrl, logger)
 				if err != nil {
-					logrus.WithError(err).Error("failed to reconcile device command")
+					logger.WithError(err).Error("failed to reconcile device command")
 					time.Sleep(time.Second)
 					go scheduleReconciliation(reconcileRequests)
 					continue
 				}
 			}
-			logrus.Debug("device controller terminated")
+			logger.Debug("device controller terminated")
 		}()
 		return nil
 	})
 	genericServer.AddPreShutdownHookOrDie("kubemate", func() error {
+		d := &deviceapi.Device{}
+		err := devices.Update(deviceName, d, func() (resource.Resource, error) {
+			d.Status.State = deviceapi.DeviceStateTerminating
+			return d, nil
+		})
+		if err != nil {
+			logrus.Error("setting terminating device state: %w", err)
+		}
 		controllers.Stop()
 		ingressCtrl.Stop()
-		err := k3sRunner.Close()
+		err = k3sRunner.Stop()
 		if err != nil {
-			logrus.Error(fmt.Errorf("close k3s runner: %w", err))
+			logrus.Error(fmt.Errorf("terminate k3s: %w", err))
 		}
-		err = criDockerdRunner.Close()
+		err = criDockerdRunner.Stop()
 		if err != nil {
-			logrus.Error(fmt.Errorf("close cri-dockerd runner: %w", err))
+			logrus.Error(fmt.Errorf("terminate cri-dockerd: %w", err))
+		}
+		err = wifi.Close()
+		if err != nil {
+			logrus.Error(fmt.Errorf("terminate wifi services: %w", err))
 		}
 		return nil
 	})
@@ -155,13 +171,30 @@ func scheduleReconciliation(ch chan<- struct{}) {
 	ch <- struct{}{}
 }
 
-func reconcileCommand(devices, clusterTokens storage.Interface, deviceName string, discovery *DeviceDiscovery, dataDir string, docker bool, kubeletArgs []string, k3s *runner.Runner, controllers *controllerManager, ingressCtrl *ingress.IngressController) error {
-	logrus.Info("reconcile device")
+func reconcileCommand(devices, clusterTokens storage.Interface, deviceName string, wifi *wifi.Wifi, discovery *DeviceDiscovery, dataDir string, docker bool, kubeletArgs []string, k3s *runner.Runner, controllers *controllerManager, ingressCtrl *ingress.IngressController, logger *logrus.Entry) error {
+	logger.Debug("reconciling device")
 	d := deviceapi.Device{}
 	err := devices.Get(deviceName, &d)
 	if err != nil {
 		return err
 	}
+	// Reconcile wifi
+	if d.Spec.Wifi.Enabled {
+		cc := d.Spec.Wifi.CountryCode
+		if cc == "" {
+			cc = "DE"
+		}
+		wifi.CountryCode = cc
+		wifi.ApSSID = d.Spec.Wifi.SSID
+		err = wifi.StartAccessPoint()
+		if err != nil {
+			return err
+		}
+	} else {
+		wifi.StopAccessPoint()
+	}
+
+	// Reconcile k3s
 	if m := d.Spec.Mode; m != deviceapi.DeviceModeServer && m != deviceapi.DeviceModeAgent {
 		logrus.Warnf("unsupported device mode %q specified", d.Spec.Mode)
 		return nil
@@ -202,7 +235,7 @@ func reconcileCommand(devices, clusterTokens storage.Interface, deviceName strin
 	}
 	var statusMessage string
 	if err = fn(); err != nil {
-		logrus.WithError(err).Warn("failed to reconcile device")
+		logger.WithError(err).Warn("failed to reconcile device")
 		statusMessage = err.Error()
 	}
 	if d.Status.Message != statusMessage {
@@ -223,11 +256,13 @@ func reconcileCommand(devices, clusterTokens storage.Interface, deviceName strin
 		}
 	}
 	if len(args) > 0 {
-		k3s.SetCommand(runner.CommandSpec{
-			Command: "/proc/self/exe",
-			Args:    args,
-		})
-		if d.Spec.Mode == deviceapi.DeviceModeServer {
+		if d.Status.State == deviceapi.DeviceStateTerminating {
+			k3s.Stop()
+		} else {
+			ctx := context.Background()
+			k3s.Start(ctx, runner.Cmd("/proc/self/exe", args...))
+		}
+		if d.Spec.Mode == deviceapi.DeviceModeServer && d.Status.State != deviceapi.DeviceStateTerminating {
 			controllers.Start()
 			ingressCtrl.Start()
 		} else {
@@ -235,6 +270,7 @@ func reconcileCommand(devices, clusterTokens storage.Interface, deviceName strin
 			ingressCtrl.Stop()
 		}
 	}
+	fmt.Println("############################ reconciliation complete")
 	return nil
 }
 
