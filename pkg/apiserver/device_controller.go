@@ -21,24 +21,15 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 )
 
-func installDeviceController(genericServer *genericapiserver.GenericAPIServer, deviceName string, devices, clusterTokens, wifiPasswords storage.Interface, discovery *DeviceDiscovery, dataDir, manifestDir string, docker bool, kubeletArgs []string, ingressCtrl *ingress.IngressController) {
+func installDeviceController(genericServer *genericapiserver.GenericAPIServer, deviceName string, devices, clusterTokens storage.Interface, discovery *DeviceDiscovery, wifi *wifi.Wifi, wifiPasswords storage.Interface, dataDir, manifestDir string, docker bool, kubeletArgs []string, ingressCtrl *ingress.IngressController) {
 	logger := logrus.NewEntry(logrus.StandardLogger())
 	k3sRunner := runner.New(logger.WithField("proc", "k3s"))
 	criDockerdRunner := runner.New(logger.WithField("proc", "cri-dockerd"))
 	controllers := newControllerManager(logrus.WithField("comp", "controller-manager"))
-	wifi := wifi.New(logger)
-	wifi.DHCPLeaseFile = filepath.Join(dataDir, "dhcpd.leases")
 	logger = logger.WithField("comp", "device-controller")
 	genericServer.AddPostStartHookOrDie("kubemate", func(ctx genericapiserver.PostStartHookContext) error {
-		// Apply wifi password
-		wifiPassword := deviceapi.WifiPassword{}
-		err := wifiPasswords.Get(deviceName, &wifiPassword)
-		if err != nil {
-			return fmt.Errorf("get ap wifi password: %w", err)
-		}
-		wifi.ApPassword = wifiPassword.Data.Password
 		// Add CRDs to k3s' manifest directory
-		err = copyManifests(manifestDir, filepath.Join(dataDir, "server", "manifests"))
+		err := copyManifests(manifestDir, filepath.Join(dataDir, "server", "manifests"))
 		if err != nil {
 			return fmt.Errorf("copy default manifests into data dir: %w", err)
 		}
@@ -90,7 +81,7 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 		if err != nil {
 			return err
 		}
-		err = reconcileCommand(devices, clusterTokens, deviceName, wifi, discovery, dataDir, docker, kubeletArgs, k3sRunner, controllers, ingressCtrl, logger)
+		err = reconcileCommand(devices, clusterTokens, wifiPasswords, deviceName, wifi, discovery, dataDir, docker, kubeletArgs, k3sRunner, controllers, ingressCtrl, logger)
 		if err != nil {
 			return err
 		}
@@ -127,7 +118,7 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 		}
 		go func() {
 			for _ = range reconcileRequests {
-				err = reconcileCommand(devices, clusterTokens, deviceName, wifi, discovery, dataDir, docker, kubeletArgs, k3sRunner, controllers, ingressCtrl, logger)
+				err = reconcileCommand(devices, clusterTokens, wifiPasswords, deviceName, wifi, discovery, dataDir, docker, kubeletArgs, k3sRunner, controllers, ingressCtrl, logger)
 				if err != nil {
 					logger.WithError(err).Error("failed to reconcile device command")
 					time.Sleep(time.Second)
@@ -171,7 +162,7 @@ func scheduleReconciliation(ch chan<- struct{}) {
 	ch <- struct{}{}
 }
 
-func reconcileCommand(devices, clusterTokens storage.Interface, deviceName string, wifi *wifi.Wifi, discovery *DeviceDiscovery, dataDir string, docker bool, kubeletArgs []string, k3s *runner.Runner, controllers *controllerManager, ingressCtrl *ingress.IngressController, logger *logrus.Entry) error {
+func reconcileCommand(devices, clusterTokens, wifiPasswords storage.Interface, deviceName string, wifi *wifi.Wifi, discovery *DeviceDiscovery, dataDir string, docker bool, kubeletArgs []string, k3s *runner.Runner, controllers *controllerManager, ingressCtrl *ingress.IngressController, logger *logrus.Entry) error {
 	logger.Debug("reconciling device")
 	d := deviceapi.Device{}
 	err := devices.Get(deviceName, &d)
@@ -179,18 +170,28 @@ func reconcileCommand(devices, clusterTokens storage.Interface, deviceName strin
 		return err
 	}
 	// Reconcile wifi
-	if d.Spec.Wifi.Enabled {
-		cc := d.Spec.Wifi.CountryCode
-		if cc == "" {
-			cc = "DE"
+	wifi.CountryCode = d.Spec.Wifi.CountryCode
+	switch d.Spec.Wifi.Mode {
+	case deviceapi.WifiModeAccessPoint:
+		// Apply wifi password
+		wifiPassword := deviceapi.WifiPassword{}
+		err = wifiPasswords.Get(deviceName, &wifiPassword)
+		if err != nil {
+			return fmt.Errorf("get access point wifi password: %w", err)
 		}
-		wifi.CountryCode = cc
-		wifi.ApSSID = d.Spec.Wifi.SSID
-		err = wifi.StartAccessPoint()
+		err = wifi.StartAccessPoint(deviceName, wifiPassword.Data.Password)
 		if err != nil {
 			return err
 		}
-	} else {
+	case deviceapi.WifiModeClient:
+		wifi.StopAccessPoint()
+		// TODO: resolve ssid and password of the selected wifi network
+		err = wifi.StartClient("", "")
+		if err != nil {
+			return err
+		}
+	default:
+		wifi.StopClient()
 		wifi.StopAccessPoint()
 	}
 

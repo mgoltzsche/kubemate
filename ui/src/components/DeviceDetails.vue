@@ -37,11 +37,15 @@
       >
         <q-separator inset />
         <div>
-          <q-btn-toggle
-            v-model="device.spec.mode"
-            :options="availableDeviceModes"
-          />
-
+          <div class="q-gutter-sm">
+            <q-radio
+              v-model="device.spec.mode"
+              :val="mode.value"
+              :label="mode.label"
+              v-for="mode in availableDeviceModes"
+              v-bind:key="mode.value"
+            />
+          </div>
           <q-tab-panels
             v-model="device.spec.mode"
             animated

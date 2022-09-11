@@ -29,7 +29,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceToken":                             schema_pkg_apis_devices_v1_DeviceToken(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenData":                         schema_pkg_apis_devices_v1_DeviceTokenData(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenList":                         schema_pkg_apis_devices_v1_DeviceTokenList(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiAccessPointConf":                     schema_pkg_apis_devices_v1_WifiAccessPointConf(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiClientConf":                          schema_pkg_apis_devices_v1_WifiClientConf(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiConfig":                              schema_pkg_apis_devices_v1_WifiConfig(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetwork":                             schema_pkg_apis_devices_v1_WifiNetwork(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetworkData":                         schema_pkg_apis_devices_v1_WifiNetworkData(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetworkList":                         schema_pkg_apis_devices_v1_WifiNetworkList(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPassword":                            schema_pkg_apis_devices_v1_WifiPassword(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPasswordData":                        schema_pkg_apis_devices_v1_WifiPasswordData(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPasswordList":                        schema_pkg_apis_devices_v1_WifiPasswordList(ref),
@@ -898,27 +903,13 @@ func schema_pkg_apis_devices_v1_DeviceTokenList(ref common.ReferenceCallback) co
 	}
 }
 
-func schema_pkg_apis_devices_v1_WifiConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1_WifiAccessPointConf(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "WifiConfig defines the wifi configuration for the device.",
+				Description: "WifiAccessPointConf defines the wifi access point configuration.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"enabled": {
-						SchemaProps: spec.SchemaProps{
-							Default: false,
-							Type:    []string{"boolean"},
-							Format:  "",
-						},
-					},
-					"countryCode": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Mode        WifiMode         `json:\"type,omitempty\"`",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"SSID": {
 						SchemaProps: spec.SchemaProps{
 							Default: "",
@@ -927,9 +918,183 @@ func schema_pkg_apis_devices_v1_WifiConfig(ref common.ReferenceCallback) common.
 						},
 					},
 				},
-				Required: []string{"enabled", "SSID"},
+				Required: []string{"SSID"},
 			},
 		},
+	}
+}
+
+func schema_pkg_apis_devices_v1_WifiClientConf(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WifiClientConf defines the wifi client configuration.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"SSID": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"SSID"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_devices_v1_WifiConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WifiConfig defines the wifi configuration for the device.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"mode": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Possible enum values:\n - `\"accesspoint\"`\n - `\"client\"`\n - `\"disabled\"`",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"accesspoint", "client", "disabled"}},
+					},
+					"countryCode": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"client": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiClientConf"),
+						},
+					},
+					"accessPoint": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiAccessPointConf"),
+						},
+					},
+				},
+				Required: []string{"client", "accessPoint"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiAccessPointConf", "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiClientConf"},
+	}
+}
+
+func schema_pkg_apis_devices_v1_WifiNetwork(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WifiNetwork is the Schema for the devices API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"data": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetworkData"),
+						},
+					},
+				},
+				Required: []string{"metadata", "data"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetworkData", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_devices_v1_WifiNetworkData(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WifiNetworkData defines the desired state of Cache",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"ssid": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"ssid"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_devices_v1_WifiNetworkList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WifiNetworkList contains a list of Cache",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetwork"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetwork", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 

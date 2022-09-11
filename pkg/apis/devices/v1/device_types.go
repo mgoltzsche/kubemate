@@ -17,6 +17,10 @@ type DeviceState string
 // +enum
 type DeviceMode string
 
+// WifiMode specifies the operating mode of the wifi device.
+// +enum
+type WifiMode string
+
 const (
 	DeviceStateUnknown     DeviceState = "unknown"
 	DeviceStateStarting    DeviceState = "starting"
@@ -26,6 +30,9 @@ const (
 	DeviceStateTerminating DeviceState = "terminating"
 	DeviceModeServer       DeviceMode  = "server"
 	DeviceModeAgent        DeviceMode  = "agent"
+	WifiModeDisabled       WifiMode    = "disabled"
+	WifiModeClient         WifiMode    = "client"
+	WifiModeAccessPoint    WifiMode    = "accesspoint"
 )
 
 // +k8s:openapi-gen=true
@@ -39,10 +46,22 @@ type DeviceSpec struct {
 // +k8s:openapi-gen=true
 // WifiConfig defines the wifi configuration for the device.
 type WifiConfig struct {
-	Enabled bool `json:"enabled"`
-	//Mode        WifiMode         `json:"type,omitempty"`
-	CountryCode string `json:"countryCode,omitempty"`
-	SSID        string `json:'"ssid,omitempty"`
+	Mode        WifiMode            `json:"mode,omitempty"`
+	CountryCode string              `json:"countryCode,omitempty"`
+	Client      WifiClientConf      `json:"client"`
+	AccessPoint WifiAccessPointConf `json:"accessPoint"`
+}
+
+// +k8s:openapi-gen=true
+// WifiClientConf defines the wifi client configuration.
+type WifiClientConf struct {
+	SSID string `json:'"ssid,omitempty"`
+}
+
+// +k8s:openapi-gen=true
+// WifiAccessPointConf defines the wifi access point configuration.
+type WifiAccessPointConf struct {
+	SSID string `json:'"ssid,omitempty"`
 }
 
 // +k8s:openapi-gen=true

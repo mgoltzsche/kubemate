@@ -36,6 +36,13 @@ func NewDeviceREST(deviceName string, deviceDiscovery func(store storage.Interfa
 		},
 		Spec: deviceapi.DeviceSpec{
 			Mode: deviceapi.DeviceModeServer,
+			Wifi: deviceapi.WifiConfig{
+				CountryCode: "DE", // TODO: auto-detect
+				Mode:        deviceapi.WifiModeDisabled,
+				AccessPoint: deviceapi.WifiAccessPointConf{
+					SSID: deviceName,
+				},
+			},
 		},
 		Status: deviceapi.DeviceStatus{
 			State: deviceapi.DeviceStateUnknown,

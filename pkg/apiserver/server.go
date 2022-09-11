@@ -12,14 +12,19 @@ import (
 	generatedopenapi "github.com/mgoltzsche/kubemate/pkg/generated/openapi"
 	"github.com/mgoltzsche/kubemate/pkg/ingress"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
+	"github.com/mgoltzsche/kubemate/pkg/wifi"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/authentication/authenticator"
+	"k8s.io/apiserver/pkg/authentication/authenticatorfactory"
 	"k8s.io/apiserver/pkg/authentication/request/anonymous"
+	"k8s.io/apiserver/pkg/authentication/request/bearertoken"
 	"k8s.io/apiserver/pkg/authentication/request/union"
+	"k8s.io/apiserver/pkg/authentication/token/tokenfile"
+	"k8s.io/apiserver/pkg/authentication/user"
 	openapinamer "k8s.io/apiserver/pkg/endpoints/openapi"
 	registryrest "k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
@@ -28,11 +33,6 @@ import (
 	clientgoinformers "k8s.io/client-go/informers"
 	clientgoclientset "k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
-
-	"k8s.io/apiserver/pkg/authentication/authenticatorfactory"
-	"k8s.io/apiserver/pkg/authentication/request/bearertoken"
-	"k8s.io/apiserver/pkg/authentication/token/tokenfile"
-	"k8s.io/apiserver/pkg/authentication/user"
 )
 
 type ServerOptions struct {
@@ -81,6 +81,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	scheme.AddKnownTypes(deviceapi.GroupVersion,
 		&deviceapi.Device{}, &deviceapi.DeviceList{},
 		&deviceapi.DeviceToken{}, &deviceapi.DeviceTokenList{},
+		&deviceapi.WifiNetwork{}, &deviceapi.WifiNetworkList{},
 		&deviceapi.WifiPassword{}, &deviceapi.WifiPasswordList{},
 	)
 	codecs := serializer.NewCodecFactory(scheme)
@@ -166,6 +167,9 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, err
 	}
+	logger := logrus.NewEntry(logrus.StandardLogger())
+	wifi := wifi.New(logger)
+	wifi.DHCPLeaseFile = filepath.Join(o.DataDir, "dhcpd.leases")
 	wifiPasswordDir := filepath.Join(o.DataDir, "wifipasswords")
 	wifiPasswordREST, err := NewWifiPasswordREST(wifiPasswordDir, scheme, o.DeviceName)
 	if err != nil {
@@ -186,6 +190,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 				"devices":       deviceREST,
 				"devicetokens":  deviceTokenREST,
 				"wifipasswords": wifiPasswordREST,
+				"wifinetworks":  NewWifiNetworkREST(wifi),
 			},
 		},
 	}
@@ -193,7 +198,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("install apigroup: %w", err)
 	}
-	installDeviceController(genericServer, o.DeviceName, deviceREST.rest.Store, deviceTokenREST.Store, wifiPasswordREST.Store, discovery, k3sDataDir, o.ManifestDir, o.Docker, o.KubeletArgs, ingressRouter)
+	installDeviceController(genericServer, o.DeviceName, deviceREST.rest.Store, deviceTokenREST.Store, discovery, wifi, wifiPasswordREST.Store, k3sDataDir, o.ManifestDir, o.Docker, o.KubeletArgs, ingressRouter)
 	return genericServer, nil
 }
 

@@ -8,7 +8,49 @@
       </q-card-section>
 
       <q-card-section class="q-pt-none q-gutter-y-md">
-        <q-checkbox v-model="device.spec.wifi.enabled" label="Hotspot" />
+        <div>
+          <div class="q-gutter-sm">
+            <q-radio
+              v-model="device.spec.wifi.mode"
+              :val="mode.value"
+              :label="mode.label"
+              v-for="mode in availableWifiModes"
+              v-bind:key="mode.value"
+            />
+          </div>
+          <q-tab-panels
+            v-model="device.spec.wifi.mode"
+            animated
+            class="shadow-2 rounded-borders"
+          >
+            <q-tab-panel name="client">
+              <q-card-section>
+                <div :v-if="availableNetworks.length == 0">
+                  No wifi networks found!
+                </div>
+                <q-virtual-scroll
+                  style="max-height: 300px"
+                  :items="availableNetworks"
+                  separator
+                  v-slot="{ item }"
+                  :v-if="availableNetworks.length > 0"
+                >
+                  <q-item tag="label" v-ripple :key="item.metadata.name">
+                    <q-item-section avatar>
+                      <q-radio
+                        v-model="device.spec.wifi.client.SSID"
+                        :val="item.data.ssid"
+                      />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label>{{ item.data.ssid }}</q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </q-virtual-scroll>
+              </q-card-section>
+            </q-tab-panel>
+          </q-tab-panels>
+        </div>
       </q-card-section>
       <q-card-actions>
         <q-btn color="primary" label="Apply" @click="apply" />
@@ -25,12 +67,14 @@ import {
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_Device as Device,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_DeviceSpec as DeviceSpec,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_DeviceToken as DeviceToken,
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_WifiConfig as WifiConfig,
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_WifiNetwork as WifiNetwork,
 } from 'src/gen';
 import { useQuasar } from 'quasar';
 
 const kc = new apiclient.KubeConfig();
-const client = kc.newClient<DeviceToken>(
-  '/apis/kubemate.mgoltzsche.github.com/v1/devicetokens'
+const wifiNetworkClient = kc.newClient<WifiNetwork>(
+  '/apis/kubemate.mgoltzsche.github.com/v1/wifinetworks'
 );
 
 export default defineComponent({
@@ -39,19 +83,20 @@ export default defineComponent({
     const deviceStore = useDeviceStore();
     deviceStore.sync();
     const quasar = useQuasar();
-    const enabled = ref(true); // TODO: init from store
+    const availableNetworks = ref([]) as Ref<WifiNetwork[]>;
+    wifiNetworkClient.list().then((l) => {
+      availableNetworks.value = l.items;
+    });
 
     const state = reactive({
-      enabled: enabled,
       synchronizing: deviceStore.synchronizing,
+      availableNetworks: availableNetworks,
       device: computed(() =>
         deviceStore.resources.find((d) => d.status.current)
       ),
       apply: async () => {
         const d = deviceStore.resources.find((d) => d.status.current);
         if (!d) return;
-        //d.spec.wifi.enabled = enabled.value;
-        console.log(`setting wifi=${enabled.value}`);
         try {
           await deviceStore.client.update(d);
         } catch (e: any) {
@@ -64,7 +109,14 @@ export default defineComponent({
         }
       },
     });
-    return { ...toRefs(state) };
+    return {
+      ...toRefs(state),
+      availableWifiModes: [
+        { label: 'Disabled', value: WifiConfig.mode.DISABLED },
+        { label: 'Access Point', value: WifiConfig.mode.ACCESSPOINT },
+        { label: 'Client', value: WifiConfig.mode.CLIENT },
+      ],
+    };
   },
 });
 </script>

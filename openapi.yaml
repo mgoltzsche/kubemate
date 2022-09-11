@@ -220,21 +220,113 @@ definitions:
     required:
     - token
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiConfig:
-    description: WifiConfig defines the wifi configuration for the device.
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiAccessPointConf:
+    description: WifiAccessPointConf defines the wifi access point configuration.
     properties:
       SSID:
         default: ""
         type: string
-      countryCode:
-        description: Mode        WifiMode         `json:"type,omitempty"`
-        type: string
-      enabled:
-        default: false
-        type: boolean
     required:
-    - enabled
     - SSID
+    type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiClientConf:
+    description: WifiClientConf defines the wifi client configuration.
+    properties:
+      SSID:
+        default: ""
+        type: string
+    required:
+    - SSID
+    type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiConfig:
+    description: WifiConfig defines the wifi configuration for the device.
+    properties:
+      accessPoint:
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiAccessPointConf'
+        default: {}
+      client:
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiClientConf'
+        default: {}
+      countryCode:
+        type: string
+      mode:
+        description: |-
+          Possible enum values:
+           - `"accesspoint"`
+           - `"client"`
+           - `"disabled"`
+        enum:
+        - accesspoint
+        - client
+        - disabled
+        type: string
+    required:
+    - client
+    - accessPoint
+    type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiNetwork:
+    description: WifiNetwork is the Schema for the devices API
+    properties:
+      apiVersion:
+        description: 'APIVersion defines the versioned schema of this representation
+          of an object. Servers should convert recognized schemas to the latest internal
+          value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+        type: string
+      data:
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiNetworkData'
+        default: {}
+      kind:
+        description: 'Kind is a string value representing the REST resource this object
+          represents. Servers may infer this from the endpoint the client submits
+          requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+        type: string
+      metadata:
+        $ref: '#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta'
+        default: {}
+    required:
+    - metadata
+    - data
+    type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiNetworkData:
+    description: WifiNetworkData defines the desired state of Cache
+    properties:
+      ssid:
+        default: ""
+        type: string
+    required:
+    - ssid
+    type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiPassword:
+    description: WifiPassword is the Schema for the wifi key API
+    properties:
+      apiVersion:
+        description: 'APIVersion defines the versioned schema of this representation
+          of an object. Servers should convert recognized schemas to the latest internal
+          value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+        type: string
+      data:
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiPasswordData'
+        default: {}
+      kind:
+        description: 'Kind is a string value representing the REST resource this object
+          represents. Servers may infer this from the endpoint the client submits
+          requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+        type: string
+      metadata:
+        $ref: '#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta'
+        default: {}
+    required:
+    - metadata
+    - data
+    type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiPasswordData:
+    description: WifiPasswordData defines the desired state of Cache
+    properties:
+      token:
+        default: ""
+        type: string
+    required:
+    - token
     type: object
   io.k8s.api.core.v1.LoadBalancerIngress:
     description: 'LoadBalancerIngress represents the status of a load-balancer ingress
