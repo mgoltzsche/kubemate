@@ -17,6 +17,7 @@ import apiclient from 'src/k8sclient';
 import { Ref, ref } from 'vue';
 import { Notify } from 'quasar';
 import { ApiClient } from 'src/k8sclient/apiclient';
+import { EventType } from 'src/k8sclient/watch';
 //import { CustomResource } from 'src/k8sclient/model';
 
 interface ResourceStoreState<T> {
@@ -24,7 +25,7 @@ interface ResourceStoreState<T> {
   resources: Ref<T[]>;
 }
 
-interface ResourceStoreGetters<T> {
+interface ResourceStoreGetters<T extends Resource> {
   client(): ApiClient<T>;
 }
 
@@ -33,7 +34,7 @@ interface ResourceStoreActions<T> {
   setResources(r: T[]): void;
 }
 
-type ResourceStoreDefinition<T> = StoreDefinition<
+type ResourceStoreDefinition<T extends Resource> = StoreDefinition<
   string,
   ResourceStoreState<T>,
   ResourceStoreGetters<T>,
@@ -66,6 +67,31 @@ function defineResourceStore<T extends Resource>(
               this.synchronizing = false;
               client.watch((evt) => {
                 console.log('EVENT ' + evt.type, evt.object);
+                let res = this.resources;
+                switch (evt.type) {
+                  case EventType.ADDED:
+                    res.push(evt.object);
+                    break;
+                  case EventType.MODIFIED:
+                    const i = res.findIndex(
+                      (o) => o.metadata?.name === evt.object.metadata?.name
+                    );
+                    if (i >= 0) res[i] = evt.object;
+                    break;
+                  case EventType.DELETED:
+                    res = [];
+                    for (let i = 0; i < this.resources.length; i++) {
+                      const r = this.resources[i];
+                      if (r.metadata?.name !== evt.object.metadata?.name) {
+                        res.push(r);
+                      }
+                    }
+                    break;
+                  default:
+                    console.log('WARN: unsupported event type: ' + evt.type);
+                    return;
+                }
+                this.setResources(res);
               }, list.metadata.resourceVersion || '');
             })
             .catch((e) => {
@@ -79,8 +105,7 @@ function defineResourceStore<T extends Resource>(
         }
       },
       setResources(resources: T[]) {
-        this.resources = [];
-        resources.forEach((r) => this.resources.push(r));
+        this.resources = resources;
       },
     },
   });
