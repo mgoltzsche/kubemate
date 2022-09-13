@@ -954,10 +954,10 @@ func schema_pkg_apis_devices_v1_WifiConfig(ref common.ReferenceCallback) common.
 				Properties: map[string]spec.Schema{
 					"mode": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Possible enum values:\n - `\"accesspoint\"`\n - `\"client\"`\n - `\"disabled\"`",
+							Description: "Possible enum values:\n - `\"accesspoint\"`\n - `\"disabled\"`\n - `\"station\"`",
 							Type:        []string{"string"},
 							Format:      "",
-							Enum:        []interface{}{"accesspoint", "client", "disabled"}},
+							Enum:        []interface{}{"accesspoint", "disabled", "station"}},
 					},
 					"countryCode": {
 						SchemaProps: spec.SchemaProps{

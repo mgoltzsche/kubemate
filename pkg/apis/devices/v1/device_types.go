@@ -31,7 +31,7 @@ const (
 	DeviceModeServer       DeviceMode  = "server"
 	DeviceModeAgent        DeviceMode  = "agent"
 	WifiModeDisabled       WifiMode    = "disabled"
-	WifiModeClient         WifiMode    = "client"
+	WifiModeStation        WifiMode    = "station"
 	WifiModeAccessPoint    WifiMode    = "accesspoint"
 )
 

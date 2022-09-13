@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/mgoltzsche/kubemate/pkg/runner"
 	"github.com/sirupsen/logrus"
 )
+
+// TODO: use iwd instead of hostapd. see https://iwd.wiki.kernel.org/ap_mode
 
 func (w *Wifi) StartAccessPoint(ssid, password string) error {
 	if password == "" {
@@ -132,7 +133,7 @@ func (w *Wifi) restartWifiInterfaceOrWarn() {
 func (w *Wifi) restartWifiInterface() error {
 	//os.Setenv("LOCAL_NETWORK", "11.0.0.1/24")
 	logrus.WithField("iface", w.WifiIface).Debug("restarting wifi network interface")
-	for _, c := range [][]string{
+	err := runCmds([][]string{
 		//{"ifdown", w.WifiIface},
 		{"ip", "link", "set", w.WifiIface, "down"},
 		{"ip", "addr", "flush", "dev", w.WifiIface},
@@ -140,13 +141,10 @@ func (w *Wifi) restartWifiInterface() error {
 		{"ip", "link", "set", w.WifiIface, "up"},
 		//{"ifconfig", w.WifiIface, "11.0.0.1", "up"},
 		{"ip", "addr", "add", "11.0.0.1/24", "dev", w.WifiIface},
-	} {
-		err := runCmd(c[0], c[1:]...)
-		if err != nil {
-			return fmt.Errorf("restart wifi interface %s: %w", w.WifiIface, err)
-		}
+	})
+	if err != nil {
+		return fmt.Errorf("restart wifi interface %s: %w", w.WifiIface, err)
 	}
-	time.Sleep(time.Second)
 	return nil
 }
 

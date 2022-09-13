@@ -114,7 +114,7 @@ export default defineComponent({
       availableWifiModes: [
         { label: 'Disabled', value: WifiConfig.mode.DISABLED },
         { label: 'Access Point', value: WifiConfig.mode.ACCESSPOINT },
-        { label: 'Client', value: WifiConfig.mode.CLIENT },
+        { label: 'Client', value: WifiConfig.mode.STATION },
       ],
     };
   },

@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+// TODO: rewrite the scan: https://unix.stackexchange.com/questions/477488/connect-to-wifi-from-command-line-on-linux-systems-through-the-iwd-wireless-dae
+
 var wifiScanResultLineRegex = regexp.MustCompile(`^([^\s]+)\t([0-9]+)\t([0-9-]+)\t([^\s]+)\t(.+)$`)
 
 type WifiNetwork struct {

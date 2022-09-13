@@ -173,6 +173,10 @@ func reconcileCommand(devices, clusterTokens, wifiPasswords storage.Interface, d
 	wifi.CountryCode = d.Spec.Wifi.CountryCode
 	switch d.Spec.Wifi.Mode {
 	case deviceapi.WifiModeAccessPoint:
+		err = wifi.StartService()
+		if err != nil {
+			return err
+		}
 		// Apply wifi password
 		wifiPassword := deviceapi.WifiPassword{}
 		err = wifiPasswords.Get(deviceName, &wifiPassword)
@@ -183,15 +187,19 @@ func reconcileCommand(devices, clusterTokens, wifiPasswords storage.Interface, d
 		if err != nil {
 			return err
 		}
-	case deviceapi.WifiModeClient:
+	case deviceapi.WifiModeStation:
+		err = wifi.StartService()
+		if err != nil {
+			return err
+		}
 		wifi.StopAccessPoint()
 		// TODO: resolve ssid and password of the selected wifi network
-		err = wifi.StartClient("", "")
+		err = wifi.StartStation("", "")
 		if err != nil {
 			return err
 		}
 	default:
-		wifi.StopClient()
+		wifi.StopStation()
 		wifi.StopAccessPoint()
 	}
 

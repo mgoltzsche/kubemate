@@ -253,12 +253,12 @@ definitions:
         description: |-
           Possible enum values:
            - `"accesspoint"`
-           - `"client"`
            - `"disabled"`
+           - `"station"`
         enum:
         - accesspoint
-        - client
         - disabled
+        - station
         type: string
     required:
     - client

@@ -35,12 +35,14 @@ COPY --from=build /work/kubemate /bin/kubemate
 
 FROM alpine:3.15
 RUN apk add --update --no-cache iptables openssl ca-certificates apparmor
-RUN apk add --no-cache hostapd iptables dhcp docker iproute2 iw wpa_supplicant
+RUN apk add --no-cache hostapd iptables dhcp iproute2 iwd
 ARG VERSION="dev"
 RUN mkdir -p /etc && \
     echo 'hosts: files dns' > /etc/nsswitch.conf && \
     echo "PRETTY_NAME=\"kubemate ${VERSION}\"" > /etc/os-release && \
-    chmod 1777 /tmp
+    chmod 1777 /tmp && \
+    mkdir -p /etc/iwd && \
+    printf '[General]\nEnableNetworkConfiguration=true\n' > /etc/iwd/main.conf
 COPY --from=k3s /bin/cni /bin/cni
 COPY --from=k3s /bin/containerd /bin/
 COPY --from=k3s /bin/containerd-shim-runc-v2 /bin/

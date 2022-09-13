@@ -25,11 +25,12 @@ import (
 // TODO: consider using iwlist and iwd tools instead of wpa_supplicant and hostadp, e.g. `iwlist wlp6s0 scan`
 // Those tools allow for more granular control when to scan.
 // See https://news.ycombinator.com/item?id=21733666
+// See https://iwd.wiki.kernel.org/ap_mode
 
 type Wifi struct {
 	dhcpd         *runner.Runner
 	ap            *runner.Runner
-	client        *runner.Runner
+	station       *runner.Runner
 	EthIface      string
 	WifiIface     string
 	DHCPLeaseFile string
@@ -39,12 +40,12 @@ type Wifi struct {
 func New(logger *logrus.Entry) *Wifi {
 	ap := runner.New(logger.WithField("proc", "hostapd"))
 	dhcpd := runner.New(logger.WithField("proc", "dhcpd"))
-	client := runner.New(logger.WithField("proc", "wpa_supplicant"))
+	station := runner.New(logger.WithField("proc", "iwd"))
 	// TODO: reconcile Device when any of the processes above terminates
 	return &Wifi{
 		ap:            ap,
 		dhcpd:         dhcpd,
-		client:        client,
+		station:       station,
 		CountryCode:   "DE",
 		EthIface:      detectIface("eth", "enp"),
 		WifiIface:     detectIface("wlan", "wlp"),
@@ -56,7 +57,8 @@ func (w *Wifi) Close() (err error) {
 	w.StopAccessPoint()
 	err1 := w.ap.Stop()
 	err2 := w.dhcpd.Stop()
-	err3 := w.StopClient()
+	err3 := w.StopStation()
+	err4 := w.station.Stop()
 	if err1 != nil {
 		err = err1
 	}
@@ -65,6 +67,9 @@ func (w *Wifi) Close() (err error) {
 	}
 	if err3 != nil {
 		err = err3
+	}
+	if err4 != nil {
+		err = err4
 	}
 	return err
 }
@@ -100,6 +105,16 @@ func runCmd(cmd string, args ...string) error {
 		return fmt.Errorf("%s: %w: %s", cmd, err, strings.TrimSpace(stderr.String()))
 	}
 	return err
+}
+
+func runCmds(cmds [][]string) error {
+	for _, c := range cmds {
+		err := runCmd(c[0], c[1:]...)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func detectIface(prefixes ...string) string {
