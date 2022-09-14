@@ -30,7 +30,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenData":                         schema_pkg_apis_devices_v1_DeviceTokenData(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenList":                         schema_pkg_apis_devices_v1_DeviceTokenList(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiAccessPointConf":                     schema_pkg_apis_devices_v1_WifiAccessPointConf(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiClientConf":                          schema_pkg_apis_devices_v1_WifiClientConf(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiConfig":                              schema_pkg_apis_devices_v1_WifiConfig(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetwork":                             schema_pkg_apis_devices_v1_WifiNetwork(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetworkData":                         schema_pkg_apis_devices_v1_WifiNetworkData(ref),
@@ -38,6 +37,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPassword":                            schema_pkg_apis_devices_v1_WifiPassword(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPasswordData":                        schema_pkg_apis_devices_v1_WifiPasswordData(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPasswordList":                        schema_pkg_apis_devices_v1_WifiPasswordList(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiStationConf":                         schema_pkg_apis_devices_v1_WifiStationConf(ref),
 		"k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource":                                        schema_k8sio_api_core_v1_AWSElasticBlockStoreVolumeSource(ref),
 		"k8s.io/api/core/v1.Affinity":                                                                schema_k8sio_api_core_v1_Affinity(ref),
 		"k8s.io/api/core/v1.AttachedVolume":                                                          schema_k8sio_api_core_v1_AttachedVolume(ref),
@@ -924,27 +924,6 @@ func schema_pkg_apis_devices_v1_WifiAccessPointConf(ref common.ReferenceCallback
 	}
 }
 
-func schema_pkg_apis_devices_v1_WifiClientConf(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "WifiClientConf defines the wifi client configuration.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"SSID": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-				},
-				Required: []string{"SSID"},
-			},
-		},
-	}
-}
-
 func schema_pkg_apis_devices_v1_WifiConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -965,10 +944,10 @@ func schema_pkg_apis_devices_v1_WifiConfig(ref common.ReferenceCallback) common.
 							Format: "",
 						},
 					},
-					"client": {
+					"station": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiClientConf"),
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiStationConf"),
 						},
 					},
 					"accessPoint": {
@@ -978,11 +957,11 @@ func schema_pkg_apis_devices_v1_WifiConfig(ref common.ReferenceCallback) common.
 						},
 					},
 				},
-				Required: []string{"client", "accessPoint"},
+				Required: []string{"station", "accessPoint"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiAccessPointConf", "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiClientConf"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiAccessPointConf", "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiStationConf"},
 	}
 }
 
@@ -1207,6 +1186,27 @@ func schema_pkg_apis_devices_v1_WifiPasswordList(ref common.ReferenceCallback) c
 		},
 		Dependencies: []string{
 			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPassword", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_devices_v1_WifiStationConf(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WifiStationConf defines the wifi client configuration.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"SSID": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"SSID"},
+			},
+		},
 	}
 }
 

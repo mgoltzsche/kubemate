@@ -23,7 +23,7 @@
             animated
             class="shadow-2 rounded-borders"
           >
-            <q-tab-panel name="client">
+            <q-tab-panel name="station">
               <q-card-section>
                 <div :v-if="availableNetworks.length == 0">
                   No wifi networks found!
@@ -38,7 +38,7 @@
                   <q-item tag="label" v-ripple :key="item.metadata.name">
                     <q-item-section avatar>
                       <q-radio
-                        v-model="device.spec.wifi.client.SSID"
+                        v-model="device.spec.wifi.station.SSID"
                         :val="item.data.ssid"
                       />
                     </q-item-section>
@@ -114,7 +114,7 @@ export default defineComponent({
       availableWifiModes: [
         { label: 'Disabled', value: WifiConfig.mode.DISABLED },
         { label: 'Access Point', value: WifiConfig.mode.ACCESSPOINT },
-        { label: 'Client', value: WifiConfig.mode.STATION },
+        { label: 'Station', value: WifiConfig.mode.STATION },
       ],
     };
   },

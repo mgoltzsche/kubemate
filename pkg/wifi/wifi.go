@@ -58,7 +58,6 @@ func (w *Wifi) Close() (err error) {
 	err1 := w.ap.Stop()
 	err2 := w.dhcpd.Stop()
 	err3 := w.StopStation()
-	err4 := w.station.Stop()
 	if err1 != nil {
 		err = err1
 	}
@@ -68,14 +67,36 @@ func (w *Wifi) Close() (err error) {
 	if err3 != nil {
 		err = err3
 	}
-	if err4 != nil {
-		err = err4
-	}
 	return err
 }
 
 func (w *Wifi) Scan() ([]WifiNetwork, error) {
 	return ScanForWifiNetworks(context.Background(), w.WifiIface)
+}
+
+func (w *Wifi) restartWifiInterfaceOrWarn() {
+	err := w.restartWifiInterface()
+	if err != nil {
+		logrus.Warn(err)
+	}
+}
+
+func (w *Wifi) restartWifiInterface() error {
+	//os.Setenv("LOCAL_NETWORK", "11.0.0.1/24")
+	logrus.WithField("iface", w.WifiIface).Debug("restarting wifi network interface")
+	err := runCmds([][]string{
+		//{"ifdown", w.WifiIface},
+		{"ip", "link", "set", w.WifiIface, "down"},
+		{"ip", "addr", "flush", "dev", w.WifiIface},
+		//{"ifup", w.WifiIface},
+		{"ip", "link", "set", w.WifiIface, "up"},
+		//{"ifconfig", w.WifiIface, "11.0.0.1", "up"},
+		{"ip", "addr", "add", "11.0.0.1/24", "dev", w.WifiIface},
+	})
+	if err != nil {
+		return fmt.Errorf("restart wifi interface %s: %w", w.WifiIface, err)
+	}
+	return nil
 }
 
 func writeConf(name, confTpl string, args ...interface{}) (string, bool, error) {

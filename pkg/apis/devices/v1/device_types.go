@@ -48,13 +48,13 @@ type DeviceSpec struct {
 type WifiConfig struct {
 	Mode        WifiMode            `json:"mode,omitempty"`
 	CountryCode string              `json:"countryCode,omitempty"`
-	Client      WifiClientConf      `json:"client"`
+	Station     WifiStationConf     `json:"station"`
 	AccessPoint WifiAccessPointConf `json:"accessPoint"`
 }
 
 // +k8s:openapi-gen=true
-// WifiClientConf defines the wifi client configuration.
-type WifiClientConf struct {
+// WifiStationConf defines the wifi client configuration.
+type WifiStationConf struct {
 	SSID string `json:'"ssid,omitempty"`
 }
 

@@ -229,23 +229,11 @@ definitions:
     required:
     - SSID
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiClientConf:
-    description: WifiClientConf defines the wifi client configuration.
-    properties:
-      SSID:
-        default: ""
-        type: string
-    required:
-    - SSID
-    type: object
   com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiConfig:
     description: WifiConfig defines the wifi configuration for the device.
     properties:
       accessPoint:
         $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiAccessPointConf'
-        default: {}
-      client:
-        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiClientConf'
         default: {}
       countryCode:
         type: string
@@ -260,8 +248,11 @@ definitions:
         - disabled
         - station
         type: string
+      station:
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiStationConf'
+        default: {}
     required:
-    - client
+    - station
     - accessPoint
     type: object
   com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiNetwork:
@@ -327,6 +318,15 @@ definitions:
         type: string
     required:
     - token
+    type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiStationConf:
+    description: WifiStationConf defines the wifi client configuration.
+    properties:
+      SSID:
+        default: ""
+        type: string
+    required:
+    - SSID
     type: object
   io.k8s.api.core.v1.LoadBalancerIngress:
     description: 'LoadBalancerIngress represents the status of a load-balancer ingress

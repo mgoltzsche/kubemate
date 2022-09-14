@@ -31,7 +31,7 @@ func (w *Wifi) StartAccessPoint(ssid, password string) error {
 	if err != nil {
 		return err
 	}
-	w.installIPRoutes()
+	w.installAPRoutes()
 	if ifacesConfChanged || hostapdConfChanged || dhcpdConfChanged {
 		err = w.restartWifiInterface()
 		if err != nil {
@@ -51,7 +51,7 @@ func (w *Wifi) StartAccessPoint(ssid, password string) error {
 }
 
 func (w *Wifi) StopAccessPoint() {
-	w.uninstallIPRoutes()
+	w.uninstallAPRoutes()
 	w.ap.Stop()
 	w.dhcpd.Stop()
 	//w.restartWifiInterfaceOrWarn()
@@ -123,38 +123,13 @@ func (w *Wifi) createDHCPLeaseFileIfNotExist() error {
 	return nil
 }
 
-func (w *Wifi) restartWifiInterfaceOrWarn() {
-	err := w.restartWifiInterface()
-	if err != nil {
-		logrus.Warn(err)
-	}
-}
-
-func (w *Wifi) restartWifiInterface() error {
-	//os.Setenv("LOCAL_NETWORK", "11.0.0.1/24")
-	logrus.WithField("iface", w.WifiIface).Debug("restarting wifi network interface")
-	err := runCmds([][]string{
-		//{"ifdown", w.WifiIface},
-		{"ip", "link", "set", w.WifiIface, "down"},
-		{"ip", "addr", "flush", "dev", w.WifiIface},
-		//{"ifup", w.WifiIface},
-		{"ip", "link", "set", w.WifiIface, "up"},
-		//{"ifconfig", w.WifiIface, "11.0.0.1", "up"},
-		{"ip", "addr", "add", "11.0.0.1/24", "dev", w.WifiIface},
-	})
-	if err != nil {
-		return fmt.Errorf("restart wifi interface %s: %w", w.WifiIface, err)
-	}
-	return nil
-}
-
-func (w *Wifi) installIPRoutes() {
-	logrus.WithField("iface", w.WifiIface).Debug("installing wifi iptables rules")
+func (w *Wifi) installAPRoutes() {
+	logrus.WithField("iface", w.WifiIface).Debug("adding access point ip routes")
 	w.configureIPRoutes(addIPTablesRule)
 }
 
-func (w *Wifi) uninstallIPRoutes() {
-	logrus.WithField("iface", w.WifiIface).Debug("uninstalling wifi iptables rules")
+func (w *Wifi) uninstallAPRoutes() {
+	logrus.WithField("iface", w.WifiIface).Debug("removing access point ip routes")
 	w.configureIPRoutes(delIPTablesRule)
 }
 
