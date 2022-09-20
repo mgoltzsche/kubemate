@@ -28,19 +28,20 @@ import (
 // See https://iwd.wiki.kernel.org/ap_mode
 
 type Wifi struct {
-	dhcpd         *runner.Runner
-	ap            *runner.Runner
-	station       *runner.Runner
-	EthIface      string
-	WifiIface     string
-	DHCPLeaseFile string
-	CountryCode   string
+	dhcpd            *runner.Runner
+	ap               *runner.Runner
+	station          *runner.Runner
+	wifiIfaceStarted bool
+	EthIface         string
+	WifiIface        string
+	DHCPLeaseFile    string
+	CountryCode      string
 }
 
 func New(logger *logrus.Entry) *Wifi {
 	ap := runner.New(logger.WithField("proc", "hostapd"))
 	dhcpd := runner.New(logger.WithField("proc", "dhcpd"))
-	station := runner.New(logger.WithField("proc", "iwd"))
+	station := runner.New(logger.WithField("proc", "wpa_supplicant"))
 	// TODO: reconcile Device when any of the processes above terminates
 	return &Wifi{
 		ap:            ap,
@@ -58,6 +59,7 @@ func (w *Wifi) Close() (err error) {
 	err1 := w.ap.Stop()
 	err2 := w.dhcpd.Stop()
 	err3 := w.StopStation()
+	err4 := w.StopWifiInterface()
 	if err1 != nil {
 		err = err1
 	}
@@ -67,22 +69,36 @@ func (w *Wifi) Close() (err error) {
 	if err3 != nil {
 		err = err3
 	}
+	if err4 != nil {
+		err = err4
+	}
 	return err
 }
 
-func (w *Wifi) Scan() ([]WifiNetwork, error) {
-	return ScanForWifiNetworks(context.Background(), w.WifiIface)
+// DetectCountry derives the wifi country based on near wifi networks.
+func (w *Wifi) DetectCountry() error {
+	if w.CountryCode == "" {
+		if !w.wifiIfaceStarted {
+			return fmt.Errorf("cannot detect country when wifi interface is down")
+		}
+		country, err := detectCountry(w.WifiIface)
+		if err != nil {
+			return err
+		}
+		w.CountryCode = country
+	}
+	return nil
 }
 
-func (w *Wifi) restartWifiInterfaceOrWarn() {
-	err := w.restartWifiInterface()
-	if err != nil {
-		logrus.Warn(err)
+// Scan returns a list of available wifi networks.
+func (w *Wifi) Scan() ([]WifiNetwork, error) {
+	if !w.wifiIfaceStarted {
+		return nil, fmt.Errorf("cannot scan for wifi networks when wifi interface %s is down", w.WifiIface)
 	}
+	return scanForWifiNetworks(context.Background(), w.WifiIface)
 }
 
 func (w *Wifi) restartWifiInterface() error {
-	//os.Setenv("LOCAL_NETWORK", "11.0.0.1/24")
 	logrus.WithField("iface", w.WifiIface).Debug("restarting wifi network interface")
 	err := runCmds([][]string{
 		//{"ifdown", w.WifiIface},
@@ -94,7 +110,30 @@ func (w *Wifi) restartWifiInterface() error {
 		{"ip", "addr", "add", "11.0.0.1/24", "dev", w.WifiIface},
 	})
 	if err != nil {
-		return fmt.Errorf("restart wifi interface %s: %w", w.WifiIface, err)
+		return fmt.Errorf("restart wifi network interface %s: %w", w.WifiIface, err)
+	}
+	w.wifiIfaceStarted = true
+	return nil
+}
+
+func (w *Wifi) StartWifiInterface() error {
+	if !w.wifiIfaceStarted {
+		return w.restartWifiInterface()
+	}
+	return nil
+}
+
+func (w *Wifi) StopWifiInterface() error {
+	if w.wifiIfaceStarted {
+		logrus.WithField("iface", w.WifiIface).Debug("stopping wifi network interface")
+		err := runCmds([][]string{
+			//{"ifdown", w.WifiIface},
+			{"ip", "link", "set", w.WifiIface, "down"},
+		})
+		if err != nil {
+			return fmt.Errorf("stop wifi interface %s: %w", w.WifiIface, err)
+		}
+		w.wifiIfaceStarted = false
 	}
 	return nil
 }

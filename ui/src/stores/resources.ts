@@ -65,34 +65,39 @@ function defineResourceStore<T extends Resource>(
             .then((list) => {
               this.setResources(list.items);
               this.synchronizing = false;
-              client.watch((evt) => {
-                console.log('EVENT ' + evt.type, evt.object);
-                let res = this.resources;
-                switch (evt.type) {
-                  case EventType.ADDED:
-                    res.push(evt.object);
-                    break;
-                  case EventType.MODIFIED:
-                    const i = res.findIndex(
-                      (o) => o.metadata?.name === evt.object.metadata?.name
-                    );
-                    if (i >= 0) res[i] = evt.object;
-                    break;
-                  case EventType.DELETED:
-                    res = [];
-                    for (let i = 0; i < this.resources.length; i++) {
-                      const r = this.resources[i];
-                      if (r.metadata?.name !== evt.object.metadata?.name) {
-                        res.push(r);
+              client
+                .watch((evt) => {
+                  console.log('EVENT ' + evt.type, evt.object);
+                  let res = this.resources;
+                  switch (evt.type) {
+                    case EventType.ADDED:
+                      res.push(evt.object);
+                      break;
+                    case EventType.MODIFIED:
+                      const i = res.findIndex(
+                        (o) => o.metadata?.name === evt.object.metadata?.name
+                      );
+                      if (i >= 0) res[i] = evt.object;
+                      break;
+                    case EventType.DELETED:
+                      res = [];
+                      for (let i = 0; i < this.resources.length; i++) {
+                        const r = this.resources[i];
+                        if (r.metadata?.name !== evt.object.metadata?.name) {
+                          res.push(r);
+                        }
                       }
-                    }
-                    break;
-                  default:
-                    console.log('WARN: unsupported event type: ' + evt.type);
-                    return;
-                }
-                this.setResources(res);
-              }, list.metadata.resourceVersion || '');
+                      break;
+                    default:
+                      console.log('WARN: unsupported event type: ' + evt.type);
+                      return;
+                  }
+                  this.setResources(res);
+                }, list.metadata.resourceVersion || '')
+                .catch((e) => {
+                  console.log(`restarting ${resource} sync`);
+                  this.sync();
+                });
             })
             .catch((e) => {
               Notify.create({

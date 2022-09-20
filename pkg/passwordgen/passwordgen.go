@@ -122,7 +122,7 @@ func generateWord(length int) (string, error) {
 			continue
 		}
 		token = newToken
-		if len(token) >= length {
+		if len(token) == length {
 			break
 		}
 	}

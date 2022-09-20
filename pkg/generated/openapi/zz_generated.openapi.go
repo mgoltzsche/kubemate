@@ -1126,7 +1126,7 @@ func schema_pkg_apis_devices_v1_WifiPasswordData(ref common.ReferenceCallback) c
 				Description: "WifiPasswordData defines the desired state of Cache",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"token": {
+					"password": {
 						SchemaProps: spec.SchemaProps{
 							Default: "",
 							Type:    []string{"string"},
@@ -1134,7 +1134,7 @@ func schema_pkg_apis_devices_v1_WifiPasswordData(ref common.ReferenceCallback) c
 						},
 					},
 				},
-				Required: []string{"token"},
+				Required: []string{"password"},
 			},
 		},
 	}

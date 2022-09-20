@@ -162,7 +162,7 @@ func scheduleReconciliation(ch chan<- struct{}) {
 	ch <- struct{}{}
 }
 
-func reconcileCommand(devices, clusterTokens, wifiPasswords storage.Interface, deviceName string, wifi *wifi.Wifi, discovery *DeviceDiscovery, dataDir string, docker bool, kubeletArgs []string, k3s *runner.Runner, controllers *controllerManager, ingressCtrl *ingress.IngressController, logger *logrus.Entry) error {
+func reconcileCommand(devices, clusterTokens, wifiPasswords storage.Interface, deviceName string, w *wifi.Wifi, discovery *DeviceDiscovery, dataDir string, docker bool, kubeletArgs []string, k3s *runner.Runner, controllers *controllerManager, ingressCtrl *ingress.IngressController, logger *logrus.Entry) error {
 	logger.Debug("reconciling device")
 	d := deviceapi.Device{}
 	err := devices.Get(deviceName, &d)
@@ -170,34 +170,57 @@ func reconcileCommand(devices, clusterTokens, wifiPasswords storage.Interface, d
 		return err
 	}
 	// Reconcile wifi
-	wifi.CountryCode = d.Spec.Wifi.CountryCode
 	switch d.Spec.Wifi.Mode {
 	case deviceapi.WifiModeAccessPoint:
-		// Apply wifi password
-		wifiPassword := deviceapi.WifiPassword{}
-		err = wifiPasswords.Get(deviceName, &wifiPassword)
+		err = setWifiCountry(&d, devices, w, logger)
 		if err != nil {
-			return fmt.Errorf("get access point wifi password: %w", err)
+			return err
 		}
-		err = wifi.StartAccessPoint(deviceName, wifiPassword.Data.Password)
+		wifiPassword := deviceapi.WifiPassword{}
+		err = wifiPasswords.Get(deviceapi.AccessPointPasswordKey, &wifiPassword)
+		if err != nil {
+			return err
+		}
+		err = w.StartAccessPoint(deviceName, wifiPassword.Data.Password)
 		if err != nil {
 			return err
 		}
 	case deviceapi.WifiModeStation:
-		wifi.StopAccessPoint()
-		// TODO: resolve ssid and password of the selected wifi network
-		err = wifi.StartStation("", "")
+		w.StopAccessPoint()
+		err = setWifiCountry(&d, devices, w, logger)
+		if err != nil {
+			return err
+		}
+		err = w.StartWifiInterface()
+		if err != nil {
+			return err
+		}
+		var pw deviceapi.WifiPassword
+		ssid := d.Spec.Wifi.Station.SSID
+		if ssid == "" {
+			logger.Warn("no ssid configured to connect to")
+		} else {
+			err = wifiPasswords.Get(ssidToResourceName(ssid), &pw)
+			if err != nil {
+				logger.WithError(err).WithField("ssid", ssid).Warn("no password configured for wifi network")
+			}
+		}
+		err = w.StartStation(ssid, pw.Data.Password)
 		if err != nil {
 			return err
 		}
 	default:
-		wifi.StopStation()
-		wifi.StopAccessPoint()
+		w.StopStation()
+		w.StopAccessPoint()
+		err = w.StopWifiInterface()
+		if err != nil {
+			return err
+		}
 	}
 
 	// Reconcile k3s
 	if m := d.Spec.Mode; m != deviceapi.DeviceModeServer && m != deviceapi.DeviceModeAgent {
-		logrus.Warnf("unsupported device mode %q specified", d.Spec.Mode)
+		logger.Warnf("unsupported device mode %q specified", d.Spec.Mode)
 		return nil
 	}
 	ips, err := discovery.ExternalIPs()
@@ -272,6 +295,30 @@ func reconcileCommand(devices, clusterTokens, wifiPasswords storage.Interface, d
 		}
 	}
 	fmt.Println("############################ reconciliation complete")
+	return nil
+}
+
+// setWifiCountry detects the wifi country and stores it with the Device resource.
+func setWifiCountry(d *deviceapi.Device, devices storage.Interface, w *wifi.Wifi, logger *logrus.Entry) error {
+	w.CountryCode = d.Spec.Wifi.CountryCode
+	if w.CountryCode == "" {
+		err := w.StartWifiInterface()
+		if err != nil {
+			return err
+		}
+		err = w.DetectCountry()
+		if err != nil {
+			return err
+		}
+		err = devices.Update(d.Name, d, func() (resource.Resource, error) {
+			d.Spec.Wifi.CountryCode = w.CountryCode
+			return d, nil
+		})
+		if err != nil {
+			return err
+		}
+		logger.Infof("detected wifi country %s", w.CountryCode)
+	}
 	return nil
 }
 
@@ -353,6 +400,7 @@ func reconcileOnNetworkInterfaceLinkUpdate(ctx context.Context, ch chan<- struct
 		for _ = range linkCh {
 			logrus.Debug("received network link update")
 			ch <- struct{}{}
+			time.Sleep(time.Second)
 		}
 	}()
 	return nil

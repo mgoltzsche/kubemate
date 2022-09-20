@@ -171,7 +171,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	wifi := wifi.New(logger)
 	wifi.DHCPLeaseFile = filepath.Join(o.DataDir, "dhcpd.leases")
 	wifiPasswordDir := filepath.Join(o.DataDir, "wifipasswords")
-	wifiPasswordREST, err := NewWifiPasswordREST(wifiPasswordDir, scheme, o.DeviceName)
+	wifiPasswordREST, err := NewWifiPasswordREST(wifiPasswordDir, scheme)
 	if err != nil {
 		return nil, err
 	}

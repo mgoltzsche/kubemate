@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"context"
+	"time"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
 	"github.com/mgoltzsche/kubemate/pkg/runner"
@@ -30,6 +31,13 @@ type DeviceREST struct {
 }
 
 func NewDeviceREST(deviceName string, deviceDiscovery func(store storage.Interface) error) *DeviceREST {
+	store := storage.RefreshPeriodically(storage.InMemory(), 10*time.Second, func(store storage.Interface) {
+		logrus.Debug("scanning for devices within the local network")
+		err := deviceDiscovery(store)
+		if err != nil {
+			logrus.WithError(err).Error("failed to discover devices via mdns")
+		}
+	})
 	device := &deviceapi.Device{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: deviceName,
@@ -37,7 +45,7 @@ func NewDeviceREST(deviceName string, deviceDiscovery func(store storage.Interfa
 		Spec: deviceapi.DeviceSpec{
 			Mode: deviceapi.DeviceModeServer,
 			Wifi: deviceapi.WifiConfig{
-				CountryCode: "DE", // TODO: auto-detect
+				CountryCode: "", // auto-detected by device controller
 				Mode:        deviceapi.WifiModeDisabled,
 				AccessPoint: deviceapi.WifiAccessPointConf{
 					SSID: deviceName,
@@ -48,7 +56,7 @@ func NewDeviceREST(deviceName string, deviceDiscovery func(store storage.Interfa
 			State: deviceapi.DeviceStateUnknown,
 		},
 	}
-	r := NewREST(&deviceapi.Device{}, storage.InMemory())
+	r := NewREST(&deviceapi.Device{}, store)
 	err := r.Store.Create(deviceName, device)
 	if err != nil {
 		panic(err)
@@ -76,7 +84,6 @@ func (r *DeviceREST) NamespaceScoped() bool {
 }
 
 func (r *DeviceREST) List(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error) {
-	go r.populate()
 	return r.rest.List(ctx, options)
 }
 
@@ -93,11 +100,4 @@ func (r *DeviceREST) Watch(ctx context.Context, options *metainternalversion.Lis
 
 func (r *DeviceREST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
 	return r.rest.Get(ctx, name, options)
-}
-
-func (r *DeviceREST) populate() {
-	err := r.deviceDiscovery(r.rest.Store)
-	if err != nil {
-		logrus.WithError(err).Error("failed to discover devices via mdns")
-	}
 }

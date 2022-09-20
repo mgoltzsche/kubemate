@@ -10,33 +10,37 @@ import (
 	"time"
 )
 
-// TODO: consider using iw for wifi scan.
-// Use it particularly to detect the country based on existing networks when the device is started for the first time.
-//   iw dev wlp6s0 scan
-
 var wifiScanResultLineRegex = regexp.MustCompile(`^([^\s]+)\t([0-9]+)\t([0-9-]+)\t([^\s]+)\t(.+)$`)
 
 type WifiNetwork struct {
 	SSID string
 }
 
-func ScanForWifiNetworks(ctx context.Context, iface string) ([]WifiNetwork, error) {
+func scanForWifiNetworks(ctx context.Context, iface string) ([]WifiNetwork, error) {
 	err := triggerWifiNetworkScan(iface)
 	if err != nil {
 		return nil, err
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	c := exec.CommandContext(ctx, "wpa_cli", "-i", iface, "scan_results")
+	out, err := runCmdOut(ctx, "wpa_cli", "-i", iface, "scan_results")
+	if err != nil {
+		return nil, err
+	}
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	return parseWPACLIScanResult(lines), nil
+}
+
+func runCmdOut(ctx context.Context, cmd string, args ...string) (string, error) {
+	c := exec.CommandContext(ctx, cmd, args...)
 	var stdout, stderr bytes.Buffer
 	c.Stdout = &stdout
 	c.Stderr = &stderr
-	err = c.Run()
+	err := c.Run()
 	if err != nil {
-		return nil, fmt.Errorf("wpa_cli: %w: %s", err, strings.TrimSpace(stderr.String()))
+		return "", fmt.Errorf("%s: %w: %s", cmd, err, strings.TrimSpace(stderr.String()))
 	}
-	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
-	return parseWPACLIScanResult(lines), nil
+	return stdout.String(), nil
 }
 
 func triggerWifiNetworkScan(iface string) error {

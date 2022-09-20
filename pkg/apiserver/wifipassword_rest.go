@@ -8,6 +8,7 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/passwordgen"
 	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
+	"github.com/mgoltzsche/kubemate/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -16,21 +17,19 @@ import (
 
 type wifiPasswordREST struct {
 	*REST
-	deviceName string
 }
 
-func NewWifiPasswordREST(dir string, scheme *runtime.Scheme, deviceName string) (*wifiPasswordREST, error) {
+func NewWifiPasswordREST(dir string, scheme *runtime.Scheme) (*wifiPasswordREST, error) {
 	store, err := storage.FileStore(dir, &deviceapi.WifiPassword{}, scheme)
 	if err != nil {
 		return nil, err
 	}
 	r := &wifiPasswordREST{
-		REST:       NewREST(&deviceapi.WifiPassword{}, store),
-		deviceName: deviceName,
+		REST: NewREST(&deviceapi.WifiPassword{}, store),
 	}
-	// Generate new cluster join token for this device if not exist
+	// Generate access point password if not defined
 	pw := &deviceapi.WifiPassword{}
-	err = store.Get(deviceName, pw)
+	err = store.Get(deviceapi.AccessPointPasswordKey, pw)
 	if err != nil || pw.Data.Password == "" {
 		if err != nil && !errors.IsNotFound(err) {
 			return nil, err
@@ -44,9 +43,9 @@ func NewWifiPasswordREST(dir string, scheme *runtime.Scheme, deviceName string) 
 }
 
 func (r *wifiPasswordREST) Delete(ctx context.Context, key string, deleteValidation registryrest.ValidateObjectFunc, options *metav1.DeleteOptions) (runtime.Object, bool, error) {
-	if key == r.deviceName {
-		t := &deviceapi.DeviceToken{}
-		err := r.Store.Get(r.deviceName, t)
+	if key == deviceapi.AccessPointPasswordKey {
+		pw := &deviceapi.WifiPassword{}
+		err := r.Store.Get(deviceapi.AccessPointPasswordKey, pw)
 		if err != nil {
 			return nil, false, err
 		}
@@ -65,24 +64,29 @@ func (r *wifiPasswordREST) regenerateWifiPassword() error {
 		return err
 	}
 	pw := &deviceapi.WifiPassword{}
-	err = r.Store.Get(r.deviceName, pw)
+	err = r.Store.Get(deviceapi.AccessPointPasswordKey, pw)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 		pw.Data.Password = password
-		err = r.Store.Create(r.deviceName, pw)
+		err = r.Store.Create(deviceapi.AccessPointPasswordKey, pw)
 		if err != nil {
 			return err
 		}
 		return nil
 	}
-	err = r.Store.Update(r.deviceName, pw, func() (resource.Resource, error) {
+	err = r.Store.Update(deviceapi.AccessPointPasswordKey, pw, func() (resource.Resource, error) {
 		pw.Data.Password = password
-		return nil, nil
+		return pw, nil
 	})
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func ssidToResourceName(ssid string) string {
+	ssid = fmt.Sprintf("ssid-%s", ssid)
+	return utils.TruncateName(ssid, utils.MaxResourceNameLength)
 }

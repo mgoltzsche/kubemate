@@ -313,11 +313,11 @@ definitions:
   com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiPasswordData:
     description: WifiPasswordData defines the desired state of Cache
     properties:
-      token:
+      password:
         default: ""
         type: string
     required:
-    - token
+    - password
     type: object
   com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiStationConf:
     description: WifiStationConf defines the wifi client configuration.

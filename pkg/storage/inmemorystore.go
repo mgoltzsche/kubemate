@@ -124,6 +124,9 @@ func (s *inMemoryStore) Update(key string, res resource.Resource, modify func() 
 	if err != nil {
 		return err
 	}
+	if res == nil {
+		return fmt.Errorf("inmemory store update: modify() returned nil %T", res)
+	}
 	if existing.GetResourceVersion() != res.GetResourceVersion() {
 		err := fmt.Errorf("resource was changed concurrently, please fetch the latest resource version and apply your changes again")
 		return errors.NewConflict(res.GetGroupVersionResource().GroupResource(), key, err)

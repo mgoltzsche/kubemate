@@ -16,7 +16,7 @@ func TruncateName(name string, maxLen int) string {
 	h := sha256.New()
 	_, _ = h.Write([]byte(name))
 	hx := hex.EncodeToString(h.Sum(nil))
-	name = invalidNameChars.ReplaceAllString(name, "-")
+	name = invalidNameChars.ReplaceAllString(strings.ToLower(name), "-")
 	name = strings.Trim(name, "-")
 	if len(name) > maxLen {
 		name = name[:maxLen]

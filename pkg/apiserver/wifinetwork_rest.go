@@ -3,6 +3,7 @@ package apiserver
 import (
 	"context"
 	"fmt"
+	"time"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
@@ -10,7 +11,6 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/wifi"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	registryrest "k8s.io/apiserver/pkg/registry/rest"
@@ -22,8 +22,16 @@ type wifiNetworkREST struct {
 }
 
 func NewWifiNetworkREST(wifi *wifi.Wifi) *wifiNetworkREST {
+	store := storage.RefreshPeriodically(storage.InMemory(), 10*time.Second, func(store storage.Interface) {
+		logrus.Debug("scanning for wifi networks")
+		err := updateWifiNetworkList(wifi, store)
+		if err != nil {
+			err = fmt.Errorf("scan for wifi networks: %w", err)
+			logrus.Error(err)
+		}
+	})
 	return &wifiNetworkREST{
-		REST: NewREST(&deviceapi.WifiNetwork{}, storage.InMemory()),
+		REST: NewREST(&deviceapi.WifiNetwork{}, store),
 		wifi: wifi,
 	}
 }
@@ -40,16 +48,6 @@ func (r *wifiNetworkREST) Update(ctx context.Context, key string, objInfo regist
 	return nil, false, fmt.Errorf("cannot update wifi network scan result")
 }
 
-func (r *wifiNetworkREST) List(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error) {
-	err := updateWifiNetworkList(r.wifi, r.Store)
-	if err != nil {
-		err = fmt.Errorf("scan for wifi networks: %w", err)
-		logrus.Error(err)
-		return nil, errors.NewInternalError(err)
-	}
-	return r.REST.List(ctx, options)
-}
-
 func updateWifiNetworkList(wifi *wifi.Wifi, wifiNetworks storage.Interface) error {
 	foundNetworks := map[string]struct{}{}
 	networks, err := wifi.Scan()
@@ -58,8 +56,9 @@ func updateWifiNetworkList(wifi *wifi.Wifi, wifiNetworks storage.Interface) erro
 	}
 	for _, network := range networks {
 		n := &deviceapi.WifiNetwork{}
+		n.Name = fmt.Sprintf("ssid-%s", network.SSID)
+		n.Name = utils.TruncateName(n.Name, utils.MaxResourceNameLength)
 		n.Data.SSID = network.SSID
-		n.Name = utils.TruncateName(n.Data.SSID, utils.MaxResourceNameLength)
 		foundNetworks[n.Name] = struct{}{}
 		err := wifiNetworks.Create(n.Name, n)
 		if err != nil {

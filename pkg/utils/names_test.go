@@ -39,6 +39,11 @@ func TestTruncateName(t *testing.T) {
 			input:    "invalid_name",
 			expected: "invalid-name-f123fd210ff",
 		},
+		{
+			name:     "invalid upper case",
+			input:    "invalid_UPPER",
+			expected: "invalid-upper-4891bfff27d",
+		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			a := TruncateName(c.input, MaxResourceNameLength)

@@ -9,10 +9,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+const (
+	AccessPointPasswordKey = "accesspoint"
+	SSIDAnnotation         = "ssid"
+)
+
 // +k8s:openapi-gen=true
 // WifiPasswordData defines the desired state of Cache
 type WifiPasswordData struct {
-	Password string `json:"token"`
+	Password string `json:"password"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -95,10 +95,9 @@ export class ApiClient<T extends Resource> {
   public watch(
     handler: (evt: WatchEvent<T>) => void,
     resourceVersion?: string
-  ): void {
+  ): CancelablePromise<void> {
     console.log(`client: watch ${this.resourceUrl}`);
-    // TODO: pass through auth token
-    watch(
+    return watch(
       `${this.resourceUrl}?watch=1&resourceVersion=${resourceVersion}`,
       {
         Authorization: 'Bearer ' + this.auth.token,

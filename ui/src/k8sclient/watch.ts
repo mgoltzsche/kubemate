@@ -1,3 +1,5 @@
+import { CancelablePromise } from './CancelablePromise';
+
 export type WatchEvent<T> = {
   readonly type: EventType;
   readonly object: T & Error;
@@ -19,21 +21,25 @@ export function watch<T>(
   url: string,
   headers: Record<string, string>,
   handler: (evt: WatchEvent<T>) => void
-): void {
-  streamFromURL<WatchEvent<T>>(url, headers)
-    .then((stream) => {
-      return consumeStream(stream, (evt) => {
+): CancelablePromise<void> {
+  return new CancelablePromise(async (resolve, reject, onCancel) => {
+    try {
+      if (onCancel.isCancelled) return;
+      const stream = await streamFromURL<WatchEvent<T>>(url, headers);
+      if (onCancel.isCancelled) {
+        stream.cancel();
+        return;
+      }
+      onCancel(stream.cancel);
+      consumeStream(stream, (evt) => {
         console.log('watch: received event:', evt);
         handler(evt);
       });
-    })
-    .catch((e) => {
-      console.log('ERROR: watch failed:', new Date(), e);
-      console.log('watch: restarting...');
-      setTimeout(() => {
-        watch(url, headers, handler);
-      }, 1000); // retry after 1s
-    });
+      resolve();
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
 
 async function consumeStream<T>(

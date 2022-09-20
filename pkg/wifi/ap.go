@@ -31,6 +31,10 @@ func (w *Wifi) StartAccessPoint(ssid, password string) error {
 	if err != nil {
 		return err
 	}
+	err = w.StartWifiInterface()
+	if err != nil {
+		return err
+	}
 	w.installAPRoutes()
 	if ifacesConfChanged || hostapdConfChanged || dhcpdConfChanged {
 		err = w.restartWifiInterface()

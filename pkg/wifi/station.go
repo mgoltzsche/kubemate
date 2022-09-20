@@ -18,6 +18,10 @@ func (w *Wifi) StartStation(ssid, password string) error {
 	if err != nil {
 		return err
 	}
+	err = w.StartWifiInterface()
+	if err != nil {
+		return err
+	}
 	if confChanged {
 		err = w.restartWifiInterface()
 		if err != nil {
@@ -42,17 +46,23 @@ func (w *Wifi) generateWpaSupplicantConf(ssid, password string) (string, bool, e
 	}
 	network := "\n"
 	if ssid != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		cmd := exec.CommandContext(ctx, "wpa_passphrase", ssid, password)
-		var stderr, stdout bytes.Buffer
-		cmd.Stderr = &stderr
-		cmd.Stdout = &stdout
-		err := cmd.Run()
-		if err != nil {
-			return "", false, fmt.Errorf("wpa_passphrase: %w: %s", err, strings.TrimSpace(stderr.String()))
+		if password != "" {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, "wpa_passphrase", ssid, password)
+			var stderr, stdout bytes.Buffer
+			cmd.Stderr = &stderr
+			cmd.Stdout = &stdout
+			err := cmd.Run()
+			if err != nil {
+				msg := strings.TrimSpace(fmt.Sprintf("%s\n%s", stdout.String(), stderr.String()))
+				if len(msg) == 0 {
+					msg = err.Error()
+				}
+				return "", false, fmt.Errorf("wpa_passphrase: %s", msg)
+			}
+			network = stdout.String()
 		}
-		network = stdout.String()
 	}
 	configTpl := `ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
 country=%s
