@@ -175,7 +175,8 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, err
 	}
-	installDeviceDiscovery(genericServer, discovery, deviceREST.rest.Store)
+	// TODO: scan for devices only when requested via rest api.
+	installDeviceDiscovery(genericServer, discovery, deviceREST.Store())
 	ingressRouter := ingress.NewIngressController("kubemate", logrus.WithField("comp", "ingress-controller"))
 	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known", "/version"}
 	var handler http.Handler = NewWebUIHandler(o.WebDir, apiPaths, genericServer.Handler.FullHandlerChain, ingressRouter)
@@ -198,7 +199,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("install apigroup: %w", err)
 	}
-	installDeviceController(genericServer, o.DeviceName, deviceREST.rest.Store, deviceTokenREST.Store, discovery, wifi, wifiPasswordREST.Store, k3sDataDir, o.ManifestDir, o.Docker, o.KubeletArgs, ingressRouter)
+	installDeviceController(genericServer, o.DeviceName, deviceREST.Store(), deviceTokenREST.Store(), discovery, wifi, wifiPasswordREST.Store(), k3sDataDir, o.ManifestDir, o.Docker, o.KubeletArgs, ingressRouter)
 	return genericServer, nil
 }
 

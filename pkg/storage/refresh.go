@@ -12,40 +12,39 @@ import (
 // refresher is a store that is frequently refreshed as long as somebody is using it.
 type refresher struct {
 	Interface
-	interval     time.Duration
-	refreshAsync func()
+	interval time.Duration
+	refresh  func()
 }
 
 func RefreshPeriodically(store Interface, interval time.Duration, fn func(Interface)) Interface {
 	return &refresher{
 		Interface: store,
 		interval:  interval,
-		refreshAsync: rateLimitAsync(interval, func() {
+		refresh: rateLimit(interval, func() {
 			fn(store)
 		}),
 	}
 }
 
-func rateLimitAsync(interval time.Duration, fn func()) func() {
+func rateLimit(interval time.Duration, fn func()) func() {
 	mutex := &sync.Mutex{}
 	refreshing := false
 	var lastRefresh time.Time
 	return func() {
 		mutex.Lock()
-		defer mutex.Unlock()
 		if refreshing || time.Now().Before(lastRefresh.Add(interval)) {
+			mutex.Unlock()
 			return
 		}
 		lastRefresh = time.Now()
 		refreshing = true
-		go func() {
-			defer func() {
-				mutex.Lock()
-				defer mutex.Unlock()
-				refreshing = false
-			}()
-			fn()
+		mutex.Unlock()
+		defer func() {
+			mutex.Lock()
+			defer mutex.Unlock()
+			refreshing = false
 		}()
+		fn()
 	}
 }
 
@@ -54,11 +53,11 @@ func (r *refresher) Watch(ctx context.Context, resourceVersion string) (watch.In
 	if err != nil {
 		return nil, err
 	}
-	return refreshingWatcher(w, r.interval, r.refreshAsync), nil
+	return refreshingWatcher(w, r.interval, r.refresh), nil
 }
 
 func (r *refresher) List(l runtime.Object) error {
-	r.refreshAsync()
+	r.refresh()
 	return r.Interface.List(l)
 }
 

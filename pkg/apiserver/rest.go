@@ -26,7 +26,7 @@ var (
 type REST struct {
 	resource      resource.Resource
 	groupResource schema.GroupResource
-	Store         storage.Interface
+	store         storage.Interface
 	registryrest.TableConvertor
 }
 
@@ -35,9 +35,13 @@ func NewREST(res resource.Resource, store storage.Interface) *REST {
 	return &REST{
 		resource:       res,
 		groupResource:  gr,
-		Store:          store,
+		store:          store,
 		TableConvertor: registryrest.NewDefaultTableConvertor(gr),
 	}
+}
+
+func (r *REST) Store() storage.Interface {
+	return r.store
 }
 
 func (r *REST) New() runtime.Object {
@@ -54,7 +58,7 @@ func (r *REST) NamespaceScoped() bool {
 
 func (r *REST) List(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error) {
 	l := r.NewList()
-	err := r.Store.List(l)
+	err := r.store.List(l)
 	if err != nil {
 		return nil, err
 	}
@@ -62,12 +66,12 @@ func (r *REST) List(ctx context.Context, options *metainternalversion.ListOption
 }
 
 func (r *REST) Watch(ctx context.Context, options *metainternalversion.ListOptions) (w watch.Interface, err error) {
-	return r.Store.Watch(ctx, options.ResourceVersion)
+	return r.store.Watch(ctx, options.ResourceVersion)
 }
 
 func (r *REST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
 	o := r.resource.New()
-	err := r.Store.Get(name, o)
+	err := r.store.Get(name, o)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +87,7 @@ func (r *REST) Create(ctx context.Context, obj runtime.Object, createValidation 
 	if err != nil {
 		return nil, err
 	}
-	err = r.Store.Create(m.GetName(), obj.(resource.Resource))
+	err = r.store.Create(m.GetName(), obj.(resource.Resource))
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +97,7 @@ func (r *REST) Create(ctx context.Context, obj runtime.Object, createValidation 
 func (r *REST) Update(ctx context.Context, key string, objInfo registryrest.UpdatedObjectInfo, createValidation registryrest.ValidateObjectFunc, updateValidation registryrest.ValidateObjectUpdateFunc, forceAllowCreate bool, options *metav1.UpdateOptions) (runtime.Object, bool, error) {
 	obj := r.resource.New()
 	// TODO: delete resource when deletionTimestamp set and finalizers cleared?!
-	err := r.Store.Update(key, obj, func() (resource.Resource, error) {
+	err := r.store.Update(key, obj, func() (resource.Resource, error) {
 		updatedObj, err := objInfo.UpdatedObject(ctx, obj)
 		if err != nil {
 			return nil, fmt.Errorf("get updated object: %w", err)
@@ -114,7 +118,7 @@ func (r *REST) Update(ctx context.Context, key string, objInfo registryrest.Upda
 
 func (r *REST) Delete(ctx context.Context, key string, deleteValidation registryrest.ValidateObjectFunc, options *metav1.DeleteOptions) (runtime.Object, bool, error) {
 	res := r.New().(resource.Resource)
-	err := r.Store.Delete(key, res, func() error {
+	err := r.store.Delete(key, res, func() error {
 		return deleteValidation(ctx, res)
 	})
 	if err != nil {

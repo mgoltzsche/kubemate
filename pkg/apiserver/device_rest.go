@@ -27,11 +27,13 @@ type DeviceREST struct {
 	runner          *runner.Runner
 	deviceName      string
 	deviceDiscovery func(store storage.Interface) error
+	store           storage.Interface
 	registryrest.TableConvertor
 }
 
 func NewDeviceREST(deviceName string, deviceDiscovery func(store storage.Interface) error) *DeviceREST {
-	store := storage.RefreshPeriodically(storage.InMemory(), 10*time.Second, func(store storage.Interface) {
+	store := storage.InMemory()
+	refreshingStore := storage.RefreshPeriodically(store, 10*time.Second, func(store storage.Interface) {
 		logrus.Debug("scanning for devices within the local network")
 		err := deviceDiscovery(store)
 		if err != nil {
@@ -56,8 +58,8 @@ func NewDeviceREST(deviceName string, deviceDiscovery func(store storage.Interfa
 			State: deviceapi.DeviceStateUnknown,
 		},
 	}
-	r := NewREST(&deviceapi.Device{}, store)
-	err := r.Store.Create(deviceName, device)
+	r := NewREST(&deviceapi.Device{}, refreshingStore)
+	err := r.Store().Create(deviceName, device)
 	if err != nil {
 		panic(err)
 	}
@@ -67,8 +69,13 @@ func NewDeviceREST(deviceName string, deviceDiscovery func(store storage.Interfa
 		deviceName:      device.Name,
 		deviceDiscovery: deviceDiscovery,
 		TableConvertor:  r,
+		store:           store,
 	}
 	return devices
+}
+
+func (r *DeviceREST) Store() storage.Interface {
+	return r.store
 }
 
 func (r *DeviceREST) New() runtime.Object {

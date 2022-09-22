@@ -45,7 +45,7 @@ func NewWifiPasswordREST(dir string, scheme *runtime.Scheme) (*wifiPasswordREST,
 func (r *wifiPasswordREST) Delete(ctx context.Context, key string, deleteValidation registryrest.ValidateObjectFunc, options *metav1.DeleteOptions) (runtime.Object, bool, error) {
 	if key == deviceapi.AccessPointPasswordKey {
 		pw := &deviceapi.WifiPassword{}
-		err := r.Store.Get(deviceapi.AccessPointPasswordKey, pw)
+		err := r.Store().Get(deviceapi.AccessPointPasswordKey, pw)
 		if err != nil {
 			return nil, false, err
 		}
@@ -64,19 +64,19 @@ func (r *wifiPasswordREST) regenerateWifiPassword() error {
 		return err
 	}
 	pw := &deviceapi.WifiPassword{}
-	err = r.Store.Get(deviceapi.AccessPointPasswordKey, pw)
+	err = r.Store().Get(deviceapi.AccessPointPasswordKey, pw)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 		pw.Data.Password = password
-		err = r.Store.Create(deviceapi.AccessPointPasswordKey, pw)
+		err = r.Store().Create(deviceapi.AccessPointPasswordKey, pw)
 		if err != nil {
 			return err
 		}
 		return nil
 	}
-	err = r.Store.Update(deviceapi.AccessPointPasswordKey, pw, func() (resource.Resource, error) {
+	err = r.Store().Update(deviceapi.AccessPointPasswordKey, pw, func() (resource.Resource, error) {
 		pw.Data.Password = password
 		return pw, nil
 	})

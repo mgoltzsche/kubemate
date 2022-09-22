@@ -64,7 +64,7 @@ func (r *deviceTokenREST) Create(ctx context.Context, obj runtime.Object, create
 func (r *deviceTokenREST) Delete(ctx context.Context, key string, deleteValidation registryrest.ValidateObjectFunc, options *metav1.DeleteOptions) (runtime.Object, bool, error) {
 	if key == r.deviceName {
 		t := &deviceapi.DeviceToken{}
-		err := r.Store.Get(r.deviceName, t)
+		err := r.Store().Get(r.deviceName, t)
 		if err != nil {
 			return nil, false, err
 		}
@@ -80,19 +80,19 @@ func (r *deviceTokenREST) regenerateClusterJoinToken() (*deviceapi.DeviceToken, 
 		return nil, err
 	}
 	t := &deviceapi.DeviceToken{}
-	err = r.Store.Get(r.deviceName, t)
+	err = r.Store().Get(r.deviceName, t)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return nil, err
 		}
 		t.Data.Token = token
-		err = r.Store.Create(r.deviceName, t)
+		err = r.Store().Create(r.deviceName, t)
 		if err != nil {
 			return nil, err
 		}
 		return t, nil
 	}
-	err = r.Store.Update(r.deviceName, t, func() (resource.Resource, error) {
+	err = r.Store().Update(r.deviceName, t, func() (resource.Resource, error) {
 		t.Data.Token = token
 		return t, nil
 	})
