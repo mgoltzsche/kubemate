@@ -25,7 +25,7 @@ func scanForWifiNetworks(ctx context.Context, iface string) ([]WifiNetwork, erro
 	defer cancel()
 	out, err := runCmdOut(ctx, "wpa_cli", "-i", iface, "scan_results")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("wifi network scan: %w", err)
 	}
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	return parseWPACLIScanResult(lines), nil

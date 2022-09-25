@@ -116,7 +116,8 @@ import {
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_WifiNetwork as WifiNetwork,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_WifiPassword as WifiPassword,
 } from 'src/gen';
-import { Notify } from 'quasar';
+import sync from 'src/stores/sync';
+import { CancelablePromise } from 'src/k8sclient/CancelablePromise';
 
 const kc = new apiclient.KubeConfig();
 const wifiNetworkClient = kc.newClient<WifiNetwork>(
@@ -132,17 +133,24 @@ interface WifiConnectPassword {
   password: string;
 }
 
+let wifiNetworkSync: CancelablePromise<void> | null = null;
+
 export default defineComponent({
   name: 'WifiSettings',
+  beforeUnmount() {
+    wifiNetworkSync?.cancel();
+  },
   setup() {
     const deviceStore = useDeviceStore();
     deviceStore.sync();
     const availableNetworks = ref([]) as Ref<WifiNetwork[]>;
-    wifiNetworkClient.list().then((l) => {
-      availableNetworks.value = l.items;
-    });
+    wifiNetworkSync = sync(wifiNetworkClient, availableNetworks);
     const promptWifiConnectPassword = ref(false);
-    const wifiConnectPassword = ref({}) as Ref<WifiConnectPassword>;
+    const wifiConnectPassword = ref({
+      resourceName: '',
+      ssid: '',
+      password: '',
+    }) as Ref<WifiConnectPassword>;
 
     const state = reactive({
       synchronizing: deviceStore.synchronizing,

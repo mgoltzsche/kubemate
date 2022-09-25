@@ -16,6 +16,9 @@ export class ApiClient<T extends Resource> {
   constructor(resourceUrl: string) {
     this.resourceUrl = resourceUrl;
   }
+  public resource(): string {
+    return this.resourceUrl;
+  }
   public create(obj: T): CancelablePromise<T> {
     console.log(`client: create ${this.resourceUrl}`);
     return request({

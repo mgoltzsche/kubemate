@@ -24,29 +24,30 @@ export function watch<T>(
 ): CancelablePromise<void> {
   return new CancelablePromise(async (resolve, reject, onCancel) => {
     try {
-      if (onCancel.isCancelled) return;
-      const stream = await streamFromURL<WatchEvent<T>>(url, headers);
-      if (onCancel.isCancelled) {
-        stream.cancel();
-        return;
-      }
-      onCancel(stream.cancel);
-      consumeStream(stream, (evt) => {
-        console.log('watch: received event:', evt);
+      const stream = streamFromURL<WatchEvent<T>>(url, headers);
+      onCancel(async () => {
+        await stream.cancel();
+      });
+      const reader = (await stream).getReader();
+      onCancel(async () => {
+        await reader.cancel();
+        await stream.cancel();
+      });
+      await consumeStream(reader, (evt) => {
+        console.log('client: watch: received event', evt);
         handler(evt);
       });
       resolve();
-    } catch (error) {
-      reject(error);
+    } catch (e) {
+      reject(e);
     }
   });
 }
 
 async function consumeStream<T>(
-  stream: ReadableStream<T>,
+  reader: ReadableStreamReader<T>,
   consume: (value: T) => void
 ) {
-  const reader = stream.getReader();
   let value: T | undefined;
   let done = false;
   while (!done) {
@@ -62,55 +63,66 @@ async function consumeStream<T>(
 function streamFromURL<T>(
   url: string,
   headers: Record<string, string>
-): Promise<ReadableStream<T>> {
-  return fetch(url, { headers: headers }).then((response) => {
-    if (response.status != 200) {
-      return Promise.reject(
-        `request ${url}: server responded with status code ${response.status}`
-      );
-    }
-    if (!response.body) {
-      return Promise.reject(`request ${url}: missing response body`);
-    }
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let text = '';
-    const stream = new ReadableStream<T>({
-      start(controller: ReadableStreamController<T>) {
-        function push(): Promise<void> {
-          return reader
-            .read()
-            .then(({ done, value }) => {
-              if (done) {
-                controller.close();
-                return;
-              }
-              text += decoder.decode(value || new Uint8Array());
-              for (
-                let pos = text.indexOf('\n');
-                pos > -1;
-                pos = text.indexOf('\n')
-              ) {
-                const line = text.substring(0, pos).trim();
-                if (line) {
-                  controller.enqueue(JSON.parse(line));
-                }
-                text = text.substring(pos + 1);
-              }
-            })
-            .then(push)
-            .catch((e) => {
-              controller.error(e);
-            });
+): CancelablePromise<ReadableStream<T>> {
+  return new CancelablePromise(async (resolve, reject, onCancel) => {
+    try {
+      const abortController = new AbortController();
+      const signal = abortController.signal;
+      const streamPromise = fetch(url, {
+        headers: headers,
+        signal: signal,
+      }).then((response) => {
+        if (response.status != 200) {
+          return Promise.reject(
+            `request ${url}: server responded with status code ${response.status}`
+          );
         }
-        push();
-      },
-      cancel() {
-        // TODO: check if any of this fails and reorder and/or catch it
-        reader.cancel();
-        response.body?.cancel();
-      },
-    });
-    return stream;
+        if (!response.body) {
+          return Promise.reject(`request ${url}: missing response body`);
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let text = '';
+        const stream = new ReadableStream<T>({
+          start(controller: ReadableStreamController<T>) {
+            function push(): Promise<void> {
+              return reader
+                .read()
+                .then(({ done, value }) => {
+                  if (done) {
+                    controller.close();
+                    return;
+                  }
+                  text += decoder.decode(value || new Uint8Array());
+                  for (
+                    let pos = text.indexOf('\n');
+                    pos > -1;
+                    pos = text.indexOf('\n')
+                  ) {
+                    const line = text.substring(0, pos).trim();
+                    if (line) {
+                      controller.enqueue(JSON.parse(line));
+                    }
+                    text = text.substring(pos + 1);
+                  }
+                })
+                .then(push)
+                .catch((e) => {
+                  controller.error(e);
+                });
+            }
+            push();
+          },
+          cancel() {
+            abortController.abort();
+          },
+        });
+        return stream;
+      });
+      onCancel(() => abortController.abort());
+      resolve(await streamPromise);
+    } catch (e) {
+      reject(e);
+    }
   });
 }

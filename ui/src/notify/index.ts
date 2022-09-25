@@ -1,11 +1,14 @@
-import { useQuasar } from 'quasar';
+import { Notify } from 'quasar';
 
 export function error(e: any) {
   console.log('ERROR:', e);
-  const quasar = useQuasar();
-  quasar.notify({
+  Notify.create({
     type: 'negative',
-    message: e.body?.message ? `${e.message}: ${e.body?.message}` : e.message,
+    message: e.body?.message
+      ? `${e.message}: ${e.body?.message}`
+      : e.message
+      ? e.message
+      : e,
   });
 }
 

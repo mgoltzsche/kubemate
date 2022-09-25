@@ -26,8 +26,7 @@ func NewWifiNetworkREST(wifi *wifi.Wifi) *wifiNetworkREST {
 		logrus.Debug("scanning for wifi networks")
 		err := updateWifiNetworkList(wifi, store)
 		if err != nil {
-			err = fmt.Errorf("scan for wifi networks: %w", err)
-			logrus.Error(err)
+			logrus.Warn(err)
 		}
 	})
 	return &wifiNetworkREST{

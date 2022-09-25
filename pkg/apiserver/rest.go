@@ -66,7 +66,11 @@ func (r *REST) List(ctx context.Context, options *metainternalversion.ListOption
 }
 
 func (r *REST) Watch(ctx context.Context, options *metainternalversion.ListOptions) (w watch.Interface, err error) {
-	return r.store.Watch(ctx, options.ResourceVersion)
+	w, err = r.store.Watch(ctx, options.ResourceVersion)
+	if err != nil {
+		return nil, err
+	}
+	return w, nil
 }
 
 func (r *REST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {

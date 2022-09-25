@@ -15,14 +15,14 @@ import {
 import { Resource } from 'src/k8sclient';
 import apiclient from 'src/k8sclient';
 import { Ref, ref } from 'vue';
-import { Notify } from 'quasar';
 import { ApiClient } from 'src/k8sclient/apiclient';
-import { EventType } from 'src/k8sclient/watch';
+import sync from './sync';
 //import { CustomResource } from 'src/k8sclient/model';
 
 interface ResourceStoreState<T> {
-  synchronizing: boolean;
   resources: Ref<T[]>;
+  synchronized: Ref<boolean>;
+  synchronizing: Ref<boolean>;
 }
 
 interface ResourceStoreGetters<T extends Resource> {
@@ -31,7 +31,6 @@ interface ResourceStoreGetters<T extends Resource> {
 
 interface ResourceStoreActions<T> {
   sync(): void;
-  setResources(r: T[]): void;
 }
 
 type ResourceStoreDefinition<T extends Resource> = StoreDefinition<
@@ -47,70 +46,25 @@ function defineResourceStore<T extends Resource>(
   apiVersion: string,
   resource: string
 ): ResourceStoreDefinition<T> {
+  const synchronized = ref(false);
+  const synchronizing = ref(false);
+  const resources = ref<T[]>([]) as Ref<T[]>;
   const client = kc.newClient<T>(`${apiVersion}/${resource}`);
   const store = defineStore(resource, {
     state: (): ResourceStoreState<T> => ({
-      synchronizing: false,
-      resources: ref<T[]>([]) as Ref<T[]>, // See https://github.com/vuejs/pinia/discussions/973
+      synchronized: synchronized,
+      synchronizing: synchronizing,
+      resources: resources, // See https://github.com/vuejs/pinia/discussions/973
     }),
     getters: {
       client: () => client,
     },
     actions: {
       sync() {
-        if (!this.synchronizing) {
+        if (!this.synchronized && !this.synchronizing) {
           this.synchronizing = true;
-          client
-            .list()
-            .then((list) => {
-              this.setResources(list.items);
-              this.synchronizing = false;
-              client
-                .watch((evt) => {
-                  console.log('EVENT ' + evt.type, evt.object);
-                  let res = this.resources;
-                  switch (evt.type) {
-                    case EventType.ADDED:
-                      res.push(evt.object);
-                      break;
-                    case EventType.MODIFIED:
-                      const i = res.findIndex(
-                        (o) => o.metadata?.name === evt.object.metadata?.name
-                      );
-                      if (i >= 0) res[i] = evt.object;
-                      break;
-                    case EventType.DELETED:
-                      res = [];
-                      for (let i = 0; i < this.resources.length; i++) {
-                        const r = this.resources[i];
-                        if (r.metadata?.name !== evt.object.metadata?.name) {
-                          res.push(r);
-                        }
-                      }
-                      break;
-                    default:
-                      console.log('WARN: unsupported event type: ' + evt.type);
-                      return;
-                  }
-                  this.setResources(res);
-                }, list.metadata.resourceVersion || '')
-                .catch((e) => {
-                  console.log(`restarting ${resource} sync`);
-                  this.sync();
-                });
-            })
-            .catch((e) => {
-              Notify.create({
-                type: 'negative',
-                message: e.body?.message
-                  ? `${e.message}: ${e.body?.message}`
-                  : e.message,
-              });
-            });
+          sync(client, resources, synchronized, synchronizing);
         }
-      },
-      setResources(resources: T[]) {
-        this.resources = resources;
       },
     },
   });

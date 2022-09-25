@@ -93,7 +93,7 @@ func (w *Wifi) DetectCountry() error {
 // Scan returns a list of available wifi networks.
 func (w *Wifi) Scan() ([]WifiNetwork, error) {
 	if !w.wifiIfaceStarted {
-		return nil, fmt.Errorf("cannot scan for wifi networks when wifi interface %s is down", w.WifiIface)
+		return nil, fmt.Errorf("cannot scan wifi networks while network interface %s is down", w.WifiIface)
 	}
 	return scanForWifiNetworks(context.Background(), w.WifiIface)
 }
