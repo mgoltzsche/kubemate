@@ -3,7 +3,6 @@ import { ApiClient } from 'src/k8sclient/apiclient';
 import { error } from 'src/notify';
 import { CancelablePromise } from 'src/k8sclient/CancelablePromise';
 import { EventType } from 'src/k8sclient/watch';
-//import { Ref } from 'vue';
 
 interface Ref<T> {
   value: T;
@@ -12,31 +11,25 @@ interface Ref<T> {
 export default function sync<T extends Resource>(
   client: ApiClient<T>,
   resources: Ref<T[]>,
-  synchronized?: Ref<boolean>,
-  synchronizing?: Ref<boolean>
-  //callback: (resources: T[]) => void
+  loading: Ref<boolean>,
+  callback?: (resources: T[]) => void
 ): CancelablePromise<void> {
-  const synchronizedRef = synchronized ? synchronized : { value: false };
-  const synchronizingRef = synchronizing ? synchronizing : { value: false };
-  synchronizedRef.value = false;
-  synchronizingRef.value = true;
   return new CancelablePromise(async (resolve, _, onCancel) => {
     while (true) {
       try {
         if (onCancel.isCancelled) return;
+        loading.value = true;
         const list = await client.list();
+        loading.value = false;
         if (onCancel.isCancelled) return;
-        //const resources = list.items;
-        //callback(resources);
         resources.value = list.items;
-        synchronizedRef.value = true;
-        synchronizingRef.value = false;
+        if (callback) callback(list.items);
         const watch = client.watch((evt) => {
           console.log('sync: received event:', evt);
           switch (evt.type) {
             case EventType.ADDED:
               resources.value.push(evt.object);
-              //callback(resources);
+              if (callback) callback(resources.value);
               break;
             case EventType.MODIFIED:
               const i = resources.value.findIndex(
@@ -44,7 +37,7 @@ export default function sync<T extends Resource>(
               );
               if (i >= 0) {
                 resources.value[i] = evt.object;
-                //callback(resources);
+                if (callback) callback(resources.value);
               } else {
                 console.log(
                   `ERROR: sync: server emitted ${
@@ -65,7 +58,7 @@ export default function sync<T extends Resource>(
               }
               if (res.length != resources.value.length) {
                 resources.value = res;
-                //callback(resources);
+                if (callback) callback(res);
               }
               break;
             case EventType.BOOKMARK:
@@ -91,11 +84,12 @@ export default function sync<T extends Resource>(
           break;
         }
         error(e);
-        synchronizingRef.value = true;
+        loading.value = true;
         await new Promise((r) => setTimeout(r, 5000));
         console.log(`sync: restarting ${client.resource()} synchronization`);
       }
     }
     console.log(`sync: terminated ${client.resource()} synchronization`);
+    loading.value = false;
   });
 }

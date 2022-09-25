@@ -9,8 +9,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// TODO: use iwd instead of hostapd. see https://iwd.wiki.kernel.org/ap_mode
-
 func (w *Wifi) StartAccessPoint(ssid, password string) error {
 	if password == "" {
 		return fmt.Errorf("start accesspoint: no wifi password configured")
@@ -31,9 +29,12 @@ func (w *Wifi) StartAccessPoint(ssid, password string) error {
 	if err != nil {
 		return err
 	}
-	err = w.StartWifiInterface()
-	if err != nil {
-		return err
+	if w.mode != WifiModeAccessPoint {
+		err = w.restartWifiInterface()
+		if err != nil {
+			return err
+		}
+		w.mode = WifiModeAccessPoint
 	}
 	w.installAPRoutes()
 	if ifacesConfChanged || hostapdConfChanged || dhcpdConfChanged {
@@ -43,7 +44,7 @@ func (w *Wifi) StartAccessPoint(ssid, password string) error {
 		}
 	}
 	ctx := context.Background()
-	err = w.dhcpd.Start(ctx, runner.Cmd("dhcpd", "-4", "-f", "-d", w.WifiIface, "-cf", dhcpdConf, "-lf", w.DHCPLeaseFile))
+	err = w.dhcpd.Start(ctx, runner.Cmd("dhcpd", "-4", "-f", "-d", w.WifiIface, "-cf", dhcpdConf, "-lf", w.DHCPLeaseFile, "--no-pid"))
 	if err != nil {
 		return err
 	}

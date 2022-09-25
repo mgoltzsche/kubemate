@@ -38,7 +38,7 @@ container: create-builder ## Build a linux/amd64 container image.
 .PHONY: container-multiarch
 container-multiarch: PLATFORM = linux/arm64/v8,linux/amd64
 container-multiarch: BUILDX_OUTPUT = type=image
-container-multiarch: container ## Build a multi-arch container image.
+container-multiarch: configure-qemu container ## Build a multi-arch container image.
 
 .PHONY: container-tar
 container-tar: PLATFORM = linux/arm64/v8

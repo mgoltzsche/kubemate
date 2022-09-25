@@ -11,7 +11,7 @@
         <div>
           <div class="q-gutter-sm">
             <q-radio
-              v-model="device.spec.wifi.mode"
+              v-model="wifi.mode"
               :val="mode.value"
               :label="mode.label"
               v-for="mode in availableWifiModes"
@@ -19,14 +19,21 @@
             />
           </div>
           <q-tab-panels
-            v-model="device.spec.wifi.mode"
+            v-model="wifi.mode"
             animated
             class="shadow-2 rounded-borders"
           >
             <q-tab-panel name="station">
               <q-card-section>
-                <div v-if="availableNetworks.length == 0">
+                <div v-if="scanning">scanning...</div>
+                <div v-if="!scanning && availableNetworks.length == 0">
                   No wifi networks found!
+                  <div v-if="device.spec.wifi.mode !== stationMode">
+                    <i
+                      >You may need to activate station mode in order to be able
+                      to scan wifi networks!
+                    </i>
+                  </div>
                 </div>
                 <q-virtual-scroll
                   style="max-height: 300px"
@@ -38,7 +45,7 @@
                   <q-item tag="label" v-ripple :key="item.metadata.name">
                     <q-item-section avatar>
                       <q-radio
-                        v-model="device.spec.wifi.station.SSID"
+                        v-model="wifi.station.SSID"
                         :val="item.data.ssid"
                         v-on:click="promptPassword(item)"
                       />
@@ -109,9 +116,6 @@ import { useDeviceStore } from 'src/stores/resources';
 import apiclient from 'src/k8sclient';
 import { catchError, error } from 'src/notify';
 import {
-  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_Device as Device,
-  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_DeviceSpec as DeviceSpec,
-  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_DeviceToken as DeviceToken,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_WifiConfig as WifiConfig,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_WifiNetwork as WifiNetwork,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_WifiPassword as WifiPassword,
@@ -142,9 +146,18 @@ export default defineComponent({
   },
   setup() {
     const deviceStore = useDeviceStore();
-    deviceStore.sync();
+    const wifi = ref<WifiConfig>({
+      accessPoint: { SSID: '' },
+      station: { SSID: '' },
+    });
+    deviceStore.sync(() => {
+      const d = deviceStore.resources.find((d) => d.status.current);
+      if (!d) return;
+      wifi.value = JSON.parse(JSON.stringify(d.spec.wifi));
+    });
     const availableNetworks = ref([]) as Ref<WifiNetwork[]>;
-    wifiNetworkSync = sync(wifiNetworkClient, availableNetworks);
+    const scanning = ref(false);
+    wifiNetworkSync = sync(wifiNetworkClient, availableNetworks, scanning);
     const promptWifiConnectPassword = ref(false);
     const wifiConnectPassword = ref({
       resourceName: '',
@@ -217,11 +230,15 @@ export default defineComponent({
       apply: () => {
         const d = deviceStore.resources.find((d) => d.status.current);
         if (!d) return;
+        d.spec.wifi = wifi.value;
         catchError(deviceStore.client.update(d));
       },
     });
     return {
       ...toRefs(state),
+      wifi,
+      scanning,
+      stationMode: WifiConfig.mode.STATION,
       availableWifiModes: [
         { label: 'Disabled', value: WifiConfig.mode.DISABLED },
         { label: 'Access Point', value: WifiConfig.mode.ACCESSPOINT },

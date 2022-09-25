@@ -18,19 +18,16 @@ func (w *Wifi) StartStation(ssid, password string) error {
 	if err != nil {
 		return err
 	}
-	err = w.StartWifiInterface()
-	if err != nil {
-		return err
-	}
-	if confChanged {
+	if confChanged || w.mode != WifiModeStation {
 		err = w.restartWifiInterface()
 		if err != nil {
 			return err
 		}
-		err = triggerWifiNetworkScan(w.WifiIface)
+		_, err = w.Scan() // TODO: prevent this from running concurrently with the scan that is triggered by the wifinetwork_rest controller
 		if err != nil {
-			return fmt.Errorf("trigger wifi network scan: %w", err)
+			return err
 		}
+		w.mode = WifiModeStation
 	}
 	ctx := context.Background()
 	return w.station.Start(ctx, runner.Cmd("wpa_supplicant", "-i", w.WifiIface, "-c", confFile))

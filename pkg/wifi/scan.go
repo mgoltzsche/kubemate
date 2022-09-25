@@ -5,30 +5,28 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-	"regexp"
 	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
-var wifiScanResultLineRegex = regexp.MustCompile(`^([^\s]+)\t([0-9]+)\t([0-9-]+)\t([^\s]+)\t(.+)$`)
+const iwIndent = "	"
 
 type WifiNetwork struct {
-	SSID string
+	MAC     string
+	SSID    string
+	Country string
 }
 
-func scanForWifiNetworks(ctx context.Context, iface string) ([]WifiNetwork, error) {
-	err := triggerWifiNetworkScan(iface)
-	if err != nil {
-		return nil, err
-	}
+func scanWifiNetworks(ctx context.Context, iface string) ([]WifiNetwork, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	out, err := runCmdOut(ctx, "wpa_cli", "-i", iface, "scan_results")
+	out, err := runCmdOut(ctx, "iw", "dev", iface, "scan", "ap-force")
 	if err != nil {
 		return nil, fmt.Errorf("wifi network scan: %w", err)
 	}
-	lines := strings.Split(strings.TrimSpace(out), "\n")
-	return parseWPACLIScanResult(lines), nil
+	return parseNetworkScanResult(out), nil
 }
 
 func runCmdOut(ctx context.Context, cmd string, args ...string) (string, error) {
@@ -43,23 +41,49 @@ func runCmdOut(ctx context.Context, cmd string, args ...string) (string, error) 
 	return stdout.String(), nil
 }
 
-func triggerWifiNetworkScan(iface string) error {
-	err := runCmd("wpa_cli", "-i", iface, "scan")
-	if err != nil {
-		return fmt.Errorf("trigger wifi network scan: %w", err)
-	}
-	return nil
-}
-
-func parseWPACLIScanResult(lines []string) []WifiNetwork {
-	networks := make([]WifiNetwork, 0, len(lines))
+func parseNetworkScanResult(iwOutput string) []WifiNetwork {
+	lines := strings.Split(strings.TrimSpace(iwOutput), "\n")
+	networks := make([]WifiNetwork, 0, 5)
+	i := -1
+	entry := false
 	for _, line := range lines {
-		found := wifiScanResultLineRegex.FindStringSubmatch(line)
-		if len(found) == 6 {
-			networks = append(networks, WifiNetwork{
-				SSID: found[5],
-			})
+		if strings.HasPrefix(line, "BSS ") && len(line) >= 4+17 {
+			// start new network entry
+			networks = append(networks, WifiNetwork{MAC: line[4 : 4+17]})
+			i++
+			entry = true
+			continue
+		}
+		if !strings.HasPrefix(line, iwIndent) {
+			entry = false
+			logrus.Warnf("parse network scan result: unexpected line: %s", line)
+			continue
+		}
+		if !entry {
+			continue
+		}
+		line = line[len(iwIndent):]
+		colonPos := strings.Index(line, ":")
+		if colonPos < 1 || colonPos >= len(line)-3 {
+			continue
+		}
+		// Add attribute to previously found entry
+		key := line[:colonPos]
+		value := line[colonPos+2:]
+		switch key {
+		case "SSID":
+			networks[i].SSID = value
+		case "Country":
+			if len(value) >= 2 {
+				networks[i].Country = value[:2]
+			}
 		}
 	}
-	return networks
+	filtered := make([]WifiNetwork, 0, len(networks))
+	for _, n := range networks {
+		if n.SSID != "" {
+			filtered = append(filtered, n)
+		}
+	}
+	return filtered
 }

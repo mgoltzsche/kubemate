@@ -23,7 +23,7 @@ type wifiNetworkREST struct {
 
 func NewWifiNetworkREST(wifi *wifi.Wifi) *wifiNetworkREST {
 	store := storage.RefreshPeriodically(storage.InMemory(), 10*time.Second, func(store storage.Interface) {
-		logrus.Debug("scanning for wifi networks")
+		logrus.Debug("scanning wifi networks")
 		err := updateWifiNetworkList(wifi, store)
 		if err != nil {
 			logrus.Warn(err)
@@ -47,9 +47,9 @@ func (r *wifiNetworkREST) Update(ctx context.Context, key string, objInfo regist
 	return nil, false, fmt.Errorf("cannot update wifi network scan result")
 }
 
-func updateWifiNetworkList(wifi *wifi.Wifi, wifiNetworks storage.Interface) error {
+func updateWifiNetworkList(w *wifi.Wifi, wifiNetworks storage.Interface) error {
 	foundNetworks := map[string]struct{}{}
-	networks, err := wifi.Scan()
+	networks, err := w.Scan()
 	if err != nil {
 		return err
 	}

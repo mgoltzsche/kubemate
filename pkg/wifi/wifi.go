@@ -27,11 +27,19 @@ import (
 // See https://news.ycombinator.com/item?id=21733666
 // See https://iwd.wiki.kernel.org/ap_mode
 
+type WifiMode string
+
+const (
+	WifiModeStation     WifiMode = "station"
+	WifiModeAccessPoint WifiMode = "accesspoint"
+)
+
 type Wifi struct {
 	dhcpd            *runner.Runner
 	ap               *runner.Runner
 	station          *runner.Runner
 	wifiIfaceStarted bool
+	mode             WifiMode
 	EthIface         string
 	WifiIface        string
 	DHCPLeaseFile    string
@@ -75,6 +83,10 @@ func (w *Wifi) Close() (err error) {
 	return err
 }
 
+func (w *Wifi) Mode() WifiMode {
+	return w.mode
+}
+
 // DetectCountry derives the wifi country based on near wifi networks.
 func (w *Wifi) DetectCountry() error {
 	if w.CountryCode == "" {
@@ -95,7 +107,7 @@ func (w *Wifi) Scan() ([]WifiNetwork, error) {
 	if !w.wifiIfaceStarted {
 		return nil, fmt.Errorf("cannot scan wifi networks while network interface %s is down", w.WifiIface)
 	}
-	return scanForWifiNetworks(context.Background(), w.WifiIface)
+	return scanWifiNetworks(context.Background(), w.WifiIface)
 }
 
 func (w *Wifi) restartWifiInterface() error {
