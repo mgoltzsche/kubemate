@@ -38,6 +38,13 @@ type KustomizationSpec struct {
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Optional
 	TargetNamespace string `json:"targetNamespace,omitempty"`
+	// Namespace specifies the default Kubernetes Namespace that śhould be used by the kustomization.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Optional
+	Namespace string `json:"namespace,omitempty"`
+	// +kubebuilder:validation:Optional
+	Timeout *metav1.Duration `json:"timeout,omitempty"`
 }
 
 // CrossNamespaceSourceReference contains enough information to let you locate the typed Kubernetes resource object at cluster level.
@@ -65,7 +72,7 @@ type CrossNamespaceSourceReference struct {
 // +k8s:openapi-gen=true
 type AppStatus struct {
 	ObservedGeneration    int64    `json:"observedGeneration,omitempty"`
-	TargetNamespace       string   `json:"targetNamespace,omitempty"`
+	Namespace             string   `json:"namespace,omitempty"`
 	State                 AppState `json:"state,omitempty"`
 	Message               string   `json:"message,omitempty"`
 	LastAppliedRevision   string   `json:"lastAppliedRevision,omitempty"`
@@ -75,7 +82,7 @@ type AppStatus struct {
 // App is the Schema for the apps API
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:resource:scope=Namespaced
 // +kubebuilder:printcolumn:name="State",type=string,JSONPath=`.status.state`
 // +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.lastAppliedRevision`
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
@@ -86,6 +93,13 @@ type App struct {
 
 	Spec   AppSpec   `json:"spec"`
 	Status AppStatus `json:"status,omitempty"`
+}
+
+func (a *App) Namespace() string {
+	if a.Spec.Kustomization != nil && a.Spec.Kustomization.Namespace != "" {
+		return a.Spec.Kustomization.Namespace
+	}
+	return a.ObjectMeta.Namespace
 }
 
 func (s *CrossNamespaceSourceReference) String() string {

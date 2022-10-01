@@ -25,7 +25,8 @@ func (l *logrusSink) Init(info logr.RuntimeInfo) {}
 // For example, commandline flags might be used to set the logging
 // verbosity and disable some info logs.
 func (l *logrusSink) Enabled(level int) bool {
-	return l.logger.Level >= toLogrusLevel(level)
+	//return l.logger.Level >= toLogrusLevel(level)
+	return true
 }
 
 // Info logs a non-error message with the given key/value pairs as context.
@@ -33,13 +34,13 @@ func (l *logrusSink) Enabled(level int) bool {
 // only be called when Enabled(level) is true. See Logger.Info for more
 // details.
 func (l *logrusSink) Info(level int, msg string, keysAndValues ...interface{}) {
-	l.withFields(keysAndValues).Log(toLogrusLevel(level), msg)
+	//l.withFields(keysAndValues).Log(toLogrusLevel(level), msg)
+	l.withFields(keysAndValues).Debug(msg)
 }
 
 // Error logs an error, with the given message and key/value pairs as
 // context.  See Logger.Error for more details.
 func (l *logrusSink) Error(err error, msg string, keysAndValues ...interface{}) {
-	// TODO: how to know the loglevel here?
 	l.withFields(keysAndValues).WithError(err).Error(msg)
 }
 
@@ -64,7 +65,7 @@ func (l *logrusSink) withFields(keysAndValues ...interface{}) *logrus.Entry {
 	return l.logger.WithFields(logrus.Fields(m))
 }
 
-func toLogrusLevel(level int) logrus.Level {
+/*func toLogrusLevel(level int) logrus.Level {
 	level++
 	if level < int(logrus.FatalLevel) {
 		level = int(logrus.FatalLevel)
@@ -73,4 +74,4 @@ func toLogrusLevel(level int) logrus.Level {
 		level = int(logrus.TraceLevel)
 	}
 	return logrus.Level(level)
-}
+}*/

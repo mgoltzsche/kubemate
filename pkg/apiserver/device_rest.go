@@ -74,6 +74,8 @@ func NewDeviceREST(deviceName string, deviceDiscovery func(store storage.Interfa
 	return devices
 }
 
+func (r *DeviceREST) Destroy() {}
+
 func (r *DeviceREST) Store() storage.Interface {
 	return r.store
 }

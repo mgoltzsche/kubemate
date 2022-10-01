@@ -1,9 +1,9 @@
 namespace: kube-system
 
 resources:
-- github.com/fluxcd/source-controller//config/crd?ref=v0.25.2
-- github.com/fluxcd/source-controller//config/rbac?ref=v0.25.2
-- github.com/fluxcd/source-controller//config/manager?ref=v0.25.2
-- github.com/fluxcd/kustomize-controller//config/crd?ref=v0.26.0
-- github.com/fluxcd/kustomize-controller//config/rbac?ref=v0.26.0
-- github.com/fluxcd/kustomize-controller//config/manager?ref=v0.26.0
+- github.com/fluxcd/source-controller//config/crd?ref=v0.29.0
+- github.com/fluxcd/source-controller//config/rbac?ref=v0.29.0
+- github.com/fluxcd/source-controller//config/manager?ref=v0.29.0
+- github.com/fluxcd/kustomize-controller//config/crd?ref=v0.28.0
+- github.com/fluxcd/kustomize-controller//config/rbac?ref=v0.28.0
+- github.com/fluxcd/kustomize-controller//config/manager?ref=v0.28.0

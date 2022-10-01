@@ -5,55 +5,66 @@ import { Resource, ResourceList } from './model';
 import { useAuthStore } from 'src/stores/auth';
 
 export class KubeConfig {
-  newClient<T extends Resource>(resourceUrl: string): ApiClient<T> {
-    return new ApiClient<T>(resourceUrl);
+  newClient<T extends Resource>(
+    baseUrl: string,
+    resource: string
+  ): ApiClient<T> {
+    return new ApiClient<T>(baseUrl, resource);
   }
 }
 
 export class ApiClient<T extends Resource> {
   private auth = useAuthStore();
-  private resourceUrl: string;
-  constructor(resourceUrl: string) {
-    this.resourceUrl = resourceUrl;
+  private baseUrl: string;
+  private res: string;
+  constructor(baseUrl: string, resource: string) {
+    this.baseUrl = baseUrl;
+    this.res = resource;
+  }
+  private resourceUrl(namespace?: string): string {
+    return namespace
+      ? `${this.baseUrl}/namespaces/${namespace}/${this.res}`
+      : `${this.baseUrl}/${this.res}`;
   }
   public resource(): string {
-    return this.resourceUrl;
+    return this.res;
   }
-  public create(obj: T): CancelablePromise<T> {
-    console.log(`client: create ${this.resourceUrl}`);
+  public create(o: T): CancelablePromise<T> {
+    const url = this.resourceUrl(o.metadata?.namespace);
+    console.log(`client: create ${url}`);
     return request({
       method: 'POST',
-      url: this.resourceUrl,
+      url: url,
       query: {
         timeoutSeconds: 10,
       },
       headers: {
         Authorization: 'Bearer ' + this.auth.token,
       },
-      body: obj,
+      body: o,
     });
   }
-  public update(obj: T): CancelablePromise<T> {
-    console.log(`client: update ${this.resourceUrl}`);
+  public update(o: T): CancelablePromise<T> {
+    const name = o.metadata?.name;
+    const url = `${this.resourceUrl(o.metadata?.namespace)}/${name}`;
+    console.log(`client: update ${url}`);
     return request({
       method: 'PUT',
-      url: `${this.resourceUrl}/${obj.metadata?.name || ''}`,
+      url: url,
       query: {
         timeoutSeconds: 10,
       },
       headers: {
         Authorization: 'Bearer ' + this.auth.token,
       },
-      body: obj,
+      body: o,
     });
   }
   public delete(
     name: string,
     namespace?: string
   ): CancelablePromise<ResourceList<T>> {
-    const url = namespace
-      ? `namespaces/${namespace}/${this.resourceUrl}/${name}`
-      : `${this.resourceUrl}/${name}`;
+    const url = `${this.resourceUrl(namespace)}/${name}`;
     console.log(`client: delete ${url}`);
     return request({
       method: 'DELETE',
@@ -67,9 +78,7 @@ export class ApiClient<T extends Resource> {
     });
   }
   public get(name: string, namespace?: string): CancelablePromise<T> {
-    const url = namespace
-      ? `namespaces/${namespace}/${this.resourceUrl}/${name}`
-      : `${this.resourceUrl}/${name}`;
+    const url = `${this.resourceUrl(namespace)}/${name}`;
     console.log(`client: get ${url}`);
     return request({
       method: 'GET',
@@ -83,10 +92,11 @@ export class ApiClient<T extends Resource> {
     });
   }
   public list(): CancelablePromise<ResourceList<T>> {
-    console.log(`client: list ${this.resourceUrl}`);
+    const url = this.resourceUrl();
+    console.log(`client: list ${url}`);
     return request({
       method: 'GET',
-      url: `${this.resourceUrl}`,
+      url: url,
       query: {
         timeoutSeconds: 10,
       },
@@ -99,9 +109,10 @@ export class ApiClient<T extends Resource> {
     handler: (evt: WatchEvent<T>) => void,
     resourceVersion?: string
   ): CancelablePromise<void> {
-    console.log(`client: watch ${this.resourceUrl}`);
+    const url = this.resourceUrl();
+    console.log(`client: watch ${url}`);
     return watch(
-      `${this.resourceUrl}?watch=1&resourceVersion=${resourceVersion}`,
+      `${url}?watch=1&resourceVersion=${resourceVersion}`,
       {
         Authorization: 'Bearer ' + this.auth.token,
       },

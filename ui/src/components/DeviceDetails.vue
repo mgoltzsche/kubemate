@@ -112,7 +112,8 @@ function serverJoinTokenRequestURL(server: Device) {
 
 const kc = new apiclient.KubeConfig();
 const client = kc.newClient<DeviceToken>(
-  '/apis/kubemate.mgoltzsche.github.com/v1/devicetokens'
+  '/apis/kubemate.mgoltzsche.github.com/v1',
+  'devicetokens'
 );
 
 export default defineComponent({

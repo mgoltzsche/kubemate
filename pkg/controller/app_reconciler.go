@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
 	appsv1 "github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1"
@@ -18,6 +19,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
+
+// TODO: fix status updates - fix Kustomization watch work
 
 const (
 	annotationAppOwner = "kubemate.mgoltzsche.github.com/app"
@@ -36,10 +39,17 @@ func (r *AppReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Client = mgr.GetClient()
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&appsv1.App{}).
+		//Owns(&kustomizev1.Kustomization{}).
 		Watches(&source.Kind{Type: &kustomizev1.Kustomization{}}, handler.EnqueueRequestsFromMapFunc(func(o client.Object) []ctrl.Request {
 			if a := o.GetAnnotations(); a != nil {
 				if owner := a[annotationAppOwner]; owner != "" {
-					return []ctrl.Request{{NamespacedName: types.NamespacedName{Name: owner}}}
+					name := strings.SplitN(owner, "/", 2)
+					if len(name) == 2 {
+						return []ctrl.Request{{NamespacedName: types.NamespacedName{
+							Namespace: name[0],
+							Name:      name[1],
+						}}}
+					}
 				}
 			}
 			return nil
@@ -60,9 +70,10 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, err
 	}
 	if a.Spec.Kustomization == nil {
+		logger.Info("app does not specify kustomization")
 		return ctrl.Result{}, nil
 	}
-	logger.V(2).Info("reconcile app")
+	logger.V(1).Info("reconcile app")
 	// Add finalizer to App
 	if !controllerutil.ContainsFinalizer(a, finalizerKubemate) {
 		controllerutil.AddFinalizer(a, finalizerKubemate)
@@ -71,10 +82,10 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 	// Delete kustomization when App resource gets deleted
 	if a.DeletionTimestamp != nil {
-		if a.Status.TargetNamespace != "" {
+		if a.Status.Namespace != "" {
 			done, err := r.deleteKustomization(ctx, types.NamespacedName{
 				Name:      a.Name,
-				Namespace: a.Status.TargetNamespace,
+				Namespace: a.Status.Namespace,
 			})
 			if err != nil || !done {
 				return ctrl.Result{}, err
@@ -85,10 +96,10 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, err
 	}
 	// Delete previous Kustomization if namespace changed
-	if a.Status.TargetNamespace != "" && a.Status.TargetNamespace != a.Spec.Kustomization.TargetNamespace {
+	if a.Status.Namespace != "" && a.Status.Namespace != a.Namespace() {
 		done, err := r.deleteKustomization(ctx, types.NamespacedName{
 			Name:      a.Name,
-			Namespace: a.Status.TargetNamespace,
+			Namespace: a.Status.Namespace,
 		})
 		if err != nil || !done {
 			return ctrl.Result{}, err
@@ -99,11 +110,12 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	// Update App status
 	oldStatus := a.Status
 	defer func() {
-		if a.Status.State != oldStatus.State || a.Status.Message != oldStatus.Message || a.Status.TargetNamespace != oldStatus.TargetNamespace {
+		if a.Status.State != oldStatus.State || a.Status.Message != oldStatus.Message || a.Status.Namespace != oldStatus.Namespace {
 			a.Status.ObservedGeneration = a.Generation
-			a.Status.TargetNamespace = a.Spec.Kustomization.TargetNamespace
-			a.Status.LastAppliedRevision = k.Status.LastAppliedRevision
-			a.Status.LastAttemptedRevision = k.Status.LastAttemptedRevision
+			if k != nil {
+				a.Status.LastAppliedRevision = k.Status.LastAppliedRevision
+				a.Status.LastAttemptedRevision = k.Status.LastAttemptedRevision
+			}
 			_ = r.Client.Status().Update(ctx, a) // Update App status
 		}
 	}()
@@ -153,22 +165,24 @@ func getCondition(conditions []metav1.Condition, name string) metav1.Condition {
 
 func (r *AppReconciler) reconcileKustomization(ctx context.Context, a *appsv1.App) (*kustomizev1.Kustomization, error) {
 	// Try to fetch Kustomization
+	ns := a.Namespace()
 	key := types.NamespacedName{
 		Name:      a.Name,
-		Namespace: a.Spec.Kustomization.TargetNamespace,
+		Namespace: ns,
 	}
 	k := &kustomizev1.Kustomization{}
 	found := true
-	key.Namespace = a.Spec.Kustomization.TargetNamespace
 	err := r.Client.Get(ctx, key, k)
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			return nil, err
+			return k, err
 		}
 		found = false
 	}
 	if a.Spec.Enabled != nil && *a.Spec.Enabled {
 		// Install
+		k.Name = key.Name
+		k.Namespace = key.Namespace
 		sourceRef := a.Spec.Kustomization.SourceRef
 		oldObj := &kustomizev1.Kustomization{}
 		k.DeepCopyInto(oldObj)
@@ -180,13 +194,20 @@ func (r *AppReconciler) reconcileKustomization(ctx context.Context, a *appsv1.Ap
 			},
 			Path:            a.Spec.Kustomization.Path,
 			TargetNamespace: a.Spec.Kustomization.TargetNamespace,
+			Timeout:         a.Spec.Kustomization.Timeout,
 			Prune:           true,
 			Wait:            true,
 		}
 		if k.Annotations == nil {
 			k.Annotations = map[string]string{}
 		}
-		k.Annotations[annotationAppOwner] = a.Name
+		k.Annotations[annotationAppOwner] = fmt.Sprintf("%s/%s", a.ObjectMeta.Namespace, a.Name)
+		if k.Namespace == a.ObjectMeta.Namespace {
+			err := controllerutil.SetOwnerReference(a, k, r.scheme)
+			if err != nil {
+				return k, err
+			}
+		}
 		if found {
 			// Update Kustomization resource if changed
 			if !equality.Semantic.DeepEqual(oldObj.Spec, k.Spec) {
@@ -195,8 +216,13 @@ func (r *AppReconciler) reconcileKustomization(ctx context.Context, a *appsv1.Ap
 			}
 		} else {
 			// Create new Kustomization resource
-			k.Name = key.Name
-			k.Namespace = key.Namespace
+			if a.Status.Namespace != k.Namespace {
+				a.Status.Namespace = k.Namespace
+				err = r.Client.Status().Update(ctx, k)
+				if err != nil {
+					return k, err
+				}
+			}
 			err = r.Client.Create(ctx, k)
 			return k, err
 		}

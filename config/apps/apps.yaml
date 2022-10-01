@@ -1,9 +1,14 @@
 ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubemate
+---
 apiVersion: source.toolkit.fluxcd.io/v1beta2
 kind: GitRepository
 metadata:
   name: kubemate-apps
-  namespace: default
+  namespace: kubemate
 spec:
   interval: 1m0s
   url: https://github.com/mgoltzsche/kubemate-apps
@@ -14,13 +19,12 @@ apiVersion: kustomize.toolkit.fluxcd.io/v1beta2
 kind: Kustomization
 metadata:
   name: kubemate-apps
-  namespace: default
+  namespace: kubemate
 spec:
   sourceRef:
     kind: GitRepository
     name: kubemate-apps
-  path: ./kustomize
-  targetNamespace: default
+  path: .
   interval: 1m0s
   wait: false
   prune: true

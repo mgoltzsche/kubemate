@@ -488,7 +488,7 @@ func schema_pkg_apis_apps_v1alpha1_AppStatus(ref common.ReferenceCallback) commo
 							Format: "int64",
 						},
 					},
-					"targetNamespace": {
+					"namespace": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",
@@ -597,12 +597,24 @@ func schema_pkg_apis_apps_v1alpha1_KustomizationSpec(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespace specifies the default Kubernetes Namespace that śhould be used by the kustomization.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"timeout": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+						},
+					},
 				},
 				Required: []string{"sourceRef"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.CrossNamespaceSourceReference"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.CrossNamespaceSourceReference", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
 	}
 }
 

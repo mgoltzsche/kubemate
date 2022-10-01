@@ -41,6 +41,8 @@ definitions:
         type: string
       message:
         type: string
+      namespace:
+        type: string
       observedGeneration:
         format: int64
         type: integer
@@ -60,8 +62,6 @@ definitions:
         - Installing
         - NotInstalled
         - Upgrading
-        type: string
-      targetNamespace:
         type: string
     type: object
   com.github.mgoltzsche.kubemate.pkg.apis.apps.v1alpha1.CrossNamespaceSourceReference:
@@ -90,6 +90,10 @@ definitions:
   com.github.mgoltzsche.kubemate.pkg.apis.apps.v1alpha1.KustomizationSpec:
     description: KustomizationSpec specifies the kustomization that should be installed.
     properties:
+      namespace:
+        description: Namespace specifies the default Kubernetes Namespace that śhould
+          be used by the kustomization.
+        type: string
       path:
         description: Path points to the kustomization directory within the sourceRef.
         type: string
@@ -101,6 +105,8 @@ definitions:
         description: TargetNamespace specifies the Kubernetes Namespace the kustomization
           should be installed to.
         type: string
+      timeout:
+        $ref: '#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Duration'
     required:
     - sourceRef
     type: object
@@ -1360,6 +1366,11 @@ definitions:
     required:
     - conversionReviewVersions
     type: object
+  io.k8s.apimachinery.pkg.apis.meta.v1.Duration:
+    description: Duration is a wrapper around time.Duration which supports correct
+      marshaling to YAML and JSON. In particular, it marshals into strings, which
+      can be used as map keys in json.
+    type: string
   io.k8s.apimachinery.pkg.apis.meta.v1.FieldsV1:
     description: |-
       FieldsV1 stores a set of fields in a data structure like a Trie, in JSON format.

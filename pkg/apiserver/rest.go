@@ -40,6 +40,8 @@ func NewREST(res resource.Resource, store storage.Interface) *REST {
 	}
 }
 
+func (r *REST) Destroy() {}
+
 func (r *REST) Store() storage.Interface {
 	return r.store
 }

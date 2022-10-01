@@ -13,7 +13,7 @@ spec:
     listKind: AppList
     plural: apps
     singular: app
-  scope: Cluster
+  scope: Namespaced
   versions:
   - additionalPrinterColumns:
     - jsonPath: .status.state
@@ -51,6 +51,12 @@ spec:
                 description: KustomizationSpec specifies the kustomization that should
                   be installed.
                 properties:
+                  namespace:
+                    description: Namespace specifies the default Kubernetes Namespace
+                      that śhould be used by the kustomization.
+                    maxLength: 63
+                    minLength: 1
+                    type: string
                   path:
                     description: Path points to the kustomization directory within
                       the sourceRef.
@@ -85,6 +91,8 @@ spec:
                     maxLength: 63
                     minLength: 1
                     type: string
+                  timeout:
+                    type: string
                 required:
                 - sourceRef
                 type: object
@@ -98,12 +106,12 @@ spec:
                 type: string
               message:
                 type: string
+              namespace:
+                type: string
               observedGeneration:
                 format: int64
                 type: integer
               state:
-                type: string
-              targetNamespace:
                 type: string
             type: object
         required:

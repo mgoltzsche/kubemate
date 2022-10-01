@@ -125,10 +125,12 @@ import { CancelablePromise } from 'src/k8sclient/CancelablePromise';
 
 const kc = new apiclient.KubeConfig();
 const wifiNetworkClient = kc.newClient<WifiNetwork>(
-  '/apis/kubemate.mgoltzsche.github.com/v1/wifinetworks'
+  '/apis/kubemate.mgoltzsche.github.com/v1',
+  'wifinetworks'
 );
 const wifiPasswordClient = kc.newClient<WifiPassword>(
-  '/apis/kubemate.mgoltzsche.github.com/v1/wifipasswords'
+  '/apis/kubemate.mgoltzsche.github.com/v1',
+  'wifipasswords'
 );
 
 interface WifiConnectPassword {

@@ -73,8 +73,11 @@ generate: $(CONTROLLER_GEN) $(KUBE_OPENAPI_GEN) ## Generate code.
 
 .PHONY: manifests
 manifests: $(KUSTOMIZE) ## Generate static Kubernetes manifests.
-	$(KUSTOMIZE) build ./config/crd > ./config/generated/kubemate-crd.yaml
+	rm -rf ./config/generated
+	mkdir ./config/generated
 	$(KUSTOMIZE) build ./config/fluxcd > ./config/generated/fluxcd.yaml
+	$(KUSTOMIZE) build ./config/crd > ./config/generated/kubemate-crd.yaml
+	$(KUSTOMIZE) build ./config/apps > ./config/generated/kubemate-apps.yaml
 
 .PHONY: ui
 ui: ui/node_modules

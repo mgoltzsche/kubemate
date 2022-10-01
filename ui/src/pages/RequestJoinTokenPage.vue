@@ -66,7 +66,8 @@ export default defineComponent({
     const quasar = useQuasar();
     const kc = new apiclient.KubeConfig();
     const client = kc.newClient<DeviceToken>(
-      '/apis/kubemate.mgoltzsche.github.com/v1/devicetokens'
+      '/apis/kubemate.mgoltzsche.github.com/v1',
+      'devicetokens'
     );
     const agent = () => {
       const a = (route.params as any).agent;

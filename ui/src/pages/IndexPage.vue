@@ -18,7 +18,8 @@ import { com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_Device as Device } f
 
 const kc = new client.KubeConfig();
 const c = kc.newClient<Device>(
-  '/apis/kubemate.mgoltzsche.github.com/v1/devices'
+  '/apis/kubemate.mgoltzsche.github.com/v1',
+  'devices'
 );
 c.list().then((list) => {
   list.items.forEach((item) => {

@@ -294,7 +294,6 @@ func reconcileCommand(devices, clusterTokens, wifiPasswords storage.Interface, d
 			ingressCtrl.Stop()
 		}
 	}
-	fmt.Println("############################ reconciliation complete")
 	return nil
 }
 
@@ -340,7 +339,7 @@ func buildK3sServerArgs(d *deviceapi.Device, nodeIP net.IP, dataDir string, dock
 		fmt.Sprintf("--node-external-ip=%s", nodeIP.String()),
 		"--disable-cloud-controller",
 		"--disable-helm-controller",
-		"--no-deploy=servicelb,traefik,metrics-server",
+		"--disable=servicelb,traefik,metrics-server",
 		fmt.Sprintf("--kube-apiserver-arg=--token-auth-file=%s", "/etc/kubemate/tokens"),
 		fmt.Sprintf("--data-dir=%s", dataDir),
 	}

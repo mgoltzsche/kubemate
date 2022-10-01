@@ -74,16 +74,17 @@ export default defineComponent({
       ),
       installButtonLabel: computed(() => {
         const app = store.resources.find(
-          (a) => a.metadata?.name == props.appName
+          (a) => a.metadata?.name === props.appName
         );
         return app?.spec?.enabled ? 'uninstall' : 'install';
       }),
       installOrUninstallApp: () => {
         const app = store.resources.find(
-          (a) => a.metadata?.name == props.appName
+          (a) => a.metadata?.name === props.appName
         );
         if (!app) return;
         app.spec.enabled = !app.spec.enabled;
+        // TODO: support namespaced resources
         store.client.update(app).catch((e: any) => {
           quasar.notify({
             type: 'negative',

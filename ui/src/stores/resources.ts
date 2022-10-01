@@ -18,7 +18,7 @@ function defineResourceStore<T extends Resource>(
 ) {
   const resources = ref<T[]>([]) as Ref<T[]>;
   const synchronizing = ref(false);
-  const client = kc.newClient<T>(`${apiVersion}/${resource}`);
+  const client = kc.newClient<T>(apiVersion, resource);
   let initializers = [] as (() => void)[];
   return defineStore(resource, {
     state: () => ({

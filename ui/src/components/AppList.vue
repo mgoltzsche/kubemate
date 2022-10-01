@@ -2,7 +2,7 @@
   <q-list>
     <q-item
       v-for="app in apps"
-      :key="app.metadata?.name"
+      :key="`${app.metadata?.namespace}/${app.metadata?.name}`"
       clickable
       v-ripple
       :to="`/apps/${app.metadata?.name}`"
