@@ -34,7 +34,7 @@ FROM rancher/k3s:v1.25.2-k3s1 AS k3s
 COPY --from=build /work/kubemate /bin/kubemate
 
 FROM alpine:3.15
-RUN apk add --update --no-cache iptables openssl ca-certificates apparmor
+RUN apk add --update --no-cache iptables socat openssl ca-certificates apparmor
 RUN apk add --no-cache hostapd iptables dhcp iproute2 iw wpa_supplicant
 ARG VERSION="dev"
 RUN mkdir -p /etc && \
