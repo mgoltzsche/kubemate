@@ -96,13 +96,25 @@ build {
   }
 
   provisioner "file" {
+    # Add the hostnamegen systemd unit that generates /etc/hostname on first boot
+    destination = "/lib/systemd/system/hostnamegen.service"
+    source      = "./packer/systemd/hostnamegen.service"
+  }
+
+  provisioner "file" {
+    # Add kubectl support to the host
+    destination = "/usr/local/sbin/hostnamegen.sh"
+    source      = "./packer/hostnamegen.sh"
+  }
+
+  provisioner "file" {
     # Add the kubemate systemd unit
     destination = "/lib/systemd/system/kubemate.service"
     source      = "./packer/systemd/kubemate.service"
   }
 
   provisioner "file" {
-    # Add kubectl support to the host
+    # Add kubernetes client CLI support to the host
     destination = "/usr/local/bin/kubectl"
     source      = "./packer/kubectl"
   }
@@ -119,11 +131,11 @@ build {
   }
 
   provisioner "shell" {
-    # Enable the kubemate systemd unit
+    # Enable the previously added systemd units and remove /etc/hostname
     inline = [
       "systemctl daemon-reload",
-      "systemctl enable kubemate.service",
-      #"bash <(curl -L https://github.com/balena-io/wifi-connect/raw/v4.4.6/scripts/raspbian-install.sh)"
+      "systemctl enable kubemate.service hostnamegen.service",
+      "rm -f /etc/hostname",
     ]
   }
 }
