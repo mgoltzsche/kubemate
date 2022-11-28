@@ -64,11 +64,7 @@ func (d *DeviceDiscovery) Advertise(device *deviceapi.Device, ips []net.IP) erro
 	hostname := fmt.Sprintf("%s.", d.deviceName)
 	svc, err := mdns.NewMDNSService(d.deviceName, mdnsZone, "", hostname, d.port, ips, info)
 	if err != nil {
-		return fmt.Errorf("mdns advertize device hostname: %w", err)
-	}
-	_, err = mdns.NewMDNSService("kubemate", ".local", "", "kubemate.", d.port, ips, info)
-	if err != nil {
-		return fmt.Errorf("mdns advertize kubemate service: %w", err)
+		return err
 	}
 	// Terminate previous mdns server if exists
 	if d.srv != nil {
