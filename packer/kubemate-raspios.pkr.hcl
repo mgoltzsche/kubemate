@@ -126,7 +126,8 @@ build {
       "ln -s /etc/kubemate/kubeconfig.yaml ${var.image_home_dir}/.kube/config",
       "mkdir -p /etc/kubemate",
       "touch /etc/kubemate/kubeconfig.yaml",
-      "chown root:1000 /etc/kubemate/kubeconfig.yaml"
+      "chown root:1000 /etc/kubemate/kubeconfig.yaml",
+      "chmod +rx /usr/local/bin/kubectl"
     ]
   }
 
