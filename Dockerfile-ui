@@ -1,0 +1,10 @@
+# UI build without server.
+# This is maintained within a separate Dockerfile to avoid having to rebuild the UI for each server architecture unnecessarily.
+FROM node:19.2.0-alpine3.16
+COPY ui/package.json ui/yarn.lock /src/ui/
+WORKDIR /src/ui
+RUN yarn install
+COPY openapi.yaml /src/openapi.yaml
+COPY ui /src/ui
+RUN yarn generate
+RUN yarn build

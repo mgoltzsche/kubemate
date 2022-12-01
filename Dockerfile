@@ -1,4 +1,4 @@
-FROM golang:1.18-alpine3.15 AS build
+FROM golang:1.19-alpine3.16 AS build
 RUN apk add --update --no-cache musl-dev gcc binutils-gold
 COPY go.mod go.sum /work/
 WORKDIR /work
@@ -9,7 +9,7 @@ ARG VERSION=dev
 ENV CGO_CFLAGS=-DSQLITE_ENABLE_DBSTAT_VTAB=1
 RUN go build -o kubemate -ldflags "-X main.Version=$VERSION -s -w -extldflags \"-static\"" .
 
-FROM golang:1.18-alpine3.15 AS cridockerd
+FROM golang:1.19-alpine3.16 AS cridockerd
 RUN apk add --update --no-cache musl-dev gcc binutils-gold
 RUN apk add --update --no-cache git
 ARG CRI_DOCKERD_VERSION=v0.2.4
@@ -21,19 +21,10 @@ RUN set -eux; \
 	LDFLAGS="-X version.Version=$VERSION -X version.BuildTime=$(date +%F) -X version.GitCommit=$REVISION -s -w -extldflags \"-static\""; \
 	go build -ldflags "$LDFLAGS" -o cri-dockerd .
 
-FROM node:18.6-alpine3.15 AS webui
-COPY ui/package.json ui/yarn.lock /src/ui/
-WORKDIR /src/ui
-RUN yarn install
-COPY openapi.yaml /src/openapi.yaml
-COPY ui /src/ui
-RUN yarn generate
-RUN yarn build
-
-FROM rancher/k3s:v1.25.2-k3s1 AS k3s
+FROM rancher/k3s:v1.25.4-k3s1 AS k3s
 COPY --from=build /work/kubemate /bin/kubemate
 
-FROM alpine:3.15
+FROM alpine:3.16
 RUN apk add --update --no-cache iptables socat openssl ca-certificates apparmor
 RUN apk add --no-cache hostapd iptables dhcp iproute2 iw wpa_supplicant
 ARG VERSION="dev"
@@ -60,7 +51,7 @@ RUN set -ex; \
 	echo 'adminsecret,admin,admin,"admin,ui"' > /etc/kubemate/tokens
 COPY --from=build /work/kubemate /bin/kubemate
 COPY ./config/generated/ /usr/share/kubemate/manifests/
-COPY --from=webui /src/ui/dist/spa /usr/share/kubemate/web
+COPY ./ui/dist/spa /usr/share/kubemate/web
 VOLUME /var/lib/kubelet
 VOLUME /var/lib/kubemate
 VOLUME /var/lib/cni

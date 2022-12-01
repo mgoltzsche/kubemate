@@ -31,9 +31,18 @@ kubemate: ## Build the kubemate Go binary (without docker).
 	go build -o $(BUILD_DIR)/bin/kubemate .
 
 .PHONY: container
-container: create-builder ## Build a linux/amd64 container image.
+container: create-builder ui ## Build a linux/amd64 container image.
 	mkdir -p ./build/container
 	$(DOCKER) buildx build $(BUILDX_INTERNAL_OPTS) $(BUILDX_OPTS) --force-rm --build-arg VERSION=$(VERSION) -t $(IMAGE) .
+
+.PHONY: ui
+ui: ## Build a the UI.
+	$(DOCKER) build --force-rm -t kubemate-webui-build:local -f Dockerfile-ui .
+	$(DOCKER) rm kubemate-webui-build 2>/dev/null || true
+	$(DOCKER) create --name=kubemate-webui-build kubemate-webui-build:local
+	rm -rf ./ui/dist/spa
+	$(DOCKER) cp kubemate-webui-build:/src/ui/dist/spa ./ui/dist/spa
+	$(DOCKER) rm kubemate-webui-build
 
 .PHONY: container-multiarch
 container-multiarch: PLATFORM = linux/arm64/v8,linux/amd64
@@ -79,14 +88,6 @@ manifests: $(KUSTOMIZE) ## Generate static Kubernetes manifests.
 	$(KUSTOMIZE) build ./config/crd > ./config/generated/kubemate-crd.yaml
 	$(KUSTOMIZE) build ./config/apps > ./config/generated/kubemate-apps.yaml
 
-.PHONY: ui
-ui: ui/node_modules
-	cd ui && yarn generate
-	cd ui && yarn build
-
-ui/node_modules:
-	cd ui && yarn install
-
 .PHONY: clean
 clean: ## Purge local storage and docker containers created by kubemate.
 	[ "`id -u`" -eq  0 ]
@@ -108,6 +109,7 @@ run: container ## Run a kubemate container locally within the host network.
 		--mount type=bind,src=/var/lib/docker,dst=/var/lib/docker,bind-propagation=rshared \
 		--mount type=bind,src=/var/lib/kubelet,dst=/var/lib/kubelet,bind-propagation=rshared \
 		--mount type=bind,src=`pwd`/data/pod-log,dst=/var/log/pods,bind-propagation=rshared \
+		--mount type=bind,src=/lib/modules,dst=/lib/modules,ro \
 		--mount type=bind,src=/sys,dst=/sys \
 		-v `pwd`:/output \
 		--mount type=bind,src=`pwd`/ui/dist,dst=/usr/share/kubemate/web \
