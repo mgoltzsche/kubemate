@@ -30,8 +30,8 @@ variable "wifi_ssid" {
 }
 
 source "arm-image" "raspios" {
-  iso_checksum      = "35f1d2f4105e01f4ca888ab4ced6912411e82a2539c53c9e4e6b795f25275a1f"
-  iso_url           = "https://downloads.raspberrypi.org/raspios_lite_arm64/images/raspios_lite_arm64-2022-04-07/2022-04-04-raspios-bullseye-arm64-lite.img.xz"
+  iso_checksum      = "72c773781a0a57160eb3fa8bb2a927642fe60c3af62bc980827057bcecb7b98b"
+  iso_url           = "https://downloads.raspberrypi.org/raspios_lite_arm64/images/raspios_lite_arm64-2022-09-26/2022-09-22-raspios-bullseye-arm64-lite.img.xz"
   qemu_binary       = "qemu-aarch64-static"
   target_image_size = 4294967296
 }
@@ -43,7 +43,8 @@ build {
     # Enable memory cgroup support
     # (Original contents: console=serial0,115200 console=tty1 root=PARTUUID=610a07ef-02 rootfstype=ext4 fsck.repair=yes rootwait)
     inline = [
-      "sed -Ei 's/$/ cgroup_memory=1 cgroup_enable=memory/' /boot/cmdline.txt"
+      "sed -Ei 's/$/ cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory/' /boot/cmdline.txt",
+      "echo 'cgroup /sys/fs/cgroup cgroup defaults 0 0' >> /etc/fstab"
     ]
   }
 
@@ -92,6 +93,13 @@ build {
       # This is due to static linking, see https://github.com/k3s-io/k3s/issues/797
       "mkdir -p /etc/docker",
       "printf '{\n  \"exec-opts\": [\"native.cgroupdriver=cgroupfs\"]\n}' > /etc/docker/daemon.json"
+    ]
+  }
+
+  provisioner "shell" {
+    # Write kubemate version file.
+    inline = [
+      "echo latest > /etc/kubemate/version",
     ]
   }
 
