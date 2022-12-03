@@ -26,7 +26,7 @@ COPY --from=build /work/kubemate /bin/kubemate
 
 FROM alpine:3.16
 RUN apk add --update --no-cache iptables socat openssl ca-certificates apparmor
-RUN apk add --no-cache hostapd iptables dhcp iproute2 iw wpa_supplicant
+RUN apk add --no-cache iptables ip6tables ipset dhcp iproute2 iw wpa_supplicant hostapd
 ARG VERSION="dev"
 RUN mkdir -p /etc && \
     echo 'hosts: files dns' > /etc/nsswitch.conf && \
