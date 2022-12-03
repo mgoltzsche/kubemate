@@ -99,6 +99,7 @@ build {
   provisioner "shell" {
     # Write kubemate version file.
     inline = [
+      "mkdir /etc/kubemate",
       "echo latest > /etc/kubemate/version",
     ]
   }
