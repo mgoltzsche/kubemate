@@ -70,7 +70,8 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, d
 					logrus.Infof("cri-dockerd %s: %s", cmd.Status.State, cmd.Status.Message)
 				}
 			}
-			criDockerdRunner.Start(goCtx, runner.Cmd("cri-dockerd"))
+			// TODO: make this work with --network-plugin=cni (which is the new default)
+			criDockerdRunner.Start(goCtx, runner.Cmd("cri-dockerd", "--network-plugin=kubenet"))
 		}
 		// Listen for device spec changes
 		deviceWatch, err := devices.Watch(goCtx, "")
