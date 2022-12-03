@@ -5,6 +5,8 @@ IMAGE = $(IMAGE_REGISTRY)/kubemate:$(VERSION)
 BUILD_DIR := $(CURDIR)/build
 TOOLS_DIR := $(BUILD_DIR)/tools
 
+PACKER_IMAGE := ghcr.io/solo-io/packer-plugin-arm-image:v0.2.7
+
 OAPI_CODEGEN_VERSION = v1.9.0
 OAPI_CODEGEN = $(TOOLS_DIR)/oapi-codegen
 
@@ -139,7 +141,7 @@ raspios-image: ## Build the Raspberry Pi image.
 		-v $(CURDIR)/output-raspios:/build/output-raspios \
 		--mount type=bind,src=$(HOME)/.ssh/id_rsa.pub,dst=/root/.ssh/id_rsa.pub \
 		-e PACKER_CACHE_DIR=/packer_cache \
-		ghcr.io/solo-io/packer-plugin-arm-image:v0.2.6 \
+		$(PACKER_IMAGE) \
 		build $(PACKER_FILE)
 
 .PHONY: packer-fmt
