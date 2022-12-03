@@ -1,9 +1,4 @@
 
-variable "hostname" {
-  type    = string
-  default = "raspberrypi"
-}
-
 variable "image_home_dir" {
   type    = string
   default = "/home/pi"
@@ -49,13 +44,6 @@ build {
   }
 
   provisioner "shell" {
-    # Configure the hostname
-    inline = [
-      "echo ${var.hostname} > /etc/hostname"
-    ]
-  }
-
-  provisioner "shell" {
     # Configure the wifi client
     inline = [
       "mv /etc/wpa_supplicant/wpa_supplicant.conf /boot/wpa_supplicant.conf",
@@ -81,6 +69,16 @@ build {
     inline = [
       "chmod 644 ${var.image_home_dir}/.ssh/authorized_keys",
       "touch /boot/ssh"
+    ]
+  }
+
+  provisioner "shell" {
+    # Upgrade and install optional client tools.
+    inline = [
+      "apt-get update",
+      "apt-get upgrade -y",
+      "apt-get install -y kubernetes-client vim",
+      "echo 'set mouse=' > ${var.image_home_dir}/.vimrc",
     ]
   }
 
@@ -120,7 +118,7 @@ build {
   }
 
   provisioner "file" {
-    # Add kubectl support to the host
+    # Add script to generate hostname.
     destination = "/usr/local/sbin/hostnamegen.sh"
     source      = "./packer/hostnamegen.sh"
   }
@@ -131,12 +129,6 @@ build {
     source      = "./packer/systemd/kubemate.service"
   }
 
-  provisioner "file" {
-    # Add kubernetes client CLI support to the host
-    destination = "/usr/local/bin/kubectl"
-    source      = "./packer/kubectl"
-  }
-
   provisioner "shell" {
     # Grant the default user administrative Kubernetes access
     inline = [
@@ -145,7 +137,6 @@ build {
       "mkdir -p /etc/kubemate",
       "touch /etc/kubemate/kubeconfig.yaml",
       "chown root:1000 /etc/kubemate/kubeconfig.yaml",
-      "chmod +rx /usr/local/bin/kubectl"
     ]
   }
 
