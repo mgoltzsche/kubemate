@@ -10,7 +10,8 @@ metadata:
   name: kubemate-apps
   namespace: kubemate
 spec:
-  interval: 1m0s
+  interval: 24h
+  timeout: 60s
   url: https://github.com/mgoltzsche/kubemate-apps
   ref:
     branch: main
@@ -24,7 +25,8 @@ spec:
   sourceRef:
     kind: GitRepository
     name: kubemate-apps
-  path: .
-  interval: 1m0s
+  path: ./apps
+  interval: 24h
+  timeout: 60s
   wait: false
   prune: true

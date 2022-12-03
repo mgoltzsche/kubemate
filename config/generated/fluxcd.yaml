@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.7.0
+    controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
   name: buckets.source.toolkit.fluxcd.io
 spec:
@@ -165,14 +165,12 @@ spec:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    \n \ttype FooStatus struct{ \t    // Represents the observations
-                    of a foo's current state. \t    // Known .status.conditions.type
-                    are: \"Available\", \"Progressing\", and \"Degraded\" \t    //
-                    +patchMergeKey=type \t    // +patchStrategy=merge \t    // +listType=map
-                    \t    // +listMapKey=type \t    Conditions []metav1.Condition
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
                     `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
-                    protobuf:\"bytes,1,rep,name=conditions\"` \n \t    // other fields
-                    \t}"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
                   properties:
                     lastTransitionTime:
                       description: lastTransitionTime is the last time the condition
@@ -329,6 +327,7 @@ spec:
                 type: boolean
               interval:
                 description: Interval at which to check the Endpoint for updates.
+                pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m|h))+$
                 type: string
               provider:
                 default: generic
@@ -361,6 +360,7 @@ spec:
               timeout:
                 default: 60s
                 description: Timeout for fetch operations, defaults to 60s.
+                pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m))+$
                 type: string
             required:
             - bucketName
@@ -418,14 +418,12 @@ spec:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    \n \ttype FooStatus struct{ \t    // Represents the observations
-                    of a foo's current state. \t    // Known .status.conditions.type
-                    are: \"Available\", \"Progressing\", and \"Degraded\" \t    //
-                    +patchMergeKey=type \t    // +patchStrategy=merge \t    // +listType=map
-                    \t    // +listMapKey=type \t    Conditions []metav1.Condition
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
                     `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
-                    protobuf:\"bytes,1,rep,name=conditions\"` \n \t    // other fields
-                    \t}"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
                   properties:
                     lastTransitionTime:
                       description: lastTransitionTime is the last time the condition
@@ -493,6 +491,10 @@ spec:
                   the Bucket object.
                 format: int64
                 type: integer
+              observedIgnore:
+                description: ObservedIgnore is the observed exclusion patterns used
+                  for constructing the source artifact.
+                type: string
               url:
                 description: URL is the dynamic fetch link for the latest Artifact.
                   It is provided on a "best effort" basis, and using the precise BucketStatus.Artifact
@@ -515,7 +517,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.7.0
+    controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
   name: gitrepositories.source.toolkit.fluxcd.io
 spec:
@@ -747,14 +749,12 @@ spec:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    \n \ttype FooStatus struct{ \t    // Represents the observations
-                    of a foo's current state. \t    // Known .status.conditions.type
-                    are: \"Available\", \"Progressing\", and \"Degraded\" \t    //
-                    +patchMergeKey=type \t    // +patchStrategy=merge \t    // +listType=map
-                    \t    // +listMapKey=type \t    Conditions []metav1.Condition
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
                     `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
-                    protobuf:\"bytes,1,rep,name=conditions\"` \n \t    // other fields
-                    \t}"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
                   properties:
                     lastTransitionTime:
                       description: lastTransitionTime is the last time the condition
@@ -970,6 +970,7 @@ spec:
                 type: array
               interval:
                 description: Interval at which to check the GitRepository for updates.
+                pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m|h))+$
                 type: string
               recurseSubmodules:
                 description: RecurseSubmodules enables the initialization of all submodules
@@ -1021,6 +1022,7 @@ spec:
                 default: 60s
                 description: Timeout for Git operations like cloning, defaults to
                   60s.
+                pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m))+$
                 type: string
               url:
                 description: URL specifies the Git repository URL, it can be an HTTP/S
@@ -1106,14 +1108,12 @@ spec:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    \n \ttype FooStatus struct{ \t    // Represents the observations
-                    of a foo's current state. \t    // Known .status.conditions.type
-                    are: \"Available\", \"Progressing\", and \"Degraded\" \t    //
-                    +patchMergeKey=type \t    // +patchStrategy=merge \t    // +listType=map
-                    \t    // +listMapKey=type \t    Conditions []metav1.Condition
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
                     `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
-                    protobuf:\"bytes,1,rep,name=conditions\"` \n \t    // other fields
-                    \t}"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
                   properties:
                     lastTransitionTime:
                       description: lastTransitionTime is the last time the condition
@@ -1172,13 +1172,14 @@ spec:
                   type: object
                 type: array
               contentConfigChecksum:
-                description: 'ContentConfigChecksum is a checksum of all the configurations
-                  related to the content of the source artifact:  - .spec.ignore  -
-                  .spec.recurseSubmodules  - .spec.included and the checksum of the
+                description: "ContentConfigChecksum is a checksum of all the configurations
+                  related to the content of the source artifact: - .spec.ignore -
+                  .spec.recurseSubmodules - .spec.included and the checksum of the
                   included artifacts observed in .status.observedGeneration version
                   of the object. This can be used to determine if the content of the
                   included repository has changed. It has the format of `<algo>:<checksum>`,
-                  for example: `sha256:<checksum>`.'
+                  for example: `sha256:<checksum>`. \n Deprecated: Replaced with explicit
+                  fields for observed artifact content config in the status."
                 type: string
               includedArtifacts:
                 description: IncludedArtifacts contains a list of the last successfully
@@ -1237,6 +1238,44 @@ spec:
                   the GitRepository object.
                 format: int64
                 type: integer
+              observedIgnore:
+                description: ObservedIgnore is the observed exclusion patterns used
+                  for constructing the source artifact.
+                type: string
+              observedInclude:
+                description: ObservedInclude is the observed list of GitRepository
+                  resources used to to produce the current Artifact.
+                items:
+                  description: GitRepositoryInclude specifies a local reference to
+                    a GitRepository which Artifact (sub-)contents must be included,
+                    and where they should be placed.
+                  properties:
+                    fromPath:
+                      description: FromPath specifies the path to copy contents from,
+                        defaults to the root of the Artifact.
+                      type: string
+                    repository:
+                      description: GitRepositoryRef specifies the GitRepository which
+                        Artifact contents must be included.
+                      properties:
+                        name:
+                          description: Name of the referent.
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    toPath:
+                      description: ToPath specifies the path to copy contents to,
+                        defaults to the name of the GitRepositoryRef.
+                      type: string
+                  required:
+                  - repository
+                  type: object
+                type: array
+              observedRecurseSubmodules:
+                description: ObservedRecurseSubmodules is the observed resource submodules
+                  configuration used to produce the current Artifact.
+                type: boolean
               url:
                 description: URL is the dynamic fetch link for the latest Artifact.
                   It is provided on a "best effort" basis, and using the precise GitRepositoryStatus.Artifact
@@ -1259,7 +1298,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.7.0
+    controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
   name: helmcharts.source.toolkit.fluxcd.io
 spec:
@@ -1447,14 +1486,12 @@ spec:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    \n \ttype FooStatus struct{ \t    // Represents the observations
-                    of a foo's current state. \t    // Known .status.conditions.type
-                    are: \"Available\", \"Progressing\", and \"Degraded\" \t    //
-                    +patchMergeKey=type \t    // +patchStrategy=merge \t    // +listType=map
-                    \t    // +listMapKey=type \t    Conditions []metav1.Condition
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
                     `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
-                    protobuf:\"bytes,1,rep,name=conditions\"` \n \t    // other fields
-                    \t}"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
                   properties:
                     lastTransitionTime:
                       description: lastTransitionTime is the last time the condition
@@ -1607,6 +1644,7 @@ spec:
               interval:
                 description: Interval is the interval at which to check the Source
                   for updates.
+                pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m|h))+$
                 type: string
               reconcileStrategy:
                 default: ChartVersion
@@ -1660,6 +1698,34 @@ spec:
                 items:
                   type: string
                 type: array
+              verify:
+                description: Verify contains the secret name containing the trusted
+                  public keys used to verify the signature and specifies which provider
+                  to use to check whether OCI image is authentic. This field is only
+                  supported when using HelmRepository source with spec.type 'oci'.
+                  Chart dependencies, which are not bundled in the umbrella chart
+                  artifact, are not verified.
+                properties:
+                  provider:
+                    default: cosign
+                    description: Provider specifies the technology used to sign the
+                      OCI Artifact.
+                    enum:
+                    - cosign
+                    type: string
+                  secretRef:
+                    description: SecretRef specifies the Kubernetes Secret containing
+                      the trusted public keys.
+                    properties:
+                      name:
+                        description: Name of the referent.
+                        type: string
+                    required:
+                    - name
+                    type: object
+                required:
+                - provider
+                type: object
               version:
                 default: '*'
                 description: Version is the chart version semver expression, ignored
@@ -1723,14 +1789,12 @@ spec:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    \n \ttype FooStatus struct{ \t    // Represents the observations
-                    of a foo's current state. \t    // Known .status.conditions.type
-                    are: \"Available\", \"Progressing\", and \"Degraded\" \t    //
-                    +patchMergeKey=type \t    // +patchStrategy=merge \t    // +listType=map
-                    \t    // +listMapKey=type \t    Conditions []metav1.Condition
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
                     `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
-                    protobuf:\"bytes,1,rep,name=conditions\"` \n \t    // other fields
-                    \t}"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
                   properties:
                     lastTransitionTime:
                       description: lastTransitionTime is the last time the condition
@@ -1828,7 +1892,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.7.0
+    controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
   name: helmrepositories.source.toolkit.fluxcd.io
 spec:
@@ -1979,14 +2043,12 @@ spec:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    \n \ttype FooStatus struct{ \t    // Represents the observations
-                    of a foo's current state. \t    // Known .status.conditions.type
-                    are: \"Available\", \"Progressing\", and \"Degraded\" \t    //
-                    +patchMergeKey=type \t    // +patchStrategy=merge \t    // +listType=map
-                    \t    // +listMapKey=type \t    Conditions []metav1.Condition
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
                     `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
-                    protobuf:\"bytes,1,rep,name=conditions\"` \n \t    // other fields
-                    \t}"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
                   properties:
                     lastTransitionTime:
                       description: lastTransitionTime is the last time the condition
@@ -2126,6 +2188,7 @@ spec:
                 type: object
               interval:
                 description: Interval at which to check the URL for updates.
+                pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m|h))+$
                 type: string
               passCredentials:
                 description: PassCredentials allows the credentials from the SecretRef
@@ -2168,6 +2231,7 @@ spec:
                 description: Timeout is used for the index fetch operation for an
                   HTTPS helm repository, and for remote OCI Repository operations
                   like pulling for an OCI helm repository. Its default value is 60s.
+                pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m))+$
                 type: string
               type:
                 description: Type of the HelmRepository. When this field is set to  "oci",
@@ -2236,14 +2300,12 @@ spec:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    \n \ttype FooStatus struct{ \t    // Represents the observations
-                    of a foo's current state. \t    // Known .status.conditions.type
-                    are: \"Available\", \"Progressing\", and \"Degraded\" \t    //
-                    +patchMergeKey=type \t    // +patchStrategy=merge \t    // +listType=map
-                    \t    // +listMapKey=type \t    Conditions []metav1.Condition
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
                     `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
-                    protobuf:\"bytes,1,rep,name=conditions\"` \n \t    // other fields
-                    \t}"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
                   properties:
                     lastTransitionTime:
                       description: lastTransitionTime is the last time the condition
@@ -2333,7 +2395,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.7.0
+    controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
   name: kustomizations.kustomize.toolkit.fluxcd.io
 spec:
@@ -2770,14 +2832,12 @@ spec:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    \n \ttype FooStatus struct{ \t    // Represents the observations
-                    of a foo's current state. \t    // Known .status.conditions.type
-                    are: \"Available\", \"Progressing\", and \"Degraded\" \t    //
-                    +patchMergeKey=type \t    // +patchStrategy=merge \t    // +listType=map
-                    \t    // +listMapKey=type \t    Conditions []metav1.Condition
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
                     `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
-                    protobuf:\"bytes,1,rep,name=conditions\"` \n \t    // other fields
-                    \t}"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
                   properties:
                     lastTransitionTime:
                       description: lastTransitionTime is the last time the condition
@@ -3018,6 +3078,7 @@ spec:
                 type: array
               interval:
                 description: The interval at which to reconcile the Kustomization.
+                pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m|h))+$
                 type: string
               kubeConfig:
                 description: The KubeConfig for reconciling the Kustomization on a
@@ -3030,12 +3091,12 @@ spec:
                   secretRef:
                     description: SecretRef holds the name of a secret that contains
                       a key with the kubeconfig file as the value. If no key is set,
-                      the key will default to 'value'. The secret must be in the same
-                      namespace as the Kustomization. It is recommended that the kubeconfig
-                      is self-contained, and the secret is regularly updated if credentials
-                      such as a cloud-access-token expire. Cloud specific `cmd-path`
-                      auth helpers will not function without adding binaries and credentials
-                      to the Pod that is responsible for reconciling the Kustomization.
+                      the key will default to 'value'. It is recommended that the
+                      kubeconfig is self-contained, and the secret is regularly updated
+                      if credentials such as a cloud-access-token expire. Cloud specific
+                      `cmd-path` auth helpers will not function without adding binaries
+                      and credentials to the Pod that is responsible for reconciling
+                      Kubernetes resources.
                     properties:
                       key:
                         description: Key in the Secret, when not specified an implementation-specific
@@ -3047,6 +3108,8 @@ spec:
                     required:
                     - name
                     type: object
+                required:
+                - secretRef
                 type: object
               patches:
                 description: Strategic merge and JSON patches, defined as inline YAML
@@ -3257,6 +3320,7 @@ spec:
                 description: The interval at which to retry a previously failed reconciliation.
                   When not specified, the controller uses the KustomizationSpec.Interval
                   value to retry failures.
+                pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m|h))+$
                 type: string
               serviceAccountName:
                 description: The name of the Kubernetes service account to impersonate
@@ -3301,6 +3365,7 @@ spec:
               timeout:
                 description: Timeout for validation, apply and health checking operations.
                   Defaults to 'Interval' duration.
+                pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m|h))+$
                 type: string
               validation:
                 description: 'Deprecated: Not used in v1beta2.'
@@ -3329,14 +3394,12 @@ spec:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    \n \ttype FooStatus struct{ \t    // Represents the observations
-                    of a foo's current state. \t    // Known .status.conditions.type
-                    are: \"Available\", \"Progressing\", and \"Degraded\" \t    //
-                    +patchMergeKey=type \t    // +patchStrategy=merge \t    // +listType=map
-                    \t    // +listMapKey=type \t    Conditions []metav1.Condition
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
                     `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
-                    protobuf:\"bytes,1,rep,name=conditions\"` \n \t    // other fields
-                    \t}"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
                   properties:
                     lastTransitionTime:
                       description: lastTransitionTime is the last time the condition
@@ -3454,7 +3517,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.7.0
+    controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
   name: ocirepositories.source.toolkit.fluxcd.io
 spec:
@@ -3503,11 +3566,11 @@ spec:
             properties:
               certSecretRef:
                 description: "CertSecretRef can be given the name of a secret containing
-                  either or both of \n  - a PEM-encoded client certificate (`certFile`)
-                  and private  key (`keyFile`);  - a PEM-encoded CA certificate (`caFile`)
-                  \n  and whichever are supplied, will be used for connecting to the
-                  \ registry. The client cert and key are useful if you are  authenticating
-                  with a certificate; the CA cert is useful if  you are using a self-signed
+                  either or both of \n - a PEM-encoded client certificate (`certFile`)
+                  and private key (`keyFile`); - a PEM-encoded CA certificate (`caFile`)
+                  \n and whichever are supplied, will be used for connecting to the
+                  registry. The client cert and key are useful if you are authenticating
+                  with a certificate; the CA cert is useful if you are using a self-signed
                   server certificate."
                 properties:
                   name:
@@ -3528,6 +3591,7 @@ spec:
                 type: boolean
               interval:
                 description: The interval at which to check for image updates.
+                pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m|h))+$
                 type: string
               layerSelector:
                 description: LayerSelector specifies which layer should be extracted
@@ -3538,6 +3602,15 @@ spec:
                     description: MediaType specifies the OCI media type of the layer
                       which should be extracted from the OCI Artifact. The first layer
                       matching this type is selected.
+                    type: string
+                  operation:
+                    description: Operation specifies how the selected layer should
+                      be processed. By default, the layer compressed content is extracted
+                      to storage. When the operation is set to 'copy', the layer compressed
+                      content is persisted to storage as it is.
+                    enum:
+                    - extract
+                    - copy
                     type: string
                 type: object
               provider:
@@ -3590,12 +3663,38 @@ spec:
                 default: 60s
                 description: The timeout for remote OCI Repository operations like
                   pulling, defaults to 60s.
+                pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m))+$
                 type: string
               url:
                 description: URL is a reference to an OCI artifact repository hosted
                   on a remote container registry.
                 pattern: ^oci://.*$
                 type: string
+              verify:
+                description: Verify contains the secret name containing the trusted
+                  public keys used to verify the signature and specifies which provider
+                  to use to check whether OCI image is authentic.
+                properties:
+                  provider:
+                    default: cosign
+                    description: Provider specifies the technology used to sign the
+                      OCI Artifact.
+                    enum:
+                    - cosign
+                    type: string
+                  secretRef:
+                    description: SecretRef specifies the Kubernetes Secret containing
+                      the trusted public keys.
+                    properties:
+                      name:
+                        description: Name of the referent.
+                        type: string
+                    required:
+                    - name
+                    type: object
+                required:
+                - provider
+                type: object
             required:
             - interval
             - url
@@ -3652,14 +3751,12 @@ spec:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    \n \ttype FooStatus struct{ \t    // Represents the observations
-                    of a foo's current state. \t    // Known .status.conditions.type
-                    are: \"Available\", \"Progressing\", and \"Degraded\" \t    //
-                    +patchMergeKey=type \t    // +patchStrategy=merge \t    // +listType=map
-                    \t    // +listMapKey=type \t    Conditions []metav1.Condition
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
                     `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
-                    protobuf:\"bytes,1,rep,name=conditions\"` \n \t    // other fields
-                    \t}"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
                   properties:
                     lastTransitionTime:
                       description: lastTransitionTime is the last time the condition
@@ -3717,6 +3814,16 @@ spec:
                   - type
                   type: object
                 type: array
+              contentConfigChecksum:
+                description: "ContentConfigChecksum is a checksum of all the configurations
+                  related to the content of the source artifact: - .spec.ignore -
+                  .spec.layerSelector observed in .status.observedGeneration version
+                  of the object. This can be used to determine if the content configuration
+                  has changed and the artifact needs to be rebuilt. It has the format
+                  of `<algo>:<checksum>`, for example: `sha256:<checksum>`. \n Deprecated:
+                  Replaced with explicit fields for observed artifact content config
+                  in the status."
+                type: string
               lastHandledReconcileAt:
                 description: LastHandledReconcileAt holds the value of the most recent
                   reconcile request value, so a change of the annotation value can
@@ -3726,6 +3833,29 @@ spec:
                 description: ObservedGeneration is the last observed generation.
                 format: int64
                 type: integer
+              observedIgnore:
+                description: ObservedIgnore is the observed exclusion patterns used
+                  for constructing the source artifact.
+                type: string
+              observedLayerSelector:
+                description: ObservedLayerSelector is the observed layer selector
+                  used for constructing the source artifact.
+                properties:
+                  mediaType:
+                    description: MediaType specifies the OCI media type of the layer
+                      which should be extracted from the OCI Artifact. The first layer
+                      matching this type is selected.
+                    type: string
+                  operation:
+                    description: Operation specifies how the selected layer should
+                      be processed. By default, the layer compressed content is extracted
+                      to storage. When the operation is set to 'copy', the layer compressed
+                      content is persisted to storage as it is.
+                    enum:
+                    - extract
+                    - copy
+                    type: string
+                type: object
               url:
                 description: URL is the download link for the artifact output of the
                   last OCI Repository sync.
@@ -4192,7 +4322,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: fluxcd/kustomize-controller:v0.28.0
+        image: fluxcd/kustomize-controller:v0.31.0
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
@@ -4271,7 +4401,9 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: fluxcd/source-controller:v0.29.0
+        - name: TUF_ROOT
+          value: /tmp/.sigstore
+        image: fluxcd/source-controller:v0.32.1
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:

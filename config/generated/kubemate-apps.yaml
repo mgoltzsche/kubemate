@@ -10,12 +10,12 @@ metadata:
   namespace: kubemate
 spec:
   interval: 24h
-  timeout: 1m30s
-  path: .
+  path: ./apps
   prune: true
   sourceRef:
     kind: GitRepository
     name: kubemate-apps
+  timeout: 60s
   wait: false
 ---
 apiVersion: source.toolkit.fluxcd.io/v1beta2
@@ -25,7 +25,7 @@ metadata:
   namespace: kubemate
 spec:
   interval: 24h
-  timeout: 1m30s
   ref:
     branch: main
+  timeout: 60s
   url: https://github.com/mgoltzsche/kubemate-apps
