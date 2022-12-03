@@ -9,7 +9,8 @@ Requires=docker.socket
 Type=exec
 ExecStartPre=-/bin/mkdir -p /var/log/pods /var/lib/kubelet
 ExecStartPre=-/bin/docker rm -f kubemate
-ExecStart=/bin/docker run --name kubemate --rm --network host --pid host --privileged \
+ExecStart=/bin/sh -ac 'VERSION="`cat /etc/kubemate/version`" && \
+		exec /bin/docker run --name kubemate --rm --network host --pid host --privileged \
 		--tmpfs /run \
 		--tmpfs /var/run \
 		--mount type=bind,src=/etc/machine-id,dst=/etc/machine-id \
@@ -17,11 +18,12 @@ ExecStart=/bin/docker run --name kubemate --rm --network host --pid host --privi
 		--mount type=bind,src=/var/lib/docker,dst=/var/lib/docker,bind-propagation=rshared \
 		--mount type=bind,src=/var/lib/kubelet,dst=/var/lib/kubelet,bind-propagation=rshared \
 		--mount type=bind,src=/var/log/pods,dst=/var/log/pods,bind-propagation=rshared \
+		--mount type=bind,src=/lib/modules,dst=/lib/modules,readonly \
 		--mount type=bind,src=/sys,dst=/sys \
 		-v /data/kubemate:/var/lib/kubemate \
 		-v /etc/kubemate:/output \
-		mgoltzsche/kubemate:latest \
-		connect --docker --https-port=443 --http-port=80
+		"mgoltzsche/kubemate:$KUBEMATE_VERSION" \
+		connect --docker --https-port=443 --http-port=80'
 ExecReload=/bin/kill -s HUP $MAINPID
 #TimeoutSec=0
 RestartSec=2
