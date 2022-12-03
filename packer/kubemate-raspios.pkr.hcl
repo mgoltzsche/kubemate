@@ -97,6 +97,15 @@ build {
   }
 
   provisioner "shell" {
+    # Use iptables-legacy instead of iptables-nft.
+    # This must be aligned with the iptables version k3s is using.
+    # See https://github.com/k3s-io/k3s/issues/703#issuecomment-522355829
+    inline = [
+      "update-alternatives --set iptables /usr/sbin/iptables-legacy",
+    ]
+  }
+
+  provisioner "shell" {
     # Write kubemate version file.
     inline = [
       "mkdir /etc/kubemate",

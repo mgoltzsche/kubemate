@@ -28,9 +28,10 @@ FROM alpine:3.16
 RUN apk add --update --no-cache iptables socat openssl ca-certificates apparmor
 RUN apk add --no-cache iptables ip6tables ipset dhcp iproute2 iw wpa_supplicant hostapd
 ARG VERSION="dev"
-RUN mkdir -p /etc && \
-    echo 'hosts: files dns' > /etc/nsswitch.conf && \
-    echo "PRETTY_NAME=\"kubemate ${VERSION}\"" > /etc/os-release && \
+RUN set -eu; \
+	mkdir -p /etc; \
+    echo 'hosts: files dns' > /etc/nsswitch.conf; \
+    echo "PRETTY_NAME=\"kubemate ${VERSION}\"" > /etc/os-release; \
     chmod 1777 /tmp
 COPY --from=k3s /bin/cni /opt/cni/bin/cni
 COPY --from=k3s /bin/containerd /bin/
