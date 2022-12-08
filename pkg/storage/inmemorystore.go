@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/mgoltzsche/kubemate/pkg/pubsub"
 	"github.com/mgoltzsche/kubemate/pkg/resource"
@@ -152,7 +151,7 @@ func (s *inMemoryStore) setNameAndCreationTimestamp(o resource.Resource, name st
 	m.SetName(name)
 	t := m.GetCreationTimestamp()
 	if t.IsZero() {
-		m.SetCreationTimestamp(metav1.Time{Time: time.Now()})
+		m.SetCreationTimestamp(metav1.Now())
 	}
 }
 

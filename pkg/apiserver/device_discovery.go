@@ -12,6 +12,7 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -202,6 +203,11 @@ func populateDevicesFromMDNS(deviceName string, devices storage.Interface) error
 				modify()
 				err = devices.Create(d.Name, d)
 			} else if err == nil {
+				existingDevice := d.DeepCopy()
+				modify()
+				if equality.Semantic.DeepEqual(&existingDevice.Spec, &d.Spec) {
+					continue
+				}
 				err = devices.Update(d.Name, d, func() (resource.Resource, error) {
 					modify()
 					return d, nil

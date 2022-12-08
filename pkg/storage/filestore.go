@@ -11,6 +11,7 @@ import (
 
 	"github.com/mgoltzsche/kubemate/pkg/pubsub"
 	"github.com/mgoltzsche/kubemate/pkg/resource"
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -123,28 +124,35 @@ func (s *filestore) Update(key string, res resource.Resource, modify func() (res
 	if existing == nil {
 		return errors.NewNotFound(res.GetGroupVersionResource().GroupResource(), key)
 	}
-	if !specEqual(res, existing) {
-		err := s.writeFile(key, res)
+	return s.inMemoryStore.Update(key, res, func() (resource.Resource, error) {
+		r, err := modify()
 		if err != nil {
-			return fmt.Errorf("update resource: %w", err)
+			return nil, err
 		}
-	}
-	return s.inMemoryStore.Update(key, res, modify)
+		eq, err := specEqual(r, existing)
+		if err != nil {
+			return nil, fmt.Errorf("update resource: compare spec: %w", err)
+		}
+		if !eq {
+			err := s.writeFile(key, res)
+			if err != nil {
+				return nil, fmt.Errorf("update resource: %w", err)
+			}
+		}
+		return r, nil
+	})
 }
 
-func specEqual(a, b runtime.Object) bool {
-	ac, aOk := a.DeepCopyObject().(resource.ResourceWithStatus)
-	if aOk {
-		as := ac.GetStatus()
-		bc, bOk := b.DeepCopyObject().(resource.ResourceWithStatus)
-		if bOk {
-			bs := bc.GetStatus()
-			clear(as)
-			clear(bs)
-			return equality.Semantic.DeepEqual(ac, bc)
-		}
+func specEqual(a, b runtime.Object) (bool, error) {
+	a, err := withoutStatusAndResourceVersion(a)
+	if err != nil {
+		return false, err
 	}
-	return false
+	b, err = withoutStatusAndResourceVersion(b)
+	if err != nil {
+		return false, err
+	}
+	return equality.Semantic.DeepEqual(a, b), nil
 }
 
 func clear(v interface{}) {
@@ -153,6 +161,37 @@ func clear(v interface{}) {
 }
 
 func (s *filestore) writeFile(key string, obj resource.Resource) error {
+	dstFile := filepath.Join(s.dir, fmt.Sprintf("%s.yaml", key))
+	logrus.WithField("kind", obj.GetGroupVersionResource().Resource).
+		WithField("resource", key).
+		WithField("file", dstFile).
+		Debug("writing resource to file")
+	o, err := withoutStatusAndResourceVersion(obj)
+	if err != nil {
+		return err
+	}
+	f, err := ioutil.TempFile(s.dir, ".tmp-")
+	if err != nil {
+		return err
+	}
+	err = s.codec.Encode(o, f)
+	if err != nil {
+		f.Close()
+		_ = os.Remove(f.Name())
+		return err
+	}
+	err = f.Sync()
+	if err != nil {
+		return err
+	}
+	err = f.Close()
+	if err != nil {
+		return err
+	}
+	return os.Rename(f.Name(), dstFile)
+}
+
+func withoutStatusAndResourceVersion(obj runtime.Object) (runtime.Object, error) {
 	obj = obj.DeepCopyObject().(resource.Resource)
 	objs, ok := obj.(resource.ResourceWithStatus)
 	if ok {
@@ -160,25 +199,8 @@ func (s *filestore) writeFile(key string, obj resource.Resource) error {
 	}
 	m, err := meta.Accessor(obj)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	rv := m.GetResourceVersion()
 	m.SetResourceVersion("")
-	defer m.SetResourceVersion(rv)
-	f, err := ioutil.TempFile(s.dir, ".tmp-")
-	if err != nil {
-		return err
-	}
-	err = s.codec.Encode(obj, f)
-	if err != nil {
-		f.Close()
-		_ = os.Remove(f.Name())
-		return err
-	}
-	err = f.Close()
-	if err != nil {
-		return err
-	}
-	dstFile := filepath.Join(s.dir, fmt.Sprintf("%s.yaml", key))
-	return os.Rename(f.Name(), dstFile)
+	return nil, err
 }
