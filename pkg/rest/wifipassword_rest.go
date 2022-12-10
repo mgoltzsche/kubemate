@@ -1,4 +1,4 @@
-package apiserver
+package rest
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/passwordgen"
 	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
-	"github.com/mgoltzsche/kubemate/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -84,9 +83,4 @@ func (r *wifiPasswordREST) regenerateWifiPassword() error {
 		return err
 	}
 	return nil
-}
-
-func ssidToResourceName(ssid string) string {
-	ssid = fmt.Sprintf("ssid-%s", ssid)
-	return utils.TruncateName(ssid, utils.MaxResourceNameLength)
 }

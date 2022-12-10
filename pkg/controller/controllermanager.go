@@ -1,4 +1,4 @@
-package apiserver
+package controller
 
 import (
 	"context"
@@ -10,8 +10,8 @@ import (
 	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
 	"github.com/go-logr/logr"
 	appsv1 "github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1"
-	kubematectrl "github.com/mgoltzsche/kubemate/pkg/controller"
 	"github.com/mgoltzsche/kubemate/pkg/logrusadapter"
+	"github.com/mgoltzsche/kubemate/pkg/reconciler"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -117,7 +117,7 @@ func runControllerManager(ctx context.Context, scheme *runtime.Scheme, logger lo
 	if err != nil {
 		return err
 	}
-	err = (&kubematectrl.AppReconciler{}).SetupWithManager(mgr)
+	err = (&reconciler.AppReconciler{}).SetupWithManager(mgr)
 	if err != nil {
 		return err
 	}

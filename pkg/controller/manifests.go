@@ -1,4 +1,4 @@
-package apiserver
+package controller
 
 import (
 	"io"

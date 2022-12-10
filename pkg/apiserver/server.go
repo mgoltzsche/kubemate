@@ -6,12 +6,17 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
+	"github.com/mgoltzsche/kubemate/pkg/controller"
+	"github.com/mgoltzsche/kubemate/pkg/discovery"
 	generatedopenapi "github.com/mgoltzsche/kubemate/pkg/generated/openapi"
 	"github.com/mgoltzsche/kubemate/pkg/ingress"
+	"github.com/mgoltzsche/kubemate/pkg/rest"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
+	"github.com/mgoltzsche/kubemate/pkg/tokengen"
 	"github.com/mgoltzsche/kubemate/pkg/wifi"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -132,7 +137,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 			return nil, err
 		}
 		logrus.Warnf("Accounts file not found at %s - generating token...", accountsFile)
-		token, err := generateRandomString(8)
+		token, err := tokengen.GenerateRandomString(8)
 		if err != nil {
 			return nil, fmt.Errorf("generate admin token: %w", err)
 		}
@@ -160,10 +165,14 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, err
 	}
-	discovery := NewDeviceDiscovery(o.DeviceName, o.HTTPSPort, o.AdvertiseIfaces)
-	deviceREST := NewDeviceREST(o.DeviceName, discovery.Discover)
+	discovery := discovery.NewDeviceDiscovery(o.DeviceName, o.HTTPSPort, o.AdvertiseIfaces)
+	deviceConfigDir := filepath.Join(o.DataDir, "deviceconfig")
+	deviceREST, err := rest.NewDeviceREST(o.DeviceName, deviceConfigDir, scheme, discovery.Discover)
+	if err != nil {
+		return nil, err
+	}
 	joinTokenDir := filepath.Join(o.DataDir, "devicetokens")
-	deviceTokenREST, err := NewDeviceTokenREST(joinTokenDir, scheme, o.DeviceName)
+	deviceTokenREST, err := rest.NewDeviceTokenREST(joinTokenDir, scheme, o.DeviceName)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +180,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	wifi := wifi.New(logger)
 	wifi.DHCPLeaseFile = filepath.Join(o.DataDir, "dhcpd.leases")
 	wifiPasswordDir := filepath.Join(o.DataDir, "wifipasswords")
-	wifiPasswordREST, err := NewWifiPasswordREST(wifiPasswordDir, scheme)
+	wifiPasswordREST, err := rest.NewWifiPasswordREST(wifiPasswordDir, scheme)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +200,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 				"devices":       deviceREST,
 				"devicetokens":  deviceTokenREST,
 				"wifipasswords": wifiPasswordREST,
-				"wifinetworks":  NewWifiNetworkREST(wifi),
+				"wifinetworks":  rest.NewWifiNetworkREST(wifi),
 			},
 		},
 	}
@@ -199,13 +208,28 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("install apigroup: %w", err)
 	}
-	installDeviceController(genericServer, o.DeviceName, deviceREST.Store(), deviceTokenREST.Store(), discovery, wifi, wifiPasswordREST.Store(), k3sDataDir, o.ManifestDir, o.Docker, o.KubeletArgs, ingressRouter)
+	controller.InstallDeviceController(genericServer, o.DeviceName, deviceREST.Store(), deviceTokenREST.Store(), discovery, wifi, wifiPasswordREST.Store(), k3sDataDir, o.ManifestDir, o.Docker, o.KubeletArgs, ingressRouter)
 	return genericServer, nil
 }
 
-func installDeviceDiscovery(genericServer *genericapiserver.GenericAPIServer, discovery *DeviceDiscovery, devices storage.Interface) {
+func installDeviceDiscovery(genericServer *genericapiserver.GenericAPIServer, discovery *discovery.DeviceDiscovery, devices storage.Interface) {
 	genericServer.AddPostStartHookOrDie("device-discovery", func(ctx genericapiserver.PostStartHookContext) error {
 		return discovery.Discover(devices)
 	})
 	genericServer.AddPreShutdownHookOrDie("device-discovery", discovery.Close)
+}
+
+func detectIfaces() ([]string, error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, 2)
+	for _, iface := range ifaces {
+		name := iface.Name
+		if strings.HasPrefix(name, "enp") || strings.HasPrefix(name, "wlp") || strings.HasPrefix(name, "eth") || strings.HasPrefix(name, "wlan") {
+			names = append(names, name)
+		}
+	}
+	return names, nil
 }

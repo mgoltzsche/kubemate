@@ -1,4 +1,4 @@
-package apiserver
+package controller
 
 import (
 	"context"
@@ -10,10 +10,12 @@ import (
 	"time"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
+	"github.com/mgoltzsche/kubemate/pkg/discovery"
 	"github.com/mgoltzsche/kubemate/pkg/ingress"
 	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"github.com/mgoltzsche/kubemate/pkg/runner"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
+	"github.com/mgoltzsche/kubemate/pkg/utils"
 	"github.com/mgoltzsche/kubemate/pkg/wifi"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -21,7 +23,7 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 )
 
-func installDeviceController(genericServer *genericapiserver.GenericAPIServer, deviceName string, devices, clusterTokens storage.Interface, discovery *DeviceDiscovery, wifi *wifi.Wifi, wifiPasswords storage.Interface, dataDir, manifestDir string, docker bool, kubeletArgs []string, ingressCtrl *ingress.IngressController) {
+func InstallDeviceController(genericServer *genericapiserver.GenericAPIServer, deviceName string, devices, clusterTokens storage.Interface, discovery *discovery.DeviceDiscovery, wifi *wifi.Wifi, wifiPasswords storage.Interface, dataDir, manifestDir string, docker bool, kubeletArgs []string, ingressCtrl *ingress.IngressController) {
 	logger := logrus.NewEntry(logrus.StandardLogger())
 	k3sRunner := runner.New(logger.WithField("proc", "k3s"))
 	criDockerdRunner := runner.New(logger.WithField("proc", "cri-dockerd"))
@@ -163,7 +165,7 @@ func scheduleReconciliation(ch chan<- struct{}) {
 	ch <- struct{}{}
 }
 
-func reconcileCommand(devices, clusterTokens, wifiPasswords storage.Interface, deviceName string, w *wifi.Wifi, discovery *DeviceDiscovery, dataDir string, docker bool, kubeletArgs []string, k3s *runner.Runner, controllers *controllerManager, ingressCtrl *ingress.IngressController, logger *logrus.Entry) error {
+func reconcileCommand(devices, clusterTokens, wifiPasswords storage.Interface, deviceName string, w *wifi.Wifi, discovery *discovery.DeviceDiscovery, dataDir string, docker bool, kubeletArgs []string, k3s *runner.Runner, controllers *controllerManager, ingressCtrl *ingress.IngressController, logger *logrus.Entry) error {
 	logger.Debug("reconciling device")
 	d := deviceapi.Device{}
 	err := devices.Get(deviceName, &d)
@@ -296,6 +298,11 @@ func reconcileCommand(devices, clusterTokens, wifiPasswords storage.Interface, d
 		}
 	}
 	return nil
+}
+
+func ssidToResourceName(ssid string) string {
+	ssid = fmt.Sprintf("ssid-%s", ssid)
+	return utils.TruncateName(ssid, utils.MaxResourceNameLength)
 }
 
 // setWifiCountry detects the wifi country and stores it with the Device resource.

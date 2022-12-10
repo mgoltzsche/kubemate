@@ -1,4 +1,4 @@
-package apiserver
+package rest
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
 	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
+	"github.com/mgoltzsche/kubemate/pkg/tokengen"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -75,7 +76,7 @@ func (r *deviceTokenREST) Delete(ctx context.Context, key string, deleteValidati
 }
 
 func (r *deviceTokenREST) regenerateClusterJoinToken() (*deviceapi.DeviceToken, error) {
-	token, err := generateRandomString(32)
+	token, err := tokengen.GenerateRandomString(32)
 	if err != nil {
 		return nil, err
 	}

@@ -1,4 +1,4 @@
-package apiserver
+package discovery
 
 import (
 	"encoding/binary"
@@ -142,21 +142,6 @@ func toBroadcastIP(ip *net.IPNet) net.IP {
 	brd := make(net.IP, len(ip.IP.To4()))
 	binary.BigEndian.PutUint32(brd, binary.BigEndian.Uint32(ip.IP.To4())|^binary.BigEndian.Uint32(net.IP(ip.Mask).To4()))
 	return brd
-}
-
-func detectIfaces() ([]string, error) {
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return nil, err
-	}
-	names := make([]string, 0, 2)
-	for _, iface := range ifaces {
-		name := iface.Name
-		if strings.HasPrefix(name, "enp") || strings.HasPrefix(name, "wlp") || strings.HasPrefix(name, "eth") || strings.HasPrefix(name, "wlan") {
-			names = append(names, name)
-		}
-	}
-	return names, nil
 }
 
 func (d *DeviceDiscovery) Discover(store storage.Interface) error {
