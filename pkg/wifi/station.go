@@ -29,8 +29,7 @@ func (w *Wifi) StartStation(ssid, password string) error {
 		}
 		w.mode = WifiModeStation
 	}
-	ctx := context.Background()
-	return w.station.Start(ctx, runner.Cmd("wpa_supplicant", "-i", w.WifiIface, "-c", confFile))
+	return w.station.Start(runner.Cmd("wpa_supplicant", "-i", w.WifiIface, "-c", confFile))
 }
 
 func (w *Wifi) StopStation() error {

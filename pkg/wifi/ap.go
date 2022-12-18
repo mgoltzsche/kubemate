@@ -1,7 +1,6 @@
 package wifi
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -43,12 +42,11 @@ func (w *Wifi) StartAccessPoint(ssid, password string) error {
 			return err
 		}
 	}
-	ctx := context.Background()
-	err = w.dhcpd.Start(ctx, runner.Cmd("dhcpd", "-4", "-f", "-d", w.WifiIface, "-cf", dhcpdConf, "-lf", w.DHCPLeaseFile, "--no-pid"))
+	err = w.dhcpd.Start(runner.Cmd("dhcpd", "-4", "-f", "-d", w.WifiIface, "-cf", dhcpdConf, "-lf", w.DHCPLeaseFile, "--no-pid"))
 	if err != nil {
 		return err
 	}
-	err = w.ap.Start(ctx, runner.Cmd("hostapd", hostapdConf))
+	err = w.ap.Start(runner.Cmd("hostapd", hostapdConf))
 	if err != nil {
 		return err
 	}

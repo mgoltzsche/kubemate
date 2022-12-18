@@ -1,7 +1,6 @@
 package runner
 
 import (
-	"context"
 	"fmt"
 	"sync"
 
@@ -54,7 +53,7 @@ func (m *Runner) Stop() (err error) {
 	return
 }
 
-func (m *Runner) Start(ctx context.Context, cmd CommandSpec) error {
+func (m *Runner) Start(cmd CommandSpec) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	if m.proc != nil {
@@ -68,7 +67,7 @@ func (m *Runner) Start(ctx context.Context, cmd CommandSpec) error {
 		}
 		m.proc = nil
 	}
-	p, err := StartProcess(ctx, m.logger, cmd)
+	p, err := StartProcess(m.logger, cmd)
 	if err != nil {
 		m.report(cmd, CommandStatus{
 			State:   ProcessStateFailed,

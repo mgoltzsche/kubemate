@@ -10,7 +10,6 @@ import (
 	"time"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
-	"github.com/mgoltzsche/kubemate/pkg/controller"
 	"github.com/mgoltzsche/kubemate/pkg/discovery"
 	generatedopenapi "github.com/mgoltzsche/kubemate/pkg/generated/openapi"
 	"github.com/mgoltzsche/kubemate/pkg/ingress"
@@ -19,12 +18,11 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/tokengen"
 	"github.com/mgoltzsche/kubemate/pkg/wifi"
 	"github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/authentication/authenticator"
-	"k8s.io/apiserver/pkg/authentication/authenticatorfactory"
 	"k8s.io/apiserver/pkg/authentication/request/anonymous"
 	"k8s.io/apiserver/pkg/authentication/request/bearertoken"
 	"k8s.io/apiserver/pkg/authentication/request/union"
@@ -82,13 +80,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		}
 	}
 	scheme := runtime.NewScheme()
-	metav1.AddToGroupVersion(scheme, deviceapi.GroupVersion)
-	scheme.AddKnownTypes(deviceapi.GroupVersion,
-		&deviceapi.Device{}, &deviceapi.DeviceList{},
-		&deviceapi.DeviceToken{}, &deviceapi.DeviceTokenList{},
-		&deviceapi.WifiNetwork{}, &deviceapi.WifiNetworkList{},
-		&deviceapi.WifiPassword{}, &deviceapi.WifiPasswordList{},
-	)
+	deviceapi.AddToScheme(scheme)
 	codecs := serializer.NewCodecFactory(scheme)
 	paramScheme := runtime.NewScheme()
 	paramCodecs := runtime.NewParameterCodec(paramScheme)
@@ -142,18 +134,16 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 			return nil, fmt.Errorf("generate admin token: %w", err)
 		}
 		logrus.Infof("Generated token: %s", token)
-		generatedToken := map[string]*user.DefaultInfo{
+		tokens = tokenfile.New(map[string]*user.DefaultInfo{
 			token: &user.DefaultInfo{
 				Name:   "admin",
 				UID:    "admin",
 				Groups: []string{adminGroup},
 				Extra:  map[string][]string{},
 			},
-		}
-		authz = authenticatorfactory.NewFromTokens(generatedToken, audiences)
-	} else {
-		authz = bearertoken.New(tokens)
+		})
 	}
+	authz = bearertoken.New(tokens)
 	serverConfig.Authentication.Authenticator = union.New(
 		authz,
 		anonymous.NewAuthenticator(),
@@ -208,7 +198,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("install apigroup: %w", err)
 	}
-	controller.InstallDeviceController(genericServer, o.DeviceName, deviceREST.Store(), deviceTokenREST.Store(), discovery, wifi, wifiPasswordREST.Store(), k3sDataDir, o.ManifestDir, o.Docker, o.KubeletArgs, ingressRouter)
+	installDeviceController(genericServer, o.DeviceName, deviceREST.Store(), deviceTokenREST.Store(), discovery, wifi, wifiPasswordREST.Store(), k3sDataDir, o.ManifestDir, o.Docker, o.KubeletArgs, ingressRouter, logger)
 	return genericServer, nil
 }
 

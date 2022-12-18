@@ -1,7 +1,6 @@
 package runner
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -44,7 +43,7 @@ type Proc struct {
 	logger  *logrus.Entry
 }
 
-func StartProcess(ctx context.Context, logger *logrus.Entry, cmd CommandSpec) (*Proc, error) {
+func StartProcess(logger *logrus.Entry, cmd CommandSpec) (*Proc, error) {
 	c := exec.Command(cmd.Command, cmd.Args...)
 	c.Env = os.Environ()
 	stdout, err := c.StdoutPipe()

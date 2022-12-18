@@ -1,4 +1,4 @@
-package reconciler
+package app
 
 import (
 	"context"
@@ -20,17 +20,27 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-// TODO: fix status updates - fix Kustomization watch work
-
 const (
 	annotationAppOwner = "kubemate.mgoltzsche.github.com/app"
 	finalizerKubemate  = "kubemate.mgoltzsche.github.com"
 )
 
-// AppReconciler reconciles a Cache object
+// AppReconciler reconciles an App object.
 type AppReconciler struct {
 	client.Client
 	scheme *runtime.Scheme
+}
+
+func (r *AppReconciler) AddToScheme(s *runtime.Scheme) error {
+	err := appsv1.AddToScheme(s)
+	if err != nil {
+		return err
+	}
+	err = kustomizev1.AddToScheme(s)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
