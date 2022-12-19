@@ -23,6 +23,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.CrossNamespaceSourceReference":        schema_pkg_apis_apps_v1alpha1_CrossNamespaceSourceReference(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.KustomizationSpec":                    schema_pkg_apis_apps_v1alpha1_KustomizationSpec(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.Device":                                  schema_pkg_apis_devices_v1_Device(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceDiscovery":                         schema_pkg_apis_devices_v1_DeviceDiscovery(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceDiscoveryList":                     schema_pkg_apis_devices_v1_DeviceDiscoveryList(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceDiscoverySpec":                     schema_pkg_apis_devices_v1_DeviceDiscoverySpec(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceList":                              schema_pkg_apis_devices_v1_DeviceList(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceSpec":                              schema_pkg_apis_devices_v1_DeviceSpec(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceStatus":                            schema_pkg_apis_devices_v1_DeviceStatus(ref),
@@ -663,6 +666,132 @@ func schema_pkg_apis_devices_v1_Device(ref common.ReferenceCallback) common.Open
 		},
 		Dependencies: []string{
 			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceSpec", "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_devices_v1_DeviceDiscovery(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DeviceDiscovery is the Schema for the device discovery API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceDiscoverySpec"),
+						},
+					},
+				},
+				Required: []string{"metadata", "spec"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceDiscoverySpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_devices_v1_DeviceDiscoveryList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DeviceDiscoveryList contains a list of Cache",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceDiscovery"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceDiscovery", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_devices_v1_DeviceDiscoverySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DeviceDiscoverySpec defines the desired state of the Device.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"mode": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Possible enum values:\n - `\"agent\"`\n - `\"server\"`",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"agent", "server"}},
+					},
+					"server": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"address": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"mode", "address"},
+			},
+		},
 	}
 }
 

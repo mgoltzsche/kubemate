@@ -2,14 +2,12 @@ package rest
 
 import (
 	"context"
-	"sync"
-	"time"
+	"fmt"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
 	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"github.com/mgoltzsche/kubemate/pkg/runner"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
-	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,24 +27,17 @@ type DeviceREST struct {
 	rest            *REST
 	runner          *runner.Runner
 	deviceName      string
-	deviceDiscovery func(store storage.Interface) error
+	deviceDiscovery func() error
 	store           storage.Interface
 	registryrest.TableConvertor
 }
 
-func NewDeviceREST(deviceName, storageDir string, scheme *runtime.Scheme, deviceDiscovery func(store storage.Interface) error) (*DeviceREST, error) {
+func NewDeviceREST(deviceName, storageDir string, scheme *runtime.Scheme, deviceDiscovery func() error) (*DeviceREST, error) {
 	store, err := newDeviceStore(deviceName, storageDir, scheme)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load device config store: %w", err)
 	}
-	refreshingStore := storage.RefreshPeriodically(store, 10*time.Second, func(store storage.Interface) {
-		logrus.Debug("scanning for devices within the local network")
-		err := deviceDiscovery(store)
-		if err != nil {
-			logrus.WithError(err).Error("failed to discover devices via mdns")
-		}
-	})
-	r := NewREST(&deviceapi.Device{}, refreshingStore)
+	r := NewREST(&deviceapi.Device{}, store)
 	r.TableConvertor = &deviceTableConvertor{}
 	devices := &DeviceREST{
 		rest:            r,
@@ -97,9 +88,6 @@ func (r *DeviceREST) Get(ctx context.Context, name string, options *metav1.GetOp
 
 type deviceStore struct {
 	storage.Interface
-	persistent storage.Interface
-	deviceName string
-	mutex      *sync.Mutex
 }
 
 func newDeviceStore(deviceName, dir string, scheme *runtime.Scheme) (storage.Interface, error) {
@@ -116,6 +104,7 @@ func newDeviceStore(deviceName, dir string, scheme *runtime.Scheme) (storage.Int
 		d = &deviceapi.Device{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: deviceName,
+				//CreationTimestamp: metav1.Now(),
 			},
 			Spec: deviceapi.DeviceSpec{
 				Mode: deviceapi.DeviceModeServer,
@@ -127,47 +116,17 @@ func newDeviceStore(deviceName, dir string, scheme *runtime.Scheme) (storage.Int
 					},
 				},
 			},
+			Status: deviceapi.DeviceStatus{
+				Current: true,
+				State:   deviceapi.DeviceStateUnknown,
+			},
 		}
 		err = s.Create(deviceName, d)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("create default device config: %w", err)
 		}
 	}
-	mem := storage.InMemory()
-	d.Status.Current = true
-	d.Status.State = deviceapi.DeviceStateUnknown
-	d.CreationTimestamp = metav1.Now()
-	err = mem.Create(deviceName, d)
-	if err != nil {
-		return nil, err
-	}
-	return &deviceStore{
-		Interface:  mem,
-		persistent: s,
-		deviceName: deviceName,
-		mutex:      &sync.Mutex{},
-	}, nil
-}
-
-func (s *deviceStore) Update(key string, res resource.Resource, modify func() (resource.Resource, error)) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	if key == s.deviceName {
-		// TODO: fix this - currently this rejects all updates with status 409
-		/*m, err := meta.Accessor(res)
-		if err != nil {
-			return err
-		}
-		rv := res.GetResourceVersion()
-		uid := m.GetUID()
-		err = s.persistent.Update(key, res, modify)
-		if err != nil {
-			return err
-		}
-		res.SetResourceVersion(rv)
-		m.SetUID(uid)*/
-	}
-	return s.Interface.Update(key, res, modify)
+	return &deviceStore{Interface: s}, nil
 }
 
 func (s *deviceStore) Delete(key string, res resource.Resource, validate func() error) error {

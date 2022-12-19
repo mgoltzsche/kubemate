@@ -18,6 +18,7 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/utils"
 	"github.com/mgoltzsche/kubemate/pkg/wifi"
 	"github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -33,6 +34,7 @@ type DeviceReconciler struct {
 	DeviceAddress     string
 	DataDir           string
 	ManifestDir       string
+	K3sProxyEnabled   *bool
 	Docker            bool
 	KubeletArgs       []string
 	Devices           storage.Interface
@@ -193,6 +195,7 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	nodeIP := ips[0]
 	var args []string
 	fn := func() error {
+		*r.K3sProxyEnabled = d.Spec.Mode == deviceapi.DeviceModeServer
 		switch d.Spec.Mode {
 		case deviceapi.DeviceModeServer:
 			args = buildK3sServerArgs(&d, nodeIP, r.DataDir, r.Docker, r.KubeletArgs, r.DeviceTokens)
@@ -203,20 +206,19 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			if d.Spec.Server == d.Name {
 				return fmt.Errorf("cannot join itself")
 			}
-			var server deviceapi.Device
-			err := r.Devices.Get(d.Spec.Server, &server)
+			server, err := r.DeviceDiscovery.Get(d.Spec.Server)
 			if err != nil {
 				return err
 			}
 			if server.Spec.Mode != deviceapi.DeviceModeServer {
 				return fmt.Errorf("cannot join device %q since it doesn't run in %s mode but in mode %q", d.Spec.Server, deviceapi.DeviceModeServer, d.Spec.Mode)
 			}
-			joinAddr, err := joinAddress(&server)
+			joinAddr, err := joinAddress(server)
 			if err != nil {
 				return err
 			}
 			// TODO: provide token as env var
-			args = buildK3sAgentArgs(&server, joinAddr, nodeIP, r.DataDir, r.Docker, r.KubeletArgs, r.DeviceTokens)
+			args = buildK3sAgentArgs(server, joinAddr, nodeIP, r.DataDir, r.Docker, r.KubeletArgs, r.DeviceTokens)
 		}
 		return nil
 	}
@@ -225,10 +227,13 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		logger.Error(err, "failed to reconcile device")
 		statusMessage = err.Error()
 	}
-	if d.Status.Message != statusMessage {
+	addr := fmt.Sprintf("https://%s", d.Name)
+	if d.Status.Message != statusMessage || d.Status.Address != addr {
 		// Update device status
 		err = r.Devices.Update(d.Name, &d, func() (resource.Resource, error) {
 			d.Status.Message = statusMessage
+			d.Status.Address = addr
+			d.Status.Current = true
 			return &d, nil
 		})
 		if err != nil {
@@ -237,7 +242,17 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 	if d.Generation == d.Status.Generation {
 		// TODO: advertize only when status changed
-		err = r.DeviceDiscovery.Advertise(&d, ips)
+		// TODO: update discovery resource
+		err = r.DeviceDiscovery.Advertise(&deviceapi.DeviceDiscovery{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: d.Name,
+			},
+			Spec: deviceapi.DeviceDiscoverySpec{
+				Address: d.Status.Address,
+				Mode:    d.Spec.Mode,
+				Server:  d.Spec.Server,
+			},
+		}, ips)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -289,12 +304,12 @@ func setWifiCountry(d *deviceapi.Device, devices storage.Interface, w *wifi.Wifi
 	return nil
 }
 
-func joinAddress(d *deviceapi.Device) (string, error) {
+func joinAddress(d *deviceapi.DeviceDiscovery) (string, error) {
 	a := ""
 	if d.Spec.Mode == deviceapi.DeviceModeServer {
-		u, err := url.Parse(d.Status.Address)
+		u, err := url.Parse(d.Spec.Address)
 		if err != nil {
-			return "", fmt.Errorf("status.address %q of device %q is not a valid address", d.Status.Address, d.Name)
+			return "", fmt.Errorf("status.address %q of device %q is not a valid address", d.Spec.Address, d.Name)
 		}
 		a = fmt.Sprintf("https://%s:6443", u.Hostname())
 	}
@@ -329,7 +344,7 @@ func buildK3sServerArgs(d *deviceapi.Device, nodeIP net.IP, dataDir string, dock
 	return args
 }
 
-func buildK3sAgentArgs(server *deviceapi.Device, joinAddress string, nodeIP net.IP, dataDir string, docker bool, kubeletArgs []string, clusterTokens storage.Interface) []string {
+func buildK3sAgentArgs(server *deviceapi.DeviceDiscovery, joinAddress string, nodeIP net.IP, dataDir string, docker bool, kubeletArgs []string, clusterTokens storage.Interface) []string {
 	args := []string{
 		"agent",
 		fmt.Sprintf("--node-external-ip=%s", nodeIP.String()),

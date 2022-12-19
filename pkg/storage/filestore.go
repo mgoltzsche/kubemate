@@ -202,5 +202,5 @@ func withoutStatusAndResourceVersion(obj runtime.Object) (runtime.Object, error)
 		return nil, err
 	}
 	m.SetResourceVersion("")
-	return nil, err
+	return obj, nil
 }

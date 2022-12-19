@@ -137,6 +137,51 @@ definitions:
     - spec
     - status
     type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceDiscovery:
+    description: DeviceDiscovery is the Schema for the device discovery API
+    properties:
+      apiVersion:
+        description: 'APIVersion defines the versioned schema of this representation
+          of an object. Servers should convert recognized schemas to the latest internal
+          value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+        type: string
+      kind:
+        description: 'Kind is a string value representing the REST resource this object
+          represents. Servers may infer this from the endpoint the client submits
+          requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+        type: string
+      metadata:
+        $ref: '#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta'
+        default: {}
+      spec:
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceDiscoverySpec'
+        default: {}
+    required:
+    - metadata
+    - spec
+    type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceDiscoverySpec:
+    description: DeviceDiscoverySpec defines the desired state of the Device.
+    properties:
+      address:
+        default: ""
+        type: string
+      mode:
+        default: ""
+        description: |-
+          Possible enum values:
+           - `"agent"`
+           - `"server"`
+        enum:
+        - agent
+        - server
+        type: string
+      server:
+        type: string
+    required:
+    - mode
+    - address
+    type: object
   com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceSpec:
     description: DeviceSpec defines the desired state of the Device.
     properties:

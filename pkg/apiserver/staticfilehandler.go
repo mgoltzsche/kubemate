@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -42,15 +40,6 @@ func NewWebUIHandler(dir string, apiPaths []string, apiHandler, fallbackHandler 
 }
 
 func (h *webUIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logrus.Trace(fmt.Sprintf("request %s %s", r.Method, r.URL.String()))
-	if r.URL.Path == "/api" {
-		// TODO: forward to k3s when available! Or remove workaround entirely but it currently required by kubectl and controller-runtime.
-		logrus.Debug("Falling back to returning empty /api result")
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"kind":"APIVersions"}`))
-		return
-	}
 	serveStaticFile := r.URL.Path == "/" && strings.Contains(r.Header.Get("Accept"), "text/html")
 	if r.URL.Path != "/" && !serveStaticFile {
 		pathSegments := strings.Split(r.URL.Path, "/")

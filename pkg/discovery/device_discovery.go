@@ -29,27 +29,31 @@ type DeviceDiscovery struct {
 	port            int
 	advertiseIfaces []string
 	srv             *mdns.Server
+	store           storage.Interface
 }
 
-func NewDeviceDiscovery(deviceName string, port int, advertiseIfaces []string) *DeviceDiscovery {
+func NewDeviceDiscovery(deviceName string, port int, advertiseIfaces []string, store storage.Interface) *DeviceDiscovery {
 	return &DeviceDiscovery{
 		deviceName:      deviceName,
 		port:            port,
 		advertiseIfaces: advertiseIfaces,
+		store:           store,
 	}
 }
 
-func (d *DeviceDiscovery) Advertise(device *deviceapi.Device, ips []net.IP) error {
+func (d *DeviceDiscovery) Get(deviceName string) (*deviceapi.DeviceDiscovery, error) {
+	dev := &deviceapi.DeviceDiscovery{}
+	err := d.store.Get(deviceName, dev)
+	return dev, err
+}
+
+func (d *DeviceDiscovery) Advertise(device *deviceapi.DeviceDiscovery, ips []net.IP) error {
 	if device.Name != d.deviceName {
 		return fmt.Errorf("refusing to advertise a different device than this one via mdns")
-	}
-	if device.Generation != device.Status.Generation {
-		return fmt.Errorf("mdns advertise: provided device status is not up-to-date")
 	}
 	info := []string{
 		"kubemate",
 		fmt.Sprintf("%s=%s", mdnsFieldDeviceMode, device.Spec.Mode),
-		fmt.Sprintf("%s=%s", mdnsFieldState, device.Status.State),
 	}
 	if device.Spec.Server != "" {
 		info = append(info, fmt.Sprintf("%s=%s", mdnsFieldServer, device.Spec.Server))
@@ -65,21 +69,35 @@ func (d *DeviceDiscovery) Advertise(device *deviceapi.Device, ips []net.IP) erro
 	hostname := fmt.Sprintf("%s.", d.deviceName)
 	svc, err := mdns.NewMDNSService(d.deviceName, mdnsZone, "", hostname, d.port, ips, info)
 	if err != nil {
-		return err
+		return fmt.Errorf("advertise mdns name: %s", err)
 	}
 	// Terminate previous mdns server if exists
 	if d.srv != nil {
 		err = d.srv.Shutdown()
 		if err != nil {
-			return err
+			return fmt.Errorf("advertise mdns name: %s", err)
 		}
 	}
 	// (re)start mdns server with new service
 	srv, err := mdns.NewServer(&mdns.Config{Zone: svc})
 	if err != nil {
-		return err
+		return fmt.Errorf("advertise mdns name: %s", err)
 	}
 	d.srv = srv
+	dev := &deviceapi.DeviceDiscovery{}
+	dev.Name = d.deviceName
+	err = d.store.Update(d.deviceName, dev, func() (resource.Resource, error) {
+		dev.Spec = device.Spec
+		return dev, nil
+	})
+	if err != nil {
+		dev.Spec = device.Spec
+		e := d.store.Create(d.deviceName, dev)
+		if e != nil {
+			return fmt.Errorf("advertise mdns name: %s. %s", err, e)
+		}
+		return nil
+	}
 	return nil
 }
 
@@ -144,8 +162,8 @@ func toBroadcastIP(ip *net.IPNet) net.IP {
 	return brd
 }
 
-func (d *DeviceDiscovery) Discover(store storage.Interface) error {
-	return populateDevicesFromMDNS(d.deviceName, store)
+func (d *DeviceDiscovery) Discover() error {
+	return populateDevicesFromMDNS(d.deviceName, d.store)
 }
 
 func (d *DeviceDiscovery) Close() error {
@@ -166,7 +184,7 @@ func populateDevicesFromMDNS(deviceName string, devices storage.Interface) error
 	ch := make(chan *mdns.ServiceEntry, 4)
 	go func() {
 		for entry := range ch {
-			d := &deviceapi.Device{}
+			d := &deviceapi.DeviceDiscovery{}
 			d.Name = strings.TrimRight(entry.Host, ".")
 			foundDevices[d.Name] = struct{}{}
 			if d.Name == deviceName {
@@ -178,8 +196,7 @@ func populateDevicesFromMDNS(deviceName string, devices storage.Interface) error
 				if addr == "" {
 					addr = entry.AddrV6.String()
 				}
-				d.Status.Address = fmt.Sprintf("https://%s:%d", addr, entry.Port)
-				d.Status.State = deviceapi.DeviceState(getMDNSEntryField(entry, mdnsFieldState))
+				d.Spec.Address = fmt.Sprintf("https://%s:%d", addr, entry.Port)
 				d.Spec.Mode = deviceapi.DeviceMode(getMDNSEntryField(entry, mdnsFieldDeviceMode))
 				d.Spec.Server = getMDNSEntryField(entry, mdnsFieldServer)
 			}
@@ -200,13 +217,12 @@ func populateDevicesFromMDNS(deviceName string, devices storage.Interface) error
 			}
 			logrus.
 				WithField("mode", d.Spec.Mode).
-				WithField("state", d.Status.State).
-				WithField("address", d.Status.Address).
+				WithField("address", d.Spec.Address).
 				WithField("device", entry.Name).
 				Info("discovered new device via mdns")
 			if err != nil && !errors.IsAlreadyExists(err) {
 				logrus.WithError(err).
-					WithField("address", d.Status.Address).
+					WithField("address", d.Spec.Address).
 					WithField("device", entry.Name).
 					Error("failed to register device")
 				continue
@@ -225,7 +241,7 @@ func populateDevicesFromMDNS(deviceName string, devices storage.Interface) error
 	}
 
 	// Remove old devices
-	l := &deviceapi.DeviceList{}
+	l := &deviceapi.DeviceDiscoveryList{}
 	err = devices.List(l)
 	if err != nil {
 		return fmt.Errorf("scan for devices: %w", err)
@@ -253,7 +269,7 @@ func getMDNSEntryField(entry *mdns.ServiceEntry, field string) string {
 	return ""
 }
 
-func hasLabel(o *deviceapi.Device, label string) bool {
+func hasLabel(o *deviceapi.DeviceDiscovery, label string) bool {
 	if o.Labels == nil {
 		return false
 	}

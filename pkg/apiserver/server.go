@@ -10,15 +10,16 @@ import (
 	"time"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
+	"github.com/mgoltzsche/kubemate/pkg/controller"
 	"github.com/mgoltzsche/kubemate/pkg/discovery"
 	generatedopenapi "github.com/mgoltzsche/kubemate/pkg/generated/openapi"
 	"github.com/mgoltzsche/kubemate/pkg/ingress"
+	devicectrl "github.com/mgoltzsche/kubemate/pkg/reconciler/device"
 	"github.com/mgoltzsche/kubemate/pkg/rest"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"github.com/mgoltzsche/kubemate/pkg/tokengen"
 	"github.com/mgoltzsche/kubemate/pkg/wifi"
 	"github.com/sirupsen/logrus"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -150,12 +151,15 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	)
 	serverConfig.Authorization.Authorizer = NewDeviceAuthorizer()
 	k3sDataDir := filepath.Join(o.DataDir, "k3s")
-	delegate := newReverseProxy("127.0.0.1:6443", filepath.Join(k3sDataDir, "server", "tls"))
+	k3sProxyEnabled := false
+	delegate := newReverseProxy("127.0.0.1:6443", filepath.Join(k3sDataDir, "server", "tls"), &k3sProxyEnabled)
 	genericServer, err := serverConfig.Complete().New("kubemate", delegate)
 	if err != nil {
 		return nil, err
 	}
-	discovery := discovery.NewDeviceDiscovery(o.DeviceName, o.HTTPSPort, o.AdvertiseIfaces)
+	discoveryStore := storage.InMemory()
+	discovery := discovery.NewDeviceDiscovery(o.DeviceName, o.HTTPSPort, o.AdvertiseIfaces, discoveryStore)
+	discoveryREST := rest.NewDeviceDiscoveryREST(discoveryStore, discovery.Discover)
 	deviceConfigDir := filepath.Join(o.DataDir, "deviceconfig")
 	deviceREST, err := rest.NewDeviceREST(o.DeviceName, deviceConfigDir, scheme, discovery.Discover)
 	if err != nil {
@@ -174,8 +178,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO: scan for devices only when requested via rest api.
-	installDeviceDiscovery(genericServer, discovery, deviceREST.Store())
+	installDeviceDiscovery(genericServer, discovery)
 	ingressRouter := ingress.NewIngressController("kubemate", logrus.WithField("comp", "ingress-controller"))
 	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known", "/version"}
 	var handler http.Handler = NewWebUIHandler(o.WebDir, apiPaths, genericServer.Handler.FullHandlerChain, ingressRouter)
@@ -187,10 +190,11 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		NegotiatedSerializer: codecs,
 		VersionedResourcesStorageMap: map[string]map[string]registryrest.Storage{
 			"v1": map[string]registryrest.Storage{
-				"devices":       deviceREST,
-				"devicetokens":  deviceTokenREST,
-				"wifipasswords": wifiPasswordREST,
-				"wifinetworks":  rest.NewWifiNetworkREST(wifi),
+				"devices":         deviceREST,
+				"devicediscovery": discoveryREST,
+				"devicetokens":    deviceTokenREST,
+				"wifipasswords":   wifiPasswordREST,
+				"wifinetworks":    rest.NewWifiNetworkREST(wifi),
 			},
 		},
 	}
@@ -198,15 +202,52 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("install apigroup: %w", err)
 	}
-	installDeviceController(genericServer, o.DeviceName, deviceREST.Store(), deviceTokenREST.Store(), discovery, wifi, wifiPasswordREST.Store(), k3sDataDir, o.ManifestDir, o.Docker, o.KubeletArgs, ingressRouter, logger)
+	installDeviceController(genericServer, &devicectrl.DeviceReconciler{
+		DeviceName:        o.DeviceName,
+		DeviceAddress:     genericServer.ExternalAddress,
+		DeviceDiscovery:   discovery,
+		DataDir:           k3sDataDir,
+		ManifestDir:       o.ManifestDir,
+		Docker:            o.Docker,
+		KubeletArgs:       o.KubeletArgs,
+		Devices:           deviceREST.Store(),
+		DeviceTokens:      deviceTokenREST.Store(),
+		WifiPasswords:     wifiPasswordREST.Store(),
+		Wifi:              wifi,
+		IngressController: ingressRouter,
+		K3sProxyEnabled:   &k3sProxyEnabled,
+		Logger:            logger,
+	})
 	return genericServer, nil
 }
 
-func installDeviceDiscovery(genericServer *genericapiserver.GenericAPIServer, discovery *discovery.DeviceDiscovery, devices storage.Interface) {
+func installDeviceDiscovery(genericServer *genericapiserver.GenericAPIServer, discovery *discovery.DeviceDiscovery) {
 	genericServer.AddPostStartHookOrDie("device-discovery", func(ctx genericapiserver.PostStartHookContext) error {
-		return discovery.Discover(devices)
+		return discovery.Discover()
 	})
 	genericServer.AddPreShutdownHookOrDie("device-discovery", discovery.Close)
+}
+
+func installDeviceController(genericServer *genericapiserver.GenericAPIServer, r *devicectrl.DeviceReconciler) {
+	var config *restclient.Config
+	configFn := func() (*restclient.Config, error) {
+		return config, nil
+	}
+	mgr := controller.NewControllerManager(configFn, r.Logger.WithField("comp", "device-manager"))
+	mgr.RegisterReconciler(r)
+	genericServer.AddPostStartHookOrDie("device-controller", func(ctx genericapiserver.PostStartHookContext) error {
+		// TODO: clean this up: set config as Start() argument?!
+		//config = ctx.LoopbackClientConfig
+		config = &restclient.Config{
+			Host:        "127.0.0.1:8080",
+			BearerToken: "adminsecret", // TODO: Derive token. Generate separate machine account ideally.
+		}
+		return mgr.Start()
+	})
+	genericServer.AddPreShutdownHookOrDie("device-controller", func() error {
+		mgr.Stop()
+		return nil
+	})
 }
 
 func detectIfaces() ([]string, error) {

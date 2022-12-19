@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import {
   com_github_mgoltzsche_kubemate_pkg_apis_apps_v1alpha1_App as App,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_Device as Device,
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_DeviceDiscovery as DeviceDiscovery,
   io_k8s_api_networking_v1_Ingress as Ingress,
   io_k8s_apiextensions_apiserver_pkg_apis_apiextensions_v1_CustomResourceDefinition as CustomResourceDefinition,
 } from 'src/gen';
@@ -55,6 +56,11 @@ function defineResourceStore<T extends Resource>(
 export const useDeviceStore = defineResourceStore<Device>(
   '/apis/kubemate.mgoltzsche.github.com/v1',
   'devices'
+);
+
+export const useDeviceDiscoveryStore = defineResourceStore<DeviceDiscovery>(
+  '/apis/kubemate.mgoltzsche.github.com/v1',
+  'devicediscovery'
 );
 
 export const useAppStore = defineResourceStore<App>(

@@ -17,13 +17,14 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 )
 
-func newReverseProxy(host, tlsDir string) genericapiserver.DelegationTarget {
+func newReverseProxy(host, tlsDir string, enabled *bool) genericapiserver.DelegationTarget {
 	r := &apiServerProxy{
 		targetURL: &url.URL{
 			Scheme: "https",
 			Host:   host,
 		},
-		tlsDir: tlsDir,
+		tlsDir:  tlsDir,
+		enabled: enabled,
 	}
 	r.DelegationTarget = genericapiserver.NewEmptyDelegateWithCustomHandler(r)
 	return r
@@ -33,6 +34,7 @@ type apiServerProxy struct {
 	genericapiserver.DelegationTarget
 	targetURL *url.URL
 	tlsDir    string
+	enabled   *bool
 }
 
 func (s *apiServerProxy) ListedPaths() []string {
@@ -75,20 +77,24 @@ type paths struct {
 	Paths []string `json:"paths"`
 }
 
-func (s *apiServerProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (s *apiServerProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	tls, err := s.tlsTransport()
 	if err != nil {
 		logrus.WithError(err).Warn("failed to load proxy target TLS config")
-		rw.WriteHeader(http.StatusServiceUnavailable)
-		_, _ = rw.Write([]byte(`{"message":"failed to load target apiserver's TLS config"}`))
+		if r.URL.Path == "/api" {
+			writeEmptyAPIVersions(w, r)
+			return
+		}
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(`{"message":"failed to load target apiserver's TLS config"}`))
 		return
 	}
 	proxy := httputil.NewSingleHostReverseProxy(s.targetURL)
 	proxy.Transport = tls
-	req.URL.Host = s.targetURL.Host
-	req.URL.Scheme = s.targetURL.Scheme
-	req.Host = s.targetURL.Host
-	usr, found := genericapirequest.UserFrom(req.Context())
+	r.URL.Host = s.targetURL.Host
+	r.URL.Scheme = s.targetURL.Scheme
+	r.Host = s.targetURL.Host
+	usr, found := genericapirequest.UserFrom(r.Context())
 	if !found {
 		usr = &user.DefaultInfo{
 			Name: user.Anonymous,
@@ -104,12 +110,35 @@ func (s *apiServerProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 	if !isAdmin {
 		for _, g := range usr.GetGroups() {
-			req.Header.Add("Impersonate-Group", g)
+			r.Header.Add("Impersonate-Group", g)
 		}
-		req.Header.Set("Impersonate-User", usr.GetName())
-		req.Header.Set("Impersonate-Uid", usr.GetUID())
+		r.Header.Set("Impersonate-User", usr.GetName())
+		r.Header.Set("Impersonate-Uid", usr.GetUID())
 	}
-	proxy.ServeHTTP(rw, req)
+
+	if !*s.enabled {
+		if r.URL.Path == "/api" {
+			writeEmptyAPIVersions(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		w.Write([]byte(`{"message":"server is disabled on this device"}`))
+		return
+	}
+
+	proxy.ServeHTTP(w, r)
+}
+
+func writeEmptyAPIVersions(w http.ResponseWriter, r *http.Request) {
+	// TODO: fallback to empty response on non-200/401/402 request to make this more resilient.
+	//       Currently when proxying is enabled and k3s is not available the kubemate controller cannot be restarted.
+	// Return empty result when k3s is unavailable.
+	// This is because kubectl and controller-runtime fail otherwise while trying to discover resource groups using this path.
+	logrus.Debug("Falling back to returning empty /api result")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(`{"kind":"APIVersions"}`))
 }
 
 func (s *apiServerProxy) tlsTransport() (*http.Transport, error) {

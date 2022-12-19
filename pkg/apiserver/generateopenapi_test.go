@@ -35,6 +35,7 @@ func TestGenerateOpenAPI(t *testing.T) {
 	typeNames := []string{
 		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.App",
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.Device",
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceDiscovery",
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceToken",
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetwork",
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPassword",

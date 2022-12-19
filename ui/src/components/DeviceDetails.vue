@@ -62,11 +62,11 @@
                   clearable
                   bottom-slots
                   v-model="selectedServer"
-                  :options="availableDevices"
+                  :options="availableServers"
                   :label="
-                    availableDevices.length == 0 ? 'No server found' : 'server'
+                    availableServers.length == 0 ? 'No server found' : 'server'
                   "
-                  :color="availableDevices.length == 0 ? 'negative' : 'gray'"
+                  :color="availableServers.length == 0 ? 'negative' : 'gray'"
                 >
                   <template v-slot:hint
                     >The selected server manages all data and controls this
@@ -94,20 +94,21 @@
 
 <script lang="ts">
 import { computed, defineComponent, reactive, Ref, toRefs, ref } from 'vue';
-import { useDeviceStore } from 'src/stores/resources';
+import { useDeviceStore, useDeviceDiscoveryStore } from 'src/stores/resources';
 import apiclient from 'src/k8sclient';
 import {
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_Device as Device,
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_DeviceDiscovery as DeviceDiscovery,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_DeviceSpec as DeviceSpec,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_DeviceToken as DeviceToken,
 } from 'src/gen';
 import { useQuasar } from 'quasar';
 
-function serverJoinTokenRequestURL(server: Device) {
+function serverJoinTokenRequestURL(server: DeviceDiscovery) {
   const addrRegex = new RegExp('https://([^/]+)');
   const m = window.location.href.match(addrRegex);
   const addr = m ? m[1] : '';
-  return `${server.status.address}/#/setup/request-join-token/${addr}`;
+  return `${server.spec.address}/#/setup/request-join-token/${addr}`;
 }
 
 const kc = new apiclient.KubeConfig();
@@ -126,15 +127,34 @@ export default defineComponent({
   },
   setup(props) {
     const deviceStore = useDeviceStore();
-    deviceStore.sync();
-    const selectedServer = ref(null as unknown) as Ref<{ value: Device }>;
+    const discoveryStore = useDeviceDiscoveryStore();
+    const selectedServer = ref(null as unknown) as Ref<{
+      value: DeviceDiscovery;
+      label: string;
+    }>;
+    deviceStore.sync(() => {
+      const d = deviceStore.resources.find(
+        (d) => d.metadata.name == props.deviceName
+      );
+      if (d) {
+        discoveryStore.sync(() => {
+          const s = discoveryStore.resources.find(
+            (s) => s.metadata.name == d?.spec.server
+          );
+          if (s)
+            selectedServer.value = {
+              value: s,
+              label: s.metadata.name || '<unknown>',
+            };
+        });
+      }
+    });
     const quasar = useQuasar();
 
     async function joinServer(d: Device) {
       if (selectedServer.value == null) return;
       const serverName = selectedServer.value.value.metadata.name;
-      const serverAddr = selectedServer.value.value.status.address;
-      if (!serverName || !serverAddr) return;
+      if (!serverName) return;
       d.spec.mode = DeviceSpec.mode.AGENT;
       d.spec.server = serverName;
       console.log(
@@ -191,10 +211,13 @@ export default defineComponent({
       device: computed(() =>
         deviceStore.resources.find((d) => d.metadata.name == props.deviceName)
       ),
-      availableDevices: computed(() =>
-        deviceStore.resources
+      availableServers: computed(() =>
+        discoveryStore.resources
           .filter(
-            (d) => d.metadata.name != props.deviceName && d.status.address
+            (d) =>
+              d.metadata.name != props.deviceName &&
+              d.spec.mode == DeviceSpec.mode.SERVER &&
+              d.spec.address
           )
           .map((d) => ({ label: d.metadata.name, value: d }))
       ),
@@ -231,8 +254,10 @@ export default defineComponent({
         switch (d.spec.mode) {
           case DeviceSpec.mode.AGENT:
             await joinServer(d);
+            break;
           case DeviceSpec.mode.SERVER:
             await hostServer(d);
+            break;
           default:
             console.log(`ERROR: unsupported device mode: ${d.spec.mode}`);
         }

@@ -12,9 +12,7 @@
       </q-item-section>
       <q-item-section>
         <q-item-label lines="1">{{ device.metadata.name }}</q-item-label>
-        <q-item-label caption lines="1"
-          >{{ device.spec.mode }}, {{ device.status.state }}</q-item-label
-        >
+        <q-item-label caption lines="1">{{ device.spec.mode }}</q-item-label>
       </q-item-section>
     </q-item>
   </q-list>
@@ -22,13 +20,13 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue';
+import { useDeviceDiscoveryStore } from 'src/stores/resources';
 import { storeToRefs } from 'pinia';
-import { useDeviceStore } from 'src/stores/resources';
 
 export default defineComponent({
-  name: 'DeviceList',
+  name: 'DeviceDiscoveryList',
   setup() {
-    const store = useDeviceStore();
+    const store = useDeviceDiscoveryStore();
     store.sync();
     const { resources } = storeToRefs(store);
     return { devices: resources };
