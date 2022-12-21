@@ -43,6 +43,7 @@ type ServerOptions struct {
 	DeviceName      string
 	HTTPSAddress    string
 	HTTPSPort       int
+	HTTPPort        int
 	AdvertiseIfaces []string
 	WebDir          string
 	ManifestDir     string
@@ -105,8 +106,14 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, err
 	}
+	var localAddr string
+	if o.HTTPPort == 80 {
+		localAddr = "http://127.0.0.1"
+	} else {
+		localAddr = fmt.Sprintf("http://127.0.0.1:%d", o.HTTPPort)
+	}
 	serverConfig.LoopbackClientConfig = &restclient.Config{
-		Host: serverConfig.ExternalAddress,
+		Host: localAddr,
 	}
 	serverConfig.LongRunningFunc = filters.BasicLongRunningRequestCheck(
 		sets.NewString("watch", "proxy"),
@@ -145,8 +152,21 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		})
 	}
 	authz = bearertoken.New(tokens)
+	controllerToken, err := tokengen.GenerateRandomString(16)
+	if err != nil {
+		return nil, err
+	}
+	ctrlAuthz := bearertoken.New(tokenfile.New(map[string]*user.DefaultInfo{
+		controllerToken: &user.DefaultInfo{
+			Name:   "controller",
+			UID:    "controller",
+			Groups: []string{adminGroup},
+			Extra:  map[string][]string{},
+		},
+	}))
 	serverConfig.Authentication.Authenticator = union.New(
 		authz,
+		ctrlAuthz,
 		anonymous.NewAuthenticator(),
 	)
 	serverConfig.Authorization.Authorizer = NewDeviceAuthorizer()
@@ -239,7 +259,7 @@ func installDeviceController(genericServer *genericapiserver.GenericAPIServer, r
 		// TODO: clean this up: set config as Start() argument?!
 		//config = ctx.LoopbackClientConfig
 		config = &restclient.Config{
-			Host:        "127.0.0.1:8080",
+			Host:        genericServer.LoopbackClientConfig.Host,
 			BearerToken: "adminsecret", // TODO: Derive token. Generate separate machine account ideally.
 		}
 		return mgr.Start()

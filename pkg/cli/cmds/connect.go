@@ -17,7 +17,6 @@ import (
 type ConnectConfig struct {
 	apiserver.ServerOptions
 	HTTPAddress     string
-	HTTPPort        int
 	AdvertiseIfaces []string
 	LogLevel        string
 }
