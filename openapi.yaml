@@ -166,6 +166,8 @@ definitions:
       address:
         default: ""
         type: string
+      current:
+        type: boolean
       mode:
         default: ""
         description: |-

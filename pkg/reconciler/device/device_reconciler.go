@@ -34,6 +34,7 @@ type DeviceReconciler struct {
 	DeviceAddress     string
 	DataDir           string
 	ManifestDir       string
+	ExternalPort      int
 	K3sProxyEnabled   *bool
 	Docker            bool
 	KubeletArgs       []string
@@ -227,7 +228,10 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		logger.Error(err, "failed to reconcile device")
 		statusMessage = err.Error()
 	}
-	addr := fmt.Sprintf("https://%s", d.Name)
+	addr := fmt.Sprintf("https://%s", r.DeviceName)
+	if r.ExternalPort != 443 {
+		addr = fmt.Sprintf("%s:%d", addr, r.ExternalPort)
+	}
 	if d.Status.Message != statusMessage || d.Status.Address != addr {
 		// Update device status
 		err = r.Devices.Update(d.Name, &d, func() (resource.Resource, error) {
@@ -251,6 +255,7 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				Address: d.Status.Address,
 				Mode:    d.Spec.Mode,
 				Server:  d.Spec.Server,
+				Current: true,
 			},
 		}, ips)
 		if err != nil {
@@ -353,12 +358,13 @@ func buildK3sAgentArgs(server *deviceapi.DeviceDiscovery, joinAddress string, no
 	token := &deviceapi.DeviceToken{}
 	err := clusterTokens.Get(server.Name, token)
 	if err != nil {
-		logrus.Warn(fmt.Errorf("join server %s: %w", server.Name, err))
+		logrus.Error(fmt.Errorf("join server %s: %w", server.Name, err))
 		return nil
 	}
 	args = append(args,
 		fmt.Sprintf("--server=%s", joinAddress),
 		fmt.Sprintf("--token=%s", token.Data.Token),
+		"--with-node-id",
 	)
 	if docker {
 		args = append(args,

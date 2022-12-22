@@ -192,11 +192,11 @@ func populateDevicesFromMDNS(deviceName string, devices storage.Interface) error
 			}
 			modify := func() {
 				d.Labels = map[string]string{mdnsDiscoveryLabel: "true"}
-				addr := entry.AddrV4.String()
-				if addr == "" {
-					addr = entry.AddrV6.String()
+				addrs := fmt.Sprintf("https://%s", strings.TrimRight(entry.Host, "."))
+				if entry.Port != 443 {
+					addrs = fmt.Sprintf("%s:%d", addrs, entry.Port)
 				}
-				d.Spec.Address = fmt.Sprintf("https://%s:%d", addr, entry.Port)
+				d.Spec.Address = addrs
 				d.Spec.Mode = deviceapi.DeviceMode(getMDNSEntryField(entry, mdnsFieldDeviceMode))
 				d.Spec.Server = getMDNSEntryField(entry, mdnsFieldServer)
 			}

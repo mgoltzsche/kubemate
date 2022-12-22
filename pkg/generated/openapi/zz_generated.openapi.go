@@ -788,6 +788,12 @@ func schema_pkg_apis_devices_v1_DeviceDiscoverySpec(ref common.ReferenceCallback
 							Format:  "",
 						},
 					},
+					"current": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
 				},
 				Required: []string{"mode", "address"},
 			},

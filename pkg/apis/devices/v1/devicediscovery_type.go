@@ -15,6 +15,7 @@ type DeviceDiscoverySpec struct {
 	Mode    DeviceMode `json:"mode"`
 	Server  string     `json:"server,omitempty"`
 	Address string     `json:"address"`
+	Current bool       `json:"current,omitempty"`
 }
 
 // DeviceDiscovery is the Schema for the device discovery API
