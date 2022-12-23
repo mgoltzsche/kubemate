@@ -12,7 +12,7 @@ RUN go build -o kubemate -ldflags "-X main.Version=$VERSION -s -w -extldflags \"
 FROM golang:1.19-alpine3.16 AS cridockerd
 RUN apk add --update --no-cache musl-dev gcc binutils-gold
 RUN apk add --update --no-cache git
-ARG CRI_DOCKERD_VERSION=v0.2.6
+ARG CRI_DOCKERD_VERSION=v0.3.0
 RUN git -c advice.detachedHead=false clone --branch=$CRI_DOCKERD_VERSION --depth=1 https://github.com/Mirantis/cri-dockerd.git /work
 WORKDIR /work
 RUN set -eux; \
