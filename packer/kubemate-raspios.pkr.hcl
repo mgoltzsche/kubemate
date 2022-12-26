@@ -78,7 +78,9 @@ build {
       "apt-get update",
       "apt-get upgrade -y",
       "apt-get install -y kubernetes-client vim",
-      "echo 'set mouse=' > ${var.image_home_dir}/.vimrc",
+      "echo 'set mouse=' > /root/.vimrc",
+      "cp /root/.vimrc '${var.image_home_dir}/.vimrc'",
+      "chown pi:pi '${var.image_home_dir}/.vimrc'",
     ]
   }
 
