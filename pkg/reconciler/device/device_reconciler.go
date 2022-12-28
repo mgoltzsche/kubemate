@@ -112,13 +112,14 @@ func (r *DeviceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Client = mgr.GetClient()
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&deviceapi.Device{}).
-		Watches(&source.Kind{Type: &deviceapi.DeviceToken{}}, handler.EnqueueRequestsFromMapFunc(func(o client.Object) []ctrl.Request {
-			return []ctrl.Request{{NamespacedName: types.NamespacedName{Name: r.DeviceName}}}
-		})).
-		Watches(&source.Kind{Type: &deviceapi.WifiPassword{}}, handler.EnqueueRequestsFromMapFunc(func(o client.Object) []ctrl.Request {
-			return []ctrl.Request{{NamespacedName: types.NamespacedName{Name: r.DeviceName}}}
-		})).
+		Watches(&source.Kind{Type: &deviceapi.NetworkInterface{}}, handler.EnqueueRequestsFromMapFunc(r.deviceReconcileRequest)).
+		Watches(&source.Kind{Type: &deviceapi.DeviceToken{}}, handler.EnqueueRequestsFromMapFunc(r.deviceReconcileRequest)).
+		Watches(&source.Kind{Type: &deviceapi.WifiPassword{}}, handler.EnqueueRequestsFromMapFunc(r.deviceReconcileRequest)).
 		Complete(r)
+}
+
+func (r *DeviceReconciler) deviceReconcileRequest(o client.Object) []ctrl.Request {
+	return []ctrl.Request{{NamespacedName: types.NamespacedName{Name: r.DeviceName}}}
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to move the current state of the cluster closer to the desired state.

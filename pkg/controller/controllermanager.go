@@ -22,7 +22,6 @@ import (
 
 type Reconciler interface {
 	SetupWithManager(mgr ctrl.Manager) error
-	Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error)
 }
 
 type SchemeBuilder interface {

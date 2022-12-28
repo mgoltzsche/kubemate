@@ -37,7 +37,7 @@ func (in *DeviceDiscovery) NewList() runtime.Object {
 }
 
 func (in *DeviceDiscovery) GetGroupVersionResource() schema.GroupVersionResource {
-	return GroupVersion.WithResource("devices")
+	return GroupVersion.WithResource("devicediscovery")
 }
 
 func (in *DeviceDiscovery) DeepCopyIntoResource(res resource.Resource) error {

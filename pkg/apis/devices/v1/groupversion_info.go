@@ -14,6 +14,7 @@ var (
 func AddToScheme(s *runtime.Scheme) error {
 	metav1.AddToGroupVersion(s, GroupVersion)
 	s.AddKnownTypes(GroupVersion,
+		&NetworkInterface{}, &NetworkInterfaceList{},
 		&Device{}, &DeviceList{},
 		&DeviceDiscovery{}, &DeviceDiscoveryList{},
 		&DeviceToken{}, &DeviceTokenList{},

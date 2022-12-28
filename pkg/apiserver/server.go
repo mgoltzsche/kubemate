@@ -14,6 +14,7 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/discovery"
 	generatedopenapi "github.com/mgoltzsche/kubemate/pkg/generated/openapi"
 	"github.com/mgoltzsche/kubemate/pkg/ingress"
+	"github.com/mgoltzsche/kubemate/pkg/networkifaces"
 	devicectrl "github.com/mgoltzsche/kubemate/pkg/reconciler/device"
 	"github.com/mgoltzsche/kubemate/pkg/rest"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
@@ -177,6 +178,8 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, err
 	}
+	ifaceStore := storage.InMemory()
+	ifaceREST := rest.NewNetworkInterfaceREST(ifaceStore)
 	discoveryStore := storage.InMemory()
 	discovery := discovery.NewDeviceDiscovery(o.DeviceName, o.HTTPSPort, o.AdvertiseIfaces, discoveryStore)
 	discoveryREST := rest.NewDeviceDiscoveryREST(discoveryStore, discovery.Discover)
@@ -198,6 +201,10 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, err
 	}
+	installNetworkInterfaceSync(genericServer, &networkifaces.NetworkIfaceSync{
+		ExternalNetworkInterfaces: o.AdvertiseIfaces,
+		NetworkInterfaceStore:     ifaceStore,
+	})
 	installDeviceDiscovery(genericServer, discovery)
 	ingressRouter := ingress.NewIngressController("kubemate", logrus.WithField("comp", "ingress-controller"))
 	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known", "/version"}
@@ -210,11 +217,12 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		NegotiatedSerializer: codecs,
 		VersionedResourcesStorageMap: map[string]map[string]registryrest.Storage{
 			"v1": map[string]registryrest.Storage{
-				"devices":         deviceREST,
-				"devicediscovery": discoveryREST,
-				"devicetokens":    deviceTokenREST,
-				"wifipasswords":   wifiPasswordREST,
-				"wifinetworks":    rest.NewWifiNetworkREST(wifi),
+				"networkinterfaces": ifaceREST,
+				"devices":           deviceREST,
+				"devicediscovery":   discoveryREST,
+				"devicetokens":      deviceTokenREST,
+				"wifipasswords":     wifiPasswordREST,
+				"wifinetworks":      rest.NewWifiNetworkREST(wifi),
 			},
 		},
 	}
@@ -222,7 +230,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("install apigroup: %w", err)
 	}
-	installDeviceController(genericServer, &devicectrl.DeviceReconciler{
+	installDeviceControllers(genericServer, logger, &devicectrl.DeviceReconciler{
 		DeviceName:        o.DeviceName,
 		DeviceAddress:     genericServer.ExternalAddress,
 		DeviceDiscovery:   discovery,
@@ -242,6 +250,13 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	return genericServer, nil
 }
 
+func installNetworkInterfaceSync(genericServer *genericapiserver.GenericAPIServer, sync *networkifaces.NetworkIfaceSync) {
+	genericServer.AddPostStartHookOrDie("networkiface-sync", func(ctx genericapiserver.PostStartHookContext) error {
+		return sync.Start()
+	})
+	genericServer.AddPreShutdownHookOrDie("networkiface-sync", sync.Stop)
+}
+
 func installDeviceDiscovery(genericServer *genericapiserver.GenericAPIServer, discovery *discovery.DeviceDiscovery) {
 	genericServer.AddPostStartHookOrDie("device-discovery", func(ctx genericapiserver.PostStartHookContext) error {
 		return discovery.Discover()
@@ -249,13 +264,15 @@ func installDeviceDiscovery(genericServer *genericapiserver.GenericAPIServer, di
 	genericServer.AddPreShutdownHookOrDie("device-discovery", discovery.Close)
 }
 
-func installDeviceController(genericServer *genericapiserver.GenericAPIServer, r *devicectrl.DeviceReconciler) {
+func installDeviceControllers(genericServer *genericapiserver.GenericAPIServer, logger *logrus.Entry, rl ...controller.Reconciler) {
 	var config *restclient.Config
 	configFn := func() (*restclient.Config, error) {
 		return config, nil
 	}
-	mgr := controller.NewControllerManager(configFn, r.Logger.WithField("comp", "device-manager"))
-	mgr.RegisterReconciler(r)
+	mgr := controller.NewControllerManager(configFn, logger.WithField("comp", "device-manager"))
+	for _, r := range rl {
+		mgr.RegisterReconciler(r)
+	}
 	genericServer.AddPostStartHookOrDie("device-controller", func(ctx genericapiserver.PostStartHookContext) error {
 		// TODO: clean this up: set config as Start() argument?!
 		//config = ctx.LoopbackClientConfig

@@ -32,6 +32,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceToken":                             schema_pkg_apis_devices_v1_DeviceToken(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenData":                         schema_pkg_apis_devices_v1_DeviceTokenData(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenList":                         schema_pkg_apis_devices_v1_DeviceTokenList(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterface":                        schema_pkg_apis_devices_v1_NetworkInterface(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceList":                    schema_pkg_apis_devices_v1_NetworkInterfaceList(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceStatus":                  schema_pkg_apis_devices_v1_NetworkInterfaceStatus(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiAccessPointConf":                     schema_pkg_apis_devices_v1_WifiAccessPointConf(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiConfig":                              schema_pkg_apis_devices_v1_WifiConfig(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetwork":                             schema_pkg_apis_devices_v1_WifiNetwork(ref),
@@ -1047,6 +1050,118 @@ func schema_pkg_apis_devices_v1_DeviceTokenList(ref common.ReferenceCallback) co
 		},
 		Dependencies: []string{
 			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceToken", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_devices_v1_NetworkInterface(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NetworkInterface is the Schema for the network interface API.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceStatus"),
+						},
+					},
+				},
+				Required: []string{"metadata", "status"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_devices_v1_NetworkInterfaceList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NetworkInterfaceList contains a list of network interfaces.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterface"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterface", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_devices_v1_NetworkInterfaceStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NetworkInterfaceStatus defines the observed state of the network interface.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"up": {
+						SchemaProps: spec.SchemaProps{
+							Default: false,
+							Type:    []string{"boolean"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"up"},
+			},
+		},
 	}
 }
 
