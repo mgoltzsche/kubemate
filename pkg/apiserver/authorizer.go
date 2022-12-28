@@ -27,12 +27,12 @@ func (deviceAuthorizer) Authorize(ctx context.Context, a authorizer.Attributes) 
 		return authorizer.DecisionAllow, "", nil // admin can do anything.
 	}
 	isAnonymous := a.GetUser().GetName() == user.Anonymous
-	isDeviceAPI := a.GetAPIGroup() == deviceapi.GroupVersion.Group && a.GetResource() == "devices"
+	isDeviceAPI := a.GetAPIGroup() == deviceapi.GroupVersion.Group && a.GetResource() == "devicediscovery"
 	if isAnonymous && isDeviceAPI && contains(readOnlyVerbs, a.GetVerb()) {
 		// Let anonymous users read nothing but the available devices.
 		return authorizer.DecisionAllow, "", nil
 	}
-	return authorizer.DecisionDeny, fmt.Sprintf("you must be in the %s group to manage the device", adminGroup), nil
+	return authorizer.DecisionDeny, fmt.Sprintf("you must login to use this device. to manage the device, you need to be a member of the %s group", adminGroup), nil
 }
 
 func (deviceAuthorizer) RulesFor(user user.Info, namespace string) ([]authorizer.ResourceRuleInfo, []authorizer.NonResourceRuleInfo, bool, error) {
@@ -40,7 +40,7 @@ func (deviceAuthorizer) RulesFor(user user.Info, namespace string) ([]authorizer
 			&authorizer.DefaultResourceRuleInfo{
 				Verbs:     []string{"get", "list", "watch"},
 				APIGroups: []string{deviceapi.GroupVersion.Group},
-				Resources: []string{"devices"},
+				Resources: []string{"devicediscovery"},
 			},
 		}, []authorizer.NonResourceRuleInfo{
 			&authorizer.DefaultNonResourceRuleInfo{
