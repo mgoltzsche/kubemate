@@ -106,8 +106,7 @@ func (r *DeviceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				logrus.Infof("cri-dockerd %s: %s", cmd.Status.State, cmd.Status.Message)
 			}
 		}
-		// TODO: make this work with --network-plugin=cni (which is the new default)
-		r.criDockerd.Start(runner.Cmd("cri-dockerd", "--network-plugin=kubenet"))
+		r.criDockerd.Start(runner.Cmd("cri-dockerd", "--cni-conf-dir", filepath.Join(r.DataDir, "agent", "etc", "cni", "net.d")))
 	}
 
 	r.scheme = mgr.GetScheme()
