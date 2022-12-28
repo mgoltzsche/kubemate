@@ -50,7 +50,6 @@ type DeviceReconciler struct {
 	client.Client
 	scheme      *runtime.Scheme
 	k3s         *runner.Runner
-	criDockerd  *runner.Runner
 	controllers *controller.ControllerManager
 }
 
@@ -65,7 +64,6 @@ func (r *DeviceReconciler) AddToScheme(s *runtime.Scheme) error {
 // SetupWithManager sets up the controller with the Manager.
 func (r *DeviceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// TODO: use mgr.GetLogger() logr.Logger that controller-runtime is providing to the Reconcile method as well
-	r.criDockerd = runner.New(r.Logger.WithField("proc", "cri-dockerd"))
 	r.controllers = controller.NewControllerManager(ctrl.GetConfig, logrus.WithField("comp", "controller-manager"))
 	r.controllers.RegisterReconciler(&app.AppReconciler{})
 	r.k3s = runner.New(r.Logger.WithField("proc", "k3s"))
@@ -96,17 +94,6 @@ func (r *DeviceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	err := copyManifests(r.ManifestDir, filepath.Join(r.DataDir, "server", "manifests"))
 	if err != nil {
 		return fmt.Errorf("copy default manifests into data dir: %w", err)
-	}
-	if r.Docker {
-		// Launch the docker shim
-		r.criDockerd.Reporter = func(cmd runner.Command) {
-			if cmd.Status.State == runner.ProcessStateFailed {
-				logrus.Errorf("cri-dockerd %s: %s", cmd.Status.State, cmd.Status.Message)
-			} else {
-				logrus.Infof("cri-dockerd %s: %s", cmd.Status.State, cmd.Status.Message)
-			}
-		}
-		r.criDockerd.Start(runner.Cmd("cri-dockerd", "--cni-conf-dir", filepath.Join(r.DataDir, "agent", "etc", "cni", "net.d")))
 	}
 
 	r.scheme = mgr.GetScheme()
@@ -349,9 +336,7 @@ func buildK3sServerArgs(d *deviceapi.Device, nodeIP net.IP, dataDir string, dock
 		args = append(args, fmt.Sprintf("--token=%s", token.Data.Token))
 	}
 	if docker {
-		args = append(args,
-			"--container-runtime-endpoint=unix:///var/run/cri-dockerd.sock",
-		)
+		args = append(args, "--docker")
 	}
 	for _, a := range kubeletArgs {
 		args = append(args, fmt.Sprintf("--kubelet-arg=%s", a))
@@ -377,9 +362,7 @@ func buildK3sAgentArgs(server *deviceapi.DeviceDiscovery, joinAddress string, no
 		"--with-node-id",
 	)
 	if docker {
-		args = append(args,
-			"--container-runtime-endpoint=unix:///var/run/cri-dockerd.sock",
-		)
+		args = append(args, "--docker")
 	}
 	for _, a := range kubeletArgs {
 		args = append(args, fmt.Sprintf("--kubelet-arg=%s", a))

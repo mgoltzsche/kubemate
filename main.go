@@ -10,6 +10,7 @@ import (
 	"github.com/k3s-io/k3s/pkg/cli/agent"
 	"github.com/k3s-io/k3s/pkg/cli/cert"
 	"github.com/k3s-io/k3s/pkg/cli/cmds"
+	"github.com/k3s-io/k3s/pkg/cli/completion"
 	"github.com/k3s-io/k3s/pkg/cli/crictl"
 	"github.com/k3s-io/k3s/pkg/cli/ctr"
 	"github.com/k3s-io/k3s/pkg/cli/etcdsnapshot"
@@ -46,7 +47,6 @@ func main() {
 	os.Args[0] = cmd
 
 	app := cmds.NewApp()
-	app.Version = Version
 	app.Commands = []cli.Command{
 		addcmds.NewConnectCommand(addcmds.RunConnectServer),
 		cmds.NewServerCommand(server.Run),
@@ -54,26 +54,26 @@ func main() {
 		cmds.NewKubectlCommand(kubectl.Run),
 		cmds.NewCRICTL(crictl.Run),
 		cmds.NewCtrCommand(ctr.Run),
-		cmds.NewEtcdSnapshotCommand(etcdsnapshot.Save,
-			cmds.NewEtcdSnapshotSubcommands(
-				etcdsnapshot.Delete,
-				etcdsnapshot.List,
-				etcdsnapshot.Prune,
-				etcdsnapshot.Save),
+		cmds.NewEtcdSnapshotCommands(
+			etcdsnapshot.Run,
+			etcdsnapshot.Delete,
+			etcdsnapshot.List,
+			etcdsnapshot.Prune,
+			etcdsnapshot.Save,
 		),
-		cmds.NewSecretsEncryptCommand(cli.ShowAppHelp,
-			cmds.NewSecretsEncryptSubcommands(
-				secretsencrypt.Status,
-				secretsencrypt.Enable,
-				secretsencrypt.Disable,
-				secretsencrypt.Prepare,
-				secretsencrypt.Rotate,
-				secretsencrypt.Reencrypt),
+		cmds.NewSecretsEncryptCommands(
+			secretsencrypt.Status,
+			secretsencrypt.Enable,
+			secretsencrypt.Disable,
+			secretsencrypt.Prepare,
+			secretsencrypt.Rotate,
+			secretsencrypt.Reencrypt,
 		),
 		cmds.NewCertCommand(
 			cmds.NewCertSubcommands(
 				cert.Run),
 		),
+		cmds.NewCompletionCommand(completion.Run),
 	}
 
 	if err := app.Run(configfilearg.MustParse(os.Args)); err != nil && !errors.Is(err, context.Canceled) {
