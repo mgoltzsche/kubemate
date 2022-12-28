@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/url"
 	"path/filepath"
+	"time"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
 	"github.com/mgoltzsche/kubemate/pkg/controller"
@@ -18,6 +19,7 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/utils"
 	"github.com/mgoltzsche/kubemate/pkg/wifi"
 	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -129,7 +131,10 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	d := deviceapi.Device{}
 	err := r.Client.Get(ctx, req.NamespacedName, &d)
 	if err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		if errors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return requeue(err)
 	}
 	logger.V(1).Info("reconcile device")
 
@@ -138,26 +143,26 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	case deviceapi.WifiModeAccessPoint:
 		err = setWifiCountry(&d, r.Devices, r.Wifi, r.Logger)
 		if err != nil {
-			return ctrl.Result{}, err
+			return requeue(err)
 		}
 		wifiPassword := deviceapi.WifiPassword{}
 		err = r.WifiPasswords.Get(deviceapi.AccessPointPasswordKey, &wifiPassword)
 		if err != nil {
-			return ctrl.Result{}, err
+			return requeue(err)
 		}
 		err = r.Wifi.StartAccessPoint(r.DeviceName, wifiPassword.Data.Password)
 		if err != nil {
-			return ctrl.Result{}, err
+			return requeue(err)
 		}
 	case deviceapi.WifiModeStation:
 		r.Wifi.StopAccessPoint()
 		err = setWifiCountry(&d, r.Devices, r.Wifi, r.Logger)
 		if err != nil {
-			return ctrl.Result{}, err
+			return requeue(err)
 		}
 		err = r.Wifi.StartWifiInterface()
 		if err != nil {
-			return ctrl.Result{}, err
+			return requeue(err)
 		}
 		var pw deviceapi.WifiPassword
 		ssid := d.Spec.Wifi.Station.SSID
@@ -172,14 +177,14 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 		err = r.Wifi.StartStation(ssid, pw.Data.Password)
 		if err != nil {
-			return ctrl.Result{}, err
+			return requeue(err)
 		}
 	default:
 		r.Wifi.StopStation()
 		r.Wifi.StopAccessPoint()
 		err = r.Wifi.StopWifiInterface()
 		if err != nil {
-			return ctrl.Result{}, err
+			return requeue(err)
 		}
 	}
 
@@ -192,7 +197,7 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	ips, err := r.DeviceDiscovery.ExternalIPs()
 	if err != nil {
-		return ctrl.Result{}, err
+		return requeue(err)
 	}
 	nodeIP := ips[0]
 	var args []string
@@ -242,7 +247,7 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return &d, nil
 		})
 		if err != nil {
-			return ctrl.Result{}, err
+			return requeue(err)
 		}
 	}
 	if d.Generation == d.Status.Generation {
@@ -260,7 +265,7 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			},
 		}, ips)
 		if err != nil {
-			return ctrl.Result{}, err
+			return requeue(err)
 		}
 	}
 	if len(args) > 0 {
@@ -279,6 +284,11 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func requeue(err error) (r ctrl.Result, e error) {
+	r.RequeueAfter = time.Second
+	return r, err
 }
 
 func ssidToResourceName(ssid string) string {
