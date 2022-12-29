@@ -17,14 +17,16 @@ import (
 )
 
 type inMemoryStore struct {
+	scheme *runtime.Scheme
 	items  map[string]resource.Resource
 	pubsub *pubsub.PubSub
 	mutex  *sync.RWMutex
 	seq    int64
 }
 
-func InMemory() *inMemoryStore {
+func InMemory(scheme *runtime.Scheme) *inMemoryStore {
 	return &inMemoryStore{
+		scheme: scheme,
 		mutex:  &sync.RWMutex{},
 		items:  map[string]resource.Resource{},
 		pubsub: pubsub.New(),
@@ -50,6 +52,12 @@ func (s *inMemoryStore) List(l runtime.Object) error {
 		return err
 	}
 	m.SetResourceVersion(fmt.Sprintf("%d", s.seq))
+	t, err := meta.TypeAccessor(l)
+	if err != nil {
+		return err
+	}
+	t.SetAPIVersion("v1")
+	t.SetKind("List")
 	keys := make([]string, 0, len(s.items))
 	for k := range s.items {
 		keys = append(keys, k)
@@ -83,8 +91,9 @@ func (s *inMemoryStore) Create(key string, res resource.Resource) error {
 	s.setGVK(res)
 	s.setNameAndCreationTimestamp(res, key)
 	s.setResourceVersion(res)
-	s.items[key] = res
-	s.emit(pubsub.Added, res)
+	r := res.DeepCopyObject().(resource.Resource)
+	s.items[key] = r
+	s.emit(pubsub.Added, r)
 	return nil
 }
 
@@ -108,7 +117,7 @@ func (s *inMemoryStore) Delete(key string, o resource.Resource, validate func() 
 	return nil
 }
 
-func (s *inMemoryStore) Update(key string, res resource.Resource, modify func() (resource.Resource, error)) error {
+func (s *inMemoryStore) Update(key string, res resource.Resource, modify func() error) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	existing := s.items[key]
@@ -119,22 +128,19 @@ func (s *inMemoryStore) Update(key string, res resource.Resource, modify func() 
 	if err != nil {
 		return err
 	}
-	res, err = modify()
+	err = modify()
 	if err != nil {
-		return err
-	}
-	if res == nil {
-		return fmt.Errorf("inmemory store update: modify() returned nil %T", res)
+		return fmt.Errorf("update resource: %w", err)
 	}
 	if existing.GetResourceVersion() != res.GetResourceVersion() {
 		err := fmt.Errorf("resource was changed concurrently, please fetch the latest resource version and apply your changes again")
 		return errors.NewConflict(res.GetGroupVersionResource().GroupResource(), key, err)
 	}
-	updated := res.DeepCopyObject().(resource.Resource)
-	s.setGVK(updated)
-	s.setResourceVersion(updated)
-	s.items[key] = updated
-	s.emit(pubsub.Modified, updated)
+	s.setGVK(res)
+	s.setResourceVersion(res)
+	r := res.DeepCopyObject().(resource.Resource)
+	s.items[key] = r
+	s.emit(pubsub.Modified, r)
 	return nil
 }
 
@@ -155,14 +161,22 @@ func (s *inMemoryStore) setNameAndCreationTimestamp(o resource.Resource, name st
 	}
 }
 
-func (s *inMemoryStore) setGVK(res resource.Resource) {
+func (s *inMemoryStore) setGVK(res resource.Resource) error {
 	m, err := meta.TypeAccessor(res)
 	if err != nil {
-		return
+		return fmt.Errorf("set gvk: %w", err)
 	}
-	gvk := res.GetObjectKind().GroupVersionKind()
+	gvks, unknown, err := s.scheme.ObjectKinds(res)
+	if err != nil {
+		return fmt.Errorf("set gvk on %T: %w", res, err)
+	}
+	if unknown {
+		return fmt.Errorf("set gvk on %T: kind not known", res)
+	}
+	gvk := gvks[0]
 	m.SetAPIVersion(gvk.GroupVersion().String())
 	m.SetKind(gvk.Kind)
+	return nil
 }
 
 func (s *inMemoryStore) emit(action pubsub.EventType, res resource.Resource) {

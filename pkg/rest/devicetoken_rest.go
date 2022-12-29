@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
-	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"github.com/mgoltzsche/kubemate/pkg/tokengen"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -93,9 +92,9 @@ func (r *deviceTokenREST) regenerateClusterJoinToken() (*deviceapi.DeviceToken, 
 		}
 		return t, nil
 	}
-	err = r.Store().Update(r.deviceName, t, func() (resource.Resource, error) {
+	err = r.Store().Update(r.deviceName, t, func() error {
 		t.Data.Token = token
-		return t, nil
+		return nil
 	})
 	if err != nil {
 		return nil, err

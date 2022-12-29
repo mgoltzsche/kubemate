@@ -6,7 +6,6 @@ import (
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
 	"github.com/mgoltzsche/kubemate/pkg/passwordgen"
-	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -75,9 +74,9 @@ func (r *wifiPasswordREST) regenerateWifiPassword() error {
 		}
 		return nil
 	}
-	err = r.Store().Update(deviceapi.AccessPointPasswordKey, pw, func() (resource.Resource, error) {
+	err = r.Store().Update(deviceapi.AccessPointPasswordKey, pw, func() error {
 		pw.Data.Password = password
-		return pw, nil
+		return nil
 	})
 	if err != nil {
 		return err

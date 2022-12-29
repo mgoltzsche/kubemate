@@ -13,13 +13,19 @@ var (
 
 func AddToScheme(s *runtime.Scheme) error {
 	metav1.AddToGroupVersion(s, GroupVersion)
+	s.AddKnownTypeWithName(GroupVersion.WithKind("NetworkInterface"), &NetworkInterface{})
+	s.AddKnownTypeWithName(GroupVersion.WithKind("Device"), &Device{})
+	s.AddKnownTypeWithName(GroupVersion.WithKind("DeviceDiscovery"), &DeviceDiscovery{})
+	s.AddKnownTypeWithName(GroupVersion.WithKind("DeviceToken"), &DeviceToken{})
+	s.AddKnownTypeWithName(GroupVersion.WithKind("WifiNetwork"), &WifiNetwork{})
+	s.AddKnownTypeWithName(GroupVersion.WithKind("WifiPassword"), &WifiPassword{})
 	s.AddKnownTypes(GroupVersion,
-		&NetworkInterface{}, &NetworkInterfaceList{},
-		&Device{}, &DeviceList{},
-		&DeviceDiscovery{}, &DeviceDiscoveryList{},
-		&DeviceToken{}, &DeviceTokenList{},
-		&WifiNetwork{}, &WifiNetworkList{},
-		&WifiPassword{}, &WifiPasswordList{},
+		&NetworkInterfaceList{},
+		&DeviceList{},
+		&DeviceDiscoveryList{},
+		&DeviceTokenList{},
+		&WifiNetworkList{},
+		&WifiPasswordList{},
 	)
 	return nil
 }

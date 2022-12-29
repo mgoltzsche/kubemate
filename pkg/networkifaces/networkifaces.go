@@ -7,7 +7,6 @@ import (
 	"time"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
-	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -77,9 +76,9 @@ func startNetworkLinkStatusSync(ctx context.Context, ifaces []string, store stor
 			if ok {
 				logrus.WithField("netlink", name).Debug("observed network link status update")
 				iface := &deviceapi.NetworkInterface{}
-				err := store.Update(name, iface, func() (resource.Resource, error) {
+				err := store.Update(name, iface, func() error {
 					iface.Status.Up = evt.Link.Attrs().OperState == netlink.OperUp
-					return iface, nil
+					return nil
 				})
 				if err != nil {
 					logrus.Error(fmt.Errorf("update networkinterface status: %w", err))

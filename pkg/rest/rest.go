@@ -103,18 +103,18 @@ func (r *REST) Create(ctx context.Context, obj runtime.Object, createValidation 
 func (r *REST) Update(ctx context.Context, key string, objInfo registryrest.UpdatedObjectInfo, createValidation registryrest.ValidateObjectFunc, updateValidation registryrest.ValidateObjectUpdateFunc, forceAllowCreate bool, options *metav1.UpdateOptions) (runtime.Object, bool, error) {
 	obj := r.resource.New()
 	// TODO: delete resource when deletionTimestamp set and finalizers cleared?!
-	err := r.store.Update(key, obj, func() (resource.Resource, error) {
+	err := r.store.Update(key, obj, func() error {
 		updatedObj, err := objInfo.UpdatedObject(ctx, obj)
 		if err != nil {
-			return nil, fmt.Errorf("get updated object: %w", err)
+			return fmt.Errorf("get updated object: %w", err)
 		}
 		if updateValidation != nil { // TODO: is this condition really needed?
 			if err := updateValidation(ctx, updatedObj, obj); err != nil {
-				return nil, err
+				return err
 			}
 		}
-		obj = updatedObj.(resource.Resource)
-		return obj, nil
+		updatedObj.(resource.Resource).DeepCopyIntoResource(obj)
+		return nil
 	})
 	if err != nil {
 		return nil, false, err

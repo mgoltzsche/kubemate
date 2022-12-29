@@ -77,7 +77,7 @@ configure-qemu: ## Enable multiarch support on the host (configuring binfmt).
 .PHONY: generate
 generate: $(CONTROLLER_GEN) $(KUBE_OPENAPI_GEN) ## Generate code.
 	#PATH="$(TOOLS_DIR):$$PATH" go generate ./pkg/server
-	$(CONTROLLER_GEN) object paths=./pkg/apis/...
+	$(CONTROLLER_GEN) object paths=./pkg/apis/... paths=./pkg/resource/fake
 	$(CONTROLLER_GEN) crd paths="./pkg/apis/apps/..." output:crd:artifacts:config=config/crd
 	$(KUBE_OPENAPI_GEN) --output-base=./pkg/generated --output-package=openapi -O zz_generated.openapi -h ./boilerplate/boilerplate.go.txt \
 		--input-dirs=github.com/mgoltzsche/kubemate/pkg/apis/devices/v1,github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/api/core/v1,k8s.io/apimachinery/pkg/runtime,k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1,k8s.io/api/networking/v1

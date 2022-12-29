@@ -13,7 +13,6 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/discovery"
 	"github.com/mgoltzsche/kubemate/pkg/ingress"
 	"github.com/mgoltzsche/kubemate/pkg/reconciler/app"
-	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"github.com/mgoltzsche/kubemate/pkg/runner"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"github.com/mgoltzsche/kubemate/pkg/utils"
@@ -75,7 +74,7 @@ func (r *DeviceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			logrus.Infof("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
 		}
 		d := &deviceapi.Device{}
-		err := r.Devices.Update(r.DeviceName, d, func() (resource.Resource, error) {
+		err := r.Devices.Update(r.DeviceName, d, func() error {
 			d.Status.Generation = d.Generation
 			if d.Status.State != deviceapi.DeviceStateTerminating {
 				// TODO: map properly
@@ -84,7 +83,7 @@ func (r *DeviceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			d.Status.Message = cmd.Status.Message
 			d.Status.Address = fmt.Sprintf("https://%s", r.DeviceAddress)
 			d.Status.Current = true
-			return d, nil
+			return nil
 		})
 		if err != nil {
 			logrus.WithError(err).Error("failed to update device status")
@@ -226,11 +225,11 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 	if d.Status.Message != statusMessage || d.Status.Address != addr {
 		// Update device status
-		err = r.Devices.Update(d.Name, &d, func() (resource.Resource, error) {
+		err = r.Devices.Update(d.Name, &d, func() error {
 			d.Status.Message = statusMessage
 			d.Status.Address = addr
 			d.Status.Current = true
-			return &d, nil
+			return nil
 		})
 		if err != nil {
 			return requeue(err)
@@ -294,9 +293,9 @@ func setWifiCountry(d *deviceapi.Device, devices storage.Interface, w *wifi.Wifi
 		if err != nil {
 			return err
 		}
-		err = devices.Update(d.Name, d, func() (resource.Resource, error) {
+		err = devices.Update(d.Name, d, func() error {
 			d.Spec.Wifi.CountryCode = w.CountryCode
-			return d, nil
+			return nil
 		})
 		if err != nil {
 			return err

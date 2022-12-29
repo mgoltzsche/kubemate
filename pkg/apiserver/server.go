@@ -178,9 +178,9 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, err
 	}
-	ifaceStore := storage.InMemory()
+	ifaceStore := storage.InMemory(scheme)
 	ifaceREST := rest.NewNetworkInterfaceREST(ifaceStore)
-	discoveryStore := storage.InMemory()
+	discoveryStore := storage.InMemory(scheme)
 	discovery := discovery.NewDeviceDiscovery(o.DeviceName, o.HTTPSPort, o.AdvertiseIfaces, discoveryStore)
 	discoveryREST := rest.NewDeviceDiscoveryREST(discoveryStore, discovery.Discover)
 	deviceConfigDir := filepath.Join(o.DataDir, "deviceconfig")
@@ -222,7 +222,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 				"devicediscovery":   discoveryREST,
 				"devicetokens":      deviceTokenREST,
 				"wifipasswords":     wifiPasswordREST,
-				"wifinetworks":      rest.NewWifiNetworkREST(wifi),
+				"wifinetworks":      rest.NewWifiNetworkREST(wifi, scheme),
 			},
 		},
 	}

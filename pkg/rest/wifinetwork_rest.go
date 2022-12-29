@@ -21,8 +21,8 @@ type wifiNetworkREST struct {
 	wifi *wifi.Wifi
 }
 
-func NewWifiNetworkREST(wifi *wifi.Wifi) *wifiNetworkREST {
-	store := storage.RefreshPeriodically(storage.InMemory(), 10*time.Second, func(store storage.Interface) {
+func NewWifiNetworkREST(wifi *wifi.Wifi, scheme *runtime.Scheme) *wifiNetworkREST {
+	store := storage.RefreshPeriodically(storage.InMemory(scheme), 10*time.Second, func(store storage.Interface) {
 		logrus.Debug("scanning wifi networks")
 		err := updateWifiNetworkList(wifi, store)
 		if err != nil {

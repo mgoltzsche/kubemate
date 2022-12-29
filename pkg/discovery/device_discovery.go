@@ -9,7 +9,6 @@ import (
 
 	"github.com/hashicorp/mdns"
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
-	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -86,9 +85,9 @@ func (d *DeviceDiscovery) Advertise(device *deviceapi.DeviceDiscovery, ips []net
 	d.srv = srv
 	dev := &deviceapi.DeviceDiscovery{}
 	dev.Name = d.deviceName
-	err = d.store.Update(d.deviceName, dev, func() (resource.Resource, error) {
+	err = d.store.Update(d.deviceName, dev, func() error {
 		dev.Spec = device.Spec
-		return dev, nil
+		return nil
 	})
 	if err != nil {
 		dev.Spec = device.Spec
@@ -210,9 +209,9 @@ func populateDevicesFromMDNS(deviceName string, devices storage.Interface) error
 				if equality.Semantic.DeepEqual(&existingDevice.Spec, &d.Spec) {
 					continue
 				}
-				err = devices.Update(d.Name, d, func() (resource.Resource, error) {
+				err = devices.Update(d.Name, d, func() error {
 					modify()
-					return d, nil
+					return nil
 				})
 			}
 			logrus.

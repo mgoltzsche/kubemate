@@ -14,5 +14,5 @@ type Interface interface {
 	Get(key string, o resource.Resource) error
 	Create(key string, o resource.Resource) error
 	Delete(key string, o resource.Resource, validate func() error) error
-	Update(key string, res resource.Resource, modify func() (resource.Resource, error)) error
+	Update(key string, res resource.Resource, modify func() error) error
 }

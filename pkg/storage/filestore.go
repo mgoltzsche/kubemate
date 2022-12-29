@@ -37,7 +37,7 @@ func FileStore(dir string, obj resource.Resource, scheme *runtime.Scheme) (Inter
 	if err != nil {
 		return nil, err
 	}
-	inmemory, err := loadFromFiles(dir, obj, codec)
+	inmemory, err := loadFromFiles(dir, obj, scheme, codec)
 	if err != nil {
 		return nil, fmt.Errorf("init filestore: read %s: %w", obj.GetGroupVersionResource().Resource, err)
 	}
@@ -49,7 +49,7 @@ func FileStore(dir string, obj resource.Resource, scheme *runtime.Scheme) (Inter
 	}, nil
 }
 
-func loadFromFiles(dir string, obj runtime.Object, codec runtime.Codec) (*inMemoryStore, error) {
+func loadFromFiles(dir string, obj runtime.Object, scheme *runtime.Scheme, codec runtime.Codec) (*inMemoryStore, error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -60,7 +60,7 @@ func loadFromFiles(dir string, obj runtime.Object, codec runtime.Codec) (*inMemo
 			return nil, err
 		}
 	}
-	inmemory := InMemory()
+	inmemory := InMemory(scheme)
 	for _, file := range files {
 		if !file.IsDir() && strings.HasSuffix(file.Name(), ".yaml") {
 			filePath := filepath.Join(dir, file.Name())
@@ -117,29 +117,29 @@ func (s *filestore) Delete(key string, res resource.Resource, validate func() er
 	})
 }
 
-func (s *filestore) Update(key string, res resource.Resource, modify func() (resource.Resource, error)) error {
+func (s *filestore) Update(key string, res resource.Resource, modify func() error) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	existing := s.items[key]
 	if existing == nil {
 		return errors.NewNotFound(res.GetGroupVersionResource().GroupResource(), key)
 	}
-	return s.inMemoryStore.Update(key, res, func() (resource.Resource, error) {
-		r, err := modify()
+	return s.inMemoryStore.Update(key, res, func() error {
+		err := modify()
 		if err != nil {
-			return nil, err
+			return err
 		}
-		eq, err := specEqual(r, existing)
+		eq, err := specEqual(res, existing)
 		if err != nil {
-			return nil, fmt.Errorf("update resource: compare spec: %w", err)
+			return fmt.Errorf("compare spec: %w", err)
 		}
 		if !eq {
 			err := s.writeFile(key, res)
 			if err != nil {
-				return nil, fmt.Errorf("update resource: %w", err)
+				return err
 			}
 		}
-		return r, nil
+		return nil
 	})
 }
 
