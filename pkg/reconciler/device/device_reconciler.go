@@ -110,11 +110,11 @@ func (r *DeviceReconciler) deviceReconcileRequest(o client.Object) []ctrl.Reques
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to move the current state of the cluster closer to the desired state.
-func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
 	logger := log.FromContext(ctx)
 	// Fetch Device
 	d := deviceapi.Device{}
-	err := r.Client.Get(ctx, req.NamespacedName, &d)
+	err = r.Client.Get(ctx, req.NamespacedName, &d)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -198,19 +198,20 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			if d.Spec.Server == d.Name {
 				return fmt.Errorf("cannot join itself")
 			}
-			server, err := r.DeviceDiscovery.Get(d.Spec.Server)
+			var server deviceapi.DeviceDiscovery
+			err := r.DeviceDiscovery.Store().Get(d.Spec.Server, &server)
 			if err != nil {
-				return err
+				return fmt.Errorf("join cluster: %w", err)
 			}
 			if server.Spec.Mode != deviceapi.DeviceModeServer {
 				return fmt.Errorf("cannot join device %q since it doesn't run in %s mode but in mode %q", d.Spec.Server, deviceapi.DeviceModeServer, d.Spec.Mode)
 			}
-			joinAddr, err := joinAddress(server)
+			joinAddr, err := joinAddress(&server)
 			if err != nil {
-				return err
+				return fmt.Errorf("join cluster: %w", err)
 			}
 			// TODO: provide token as env var
-			args = buildK3sAgentArgs(server, joinAddr, nodeIP, r.DataDir, r.Docker, r.KubeletArgs, r.DeviceTokens)
+			args = buildK3sAgentArgs(&server, joinAddr, nodeIP, r.DataDir, r.Docker, r.KubeletArgs, r.DeviceTokens)
 		}
 		return nil
 	}
@@ -218,6 +219,9 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if err = fn(); err != nil {
 		logger.Error(err, "failed to reconcile device")
 		statusMessage = err.Error()
+		defer func() {
+			res = ctrl.Result{RequeueAfter: 10 * time.Second}
+		}()
 	}
 	addr := fmt.Sprintf("https://%s", r.DeviceName)
 	if r.ExternalPort != 443 {

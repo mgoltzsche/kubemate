@@ -178,13 +178,14 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, err
 	}
+	logger := logrus.NewEntry(logrus.StandardLogger())
 	ifaceStore := storage.InMemory(scheme)
 	ifaceREST := rest.NewNetworkInterfaceREST(ifaceStore)
 	discoveryStore := storage.InMemory(scheme)
-	discovery := discovery.NewDeviceDiscovery(o.DeviceName, o.HTTPSPort, o.AdvertiseIfaces, discoveryStore)
-	discoveryREST := rest.NewDeviceDiscoveryREST(discoveryStore, discovery.Discover)
+	discovery := discovery.NewDeviceDiscovery(o.DeviceName, o.HTTPSPort, o.AdvertiseIfaces, discoveryStore, logger)
+	discoveryREST := rest.NewDeviceDiscoveryREST(discovery.Store())
 	deviceConfigDir := filepath.Join(o.DataDir, "deviceconfig")
-	deviceREST, err := rest.NewDeviceREST(o.DeviceName, deviceConfigDir, scheme, discovery.Discover)
+	deviceREST, err := rest.NewDeviceREST(o.DeviceName, deviceConfigDir, scheme)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +194,6 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, err
 	}
-	logger := logrus.NewEntry(logrus.StandardLogger())
 	wifi := wifi.New(logger)
 	wifi.DHCPLeaseFile = filepath.Join(o.DataDir, "dhcpd.leases")
 	wifiPasswordDir := filepath.Join(o.DataDir, "wifipasswords")

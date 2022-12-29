@@ -6,6 +6,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/mdns"
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
@@ -29,21 +30,27 @@ type DeviceDiscovery struct {
 	advertiseIfaces []string
 	srv             *mdns.Server
 	store           storage.Interface
+	logger          *logrus.Entry
 }
 
-func NewDeviceDiscovery(deviceName string, port int, advertiseIfaces []string, store storage.Interface) *DeviceDiscovery {
-	return &DeviceDiscovery{
+func NewDeviceDiscovery(deviceName string, port int, advertiseIfaces []string, store storage.Interface, logger *logrus.Entry) *DeviceDiscovery {
+	d := &DeviceDiscovery{
 		deviceName:      deviceName,
 		port:            port,
 		advertiseIfaces: advertiseIfaces,
-		store:           store,
+		logger:          logger.WithField("comp", "device-discovery"),
 	}
+	d.store = storage.RefreshPeriodically(store, 10*time.Second, func(store storage.Interface) {
+		err := d.Discover()
+		if err != nil {
+			d.logger.Error("failed to discover devices via mdns")
+		}
+	})
+	return d
 }
 
-func (d *DeviceDiscovery) Get(deviceName string) (*deviceapi.DeviceDiscovery, error) {
-	dev := &deviceapi.DeviceDiscovery{}
-	err := d.store.Get(deviceName, dev)
-	return dev, err
+func (d *DeviceDiscovery) Store() storage.Interface {
+	return d.store
 }
 
 func (d *DeviceDiscovery) Advertise(device *deviceapi.DeviceDiscovery, ips []net.IP) error {
@@ -100,6 +107,11 @@ func (d *DeviceDiscovery) Advertise(device *deviceapi.DeviceDiscovery, ips []net
 	return nil
 }
 
+func (d *DeviceDiscovery) Discover() error {
+	d.logger.Debug("scanning for devices via mdns")
+	return populateDevicesFromMDNS(d.deviceName, d.store, d.logger)
+}
+
 func (d *DeviceDiscovery) ExternalIPs() ([]net.IP, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -147,7 +159,7 @@ func (d *DeviceDiscovery) ExternalIPs() ([]net.IP, error) {
 		if len(ips) == 0 {
 			return nil, fmt.Errorf("detect external IPs: %w", err)
 		}
-		logrus.WithError(err).Warn("error while detecting external IPs")
+		d.logger.WithError(err).Warn("error while detecting external IPs")
 	}
 	if len(ips) == 0 {
 		return nil, fmt.Errorf("detect external IPs: no external IP available")
@@ -161,10 +173,6 @@ func toBroadcastIP(ip *net.IPNet) net.IP {
 	return brd
 }
 
-func (d *DeviceDiscovery) Discover() error {
-	return populateDevicesFromMDNS(d.deviceName, d.store)
-}
-
 func (d *DeviceDiscovery) Close() error {
 	if s := d.srv; s != nil {
 		err := s.Shutdown()
@@ -174,7 +182,7 @@ func (d *DeviceDiscovery) Close() error {
 	return nil
 }
 
-func populateDevicesFromMDNS(deviceName string, devices storage.Interface) error {
+func populateDevicesFromMDNS(deviceName string, devices storage.Interface, logger *logrus.Entry) error {
 	foundDevices := map[string]struct{}{
 		deviceName: struct{}{},
 	}
@@ -214,7 +222,7 @@ func populateDevicesFromMDNS(deviceName string, devices storage.Interface) error
 					return nil
 				})
 			}
-			logrus.
+			logger.
 				WithField("mode", d.Spec.Mode).
 				WithField("address", d.Spec.Address).
 				WithField("device", entry.Name).

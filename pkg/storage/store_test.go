@@ -6,6 +6,7 @@ import (
 
 	"github.com/mgoltzsche/kubemate/pkg/resource/fake"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -19,6 +20,14 @@ func verifyStore(t *testing.T, testee func() func() Interface) {
 		require.NoError(t, err, "Get()")
 		r.SetCreationTimestamp(a.GetCreationTimestamp()) // TODO: fix
 		require.Equal(t, r, a)
+	})
+	t.Run("get non-existing should return not found error", func(t *testing.T) {
+		s := testee()
+		createFakeResource(t, s(), key)
+		a := &fake.FakeResource{}
+		err := s().Get(key+"-unknown", a)
+		require.Error(t, err, "Get()")
+		require.True(t, errors.IsNotFound(err), "IsNotFound(err)")
 	})
 	t.Run("update", func(t *testing.T) {
 		s := testee()
@@ -72,6 +81,7 @@ func verifyStore(t *testing.T, testee func() func() Interface) {
 		err = s().Get(key, a)
 		require.Error(t, err, "Get()")
 		require.Contains(t, err.Error(), "not found", "error message")
+		require.True(t, errors.IsNotFound(err), "IsNotFound(err)")
 	})
 	t.Run("delete should return error", func(t *testing.T) {
 		s := testee()

@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mgoltzsche/kubemate/pkg/resource"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 )
@@ -59,6 +61,15 @@ func (r *refresher) Watch(ctx context.Context, resourceVersion string) (watch.In
 func (r *refresher) List(l runtime.Object) error {
 	r.refresh()
 	return r.Interface.List(l)
+}
+
+func (r *refresher) Get(key string, res resource.Resource) error {
+	err := r.Interface.Get(key, res)
+	if errors.IsNotFound(err) {
+		r.refresh()
+		return r.Interface.Get(key, res)
+	}
+	return err
 }
 
 type watcher struct {

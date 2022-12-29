@@ -24,15 +24,14 @@ var (
 )
 
 type DeviceREST struct {
-	rest            *REST
-	runner          *runner.Runner
-	deviceName      string
-	deviceDiscovery func() error
-	store           storage.Interface
+	rest       *REST
+	runner     *runner.Runner
+	deviceName string
+	store      storage.Interface
 	registryrest.TableConvertor
 }
 
-func NewDeviceREST(deviceName, storageDir string, scheme *runtime.Scheme, deviceDiscovery func() error) (*DeviceREST, error) {
+func NewDeviceREST(deviceName, storageDir string, scheme *runtime.Scheme) (*DeviceREST, error) {
 	store, err := newDeviceStore(deviceName, storageDir, scheme)
 	if err != nil {
 		return nil, fmt.Errorf("load device config store: %w", err)
@@ -40,11 +39,10 @@ func NewDeviceREST(deviceName, storageDir string, scheme *runtime.Scheme, device
 	r := NewREST(&deviceapi.Device{}, store)
 	r.TableConvertor = &deviceTableConvertor{}
 	devices := &DeviceREST{
-		rest:            r,
-		deviceName:      deviceName,
-		deviceDiscovery: deviceDiscovery,
-		TableConvertor:  r,
-		store:           store,
+		rest:           r,
+		deviceName:     deviceName,
+		TableConvertor: r,
+		store:          store,
 	}
 	return devices, nil
 }

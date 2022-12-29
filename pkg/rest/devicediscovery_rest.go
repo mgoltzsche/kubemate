@@ -3,11 +3,9 @@ package rest
 import (
 	"context"
 	"fmt"
-	"time"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
-	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	registryrest "k8s.io/apiserver/pkg/registry/rest"
@@ -17,14 +15,7 @@ type deviceDiscoveryREST struct {
 	*REST
 }
 
-func NewDeviceDiscoveryREST(store storage.Interface, deviceDiscovery func() error) *deviceDiscoveryREST {
-	store = storage.RefreshPeriodically(store, 10*time.Second, func(store storage.Interface) {
-		logrus.Debug("scanning for devices within the local network")
-		err := deviceDiscovery()
-		if err != nil {
-			logrus.WithError(err).Error("failed to discover devices via mdns")
-		}
-	})
+func NewDeviceDiscoveryREST(store storage.Interface) *deviceDiscoveryREST {
 	return &deviceDiscoveryREST{
 		REST: NewREST(&deviceapi.DeviceDiscovery{}, store),
 	}
