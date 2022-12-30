@@ -32,6 +32,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceToken":                             schema_pkg_apis_devices_v1_DeviceToken(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenData":                         schema_pkg_apis_devices_v1_DeviceTokenData(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenList":                         schema_pkg_apis_devices_v1_DeviceTokenList(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenStatus":                       schema_pkg_apis_devices_v1_DeviceTokenStatus(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterface":                        schema_pkg_apis_devices_v1_NetworkInterface(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceList":                    schema_pkg_apis_devices_v1_NetworkInterfaceList(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceStatus":                  schema_pkg_apis_devices_v1_NetworkInterfaceStatus(ref),
@@ -982,12 +983,18 @@ func schema_pkg_apis_devices_v1_DeviceToken(ref common.ReferenceCallback) common
 							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenData"),
 						},
 					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenStatus"),
+						},
+					},
 				},
 				Required: []string{"metadata", "data"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenData", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenData", "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -1058,6 +1065,25 @@ func schema_pkg_apis_devices_v1_DeviceTokenList(ref common.ReferenceCallback) co
 		},
 		Dependencies: []string{
 			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceToken", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_devices_v1_DeviceTokenStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DeviceTokenStatus defines the desired state of Cache",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"joinToken": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

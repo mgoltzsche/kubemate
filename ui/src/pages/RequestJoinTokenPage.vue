@@ -94,8 +94,10 @@ export default defineComponent({
           const thisDevice = devices.resources.find((r) => r.status.current);
           if (thisDevice && thisDevice.metadata.name) {
             const t = await client.get(thisDevice.metadata.name);
-            joinToken.value = encodeURIComponent(t.data.token);
-            showSyncDialog.value = true;
+            if (t.status?.joinToken) {
+              joinToken.value = encodeURIComponent(t.status.joinToken);
+              showSyncDialog.value = true;
+            }
           }
         } catch (e: any) {
           quasar.notify({

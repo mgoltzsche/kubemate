@@ -15,6 +15,12 @@ type DeviceTokenData struct {
 	Token string `json:"token"`
 }
 
+// +k8s:openapi-gen=true
+// DeviceTokenStatus defines the desired state of Cache
+type DeviceTokenStatus struct {
+	JoinToken string `json:"joinToken,omitempty"`
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // DeviceToken is the Schema for the devices API
@@ -23,7 +29,8 @@ type DeviceToken struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 
-	Data DeviceTokenData `json:"data"`
+	Data   DeviceTokenData   `json:"data"`
+	Status DeviceTokenStatus `json:"status,omitempty"`
 }
 
 func (in *DeviceToken) New() resource.Resource {

@@ -260,6 +260,9 @@ definitions:
       metadata:
         $ref: '#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta'
         default: {}
+      status:
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceTokenStatus'
+        default: {}
     required:
     - metadata
     - data
@@ -272,6 +275,12 @@ definitions:
         type: string
     required:
     - token
+    type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceTokenStatus:
+    description: DeviceTokenStatus defines the desired state of Cache
+    properties:
+      joinToken:
+        type: string
     type: object
   com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.NetworkInterface:
     description: NetworkInterface is the Schema for the network interface API.
