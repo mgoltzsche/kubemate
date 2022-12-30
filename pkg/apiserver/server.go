@@ -236,7 +236,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		DeviceDiscovery:   discovery,
 		DataDir:           k3sDataDir,
 		ManifestDir:       o.ManifestDir,
-		ExternalPort:      o.HTTPPort,
+		ExternalPort:      o.HTTPSPort,
 		Docker:            o.Docker,
 		KubeletArgs:       o.KubeletArgs,
 		Devices:           deviceREST.Store(),

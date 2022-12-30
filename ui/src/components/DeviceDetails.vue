@@ -8,13 +8,6 @@
       </q-card-section>
 
       <q-card-section class="q-pt-none q-gutter-y-md">
-        <div>
-          Address:
-          <a
-            :href="`${device.status.address}#/devices/${device.metadata.name}`"
-            >{{ device.status.address }}</a
-          >
-        </div>
         <div>Status: {{ device.status.state }} {{ device.spec.mode }}</div>
       </q-card-section>
 

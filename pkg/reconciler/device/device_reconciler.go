@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
@@ -295,7 +296,7 @@ func (r *DeviceReconciler) reconcileServerToken() error {
 		if err != nil {
 			return err
 		}
-		t.Status.JoinToken = string(b)
+		t.Status.JoinToken = strings.TrimSuffix(string(b), "\n")
 		return nil
 	})
 }

@@ -94,6 +94,7 @@ func (r *deviceTokenREST) regenerateClusterJoinToken() (*deviceapi.DeviceToken, 
 	}
 	err = r.Store().Update(r.deviceName, t, func() error {
 		t.Data.Token = token
+		t.Status.JoinToken = ""
 		return nil
 	})
 	if err != nil {
