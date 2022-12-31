@@ -1,13 +1,14 @@
 package wifi
 
 import (
-	"context"
 	"fmt"
+
+	"github.com/sirupsen/logrus"
 )
 
 // detectCountry derives the wifi country based on near wifi networks.
-func detectCountry(iface string) (string, error) {
-	networks, err := scanWifiNetworks(context.Background(), iface)
+func detectCountry(iface string, logger *logrus.Entry) (string, error) {
+	networks, err := scanWifiNetworks(iface, logger)
 	if err != nil {
 		return "", fmt.Errorf("detect wifi country: %w", err)
 	}

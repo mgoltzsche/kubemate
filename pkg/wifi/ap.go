@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/mgoltzsche/kubemate/pkg/runner"
-	"github.com/sirupsen/logrus"
 )
 
 func (w *Wifi) StartAccessPoint(ssid, password string) error {
@@ -127,13 +126,13 @@ func (w *Wifi) createDHCPLeaseFileIfNotExist() error {
 }
 
 func (w *Wifi) installAPRoutes() {
-	logrus.WithField("iface", w.WifiIface).Debug("adding access point ip routes")
-	w.configureIPRoutes(addIPTablesRule)
+	w.logger.WithField("iface", w.WifiIface).Debug("adding access point ip routes")
+	w.configureIPRoutes(w.addIPTablesRule)
 }
 
 func (w *Wifi) uninstallAPRoutes() {
-	logrus.WithField("iface", w.WifiIface).Debug("removing access point ip routes")
-	w.configureIPRoutes(delIPTablesRule)
+	w.logger.WithField("iface", w.WifiIface).Debug("removing access point ip routes")
+	w.configureIPRoutes(w.delIPTablesRule)
 }
 
 func (w *Wifi) configureIPRoutes(apply func(table, chain, inIface, outIface, jump, state string)) {
@@ -142,24 +141,24 @@ func (w *Wifi) configureIPRoutes(apply func(table, chain, inIface, outIface, jum
 	apply("filter", "FORWARD", w.WifiIface, w.EthIface, "ACCEPT", "")
 }
 
-func addIPTablesRule(table, chain, inIface, outIface, jump, state string) {
+func (w *Wifi) addIPTablesRule(table, chain, inIface, outIface, jump, state string) {
 	err := modifyIPTables("-C", table, chain, inIface, outIface, jump, state)
 	if err != nil {
 		err = modifyIPTables("-A", table, chain, inIface, outIface, jump, state)
 		if err != nil {
-			logrus.Warn(fmt.Errorf("failed to add iptables rule %s:%s %s->%s %s %s: %w", table, chain, inIface, outIface, jump, state, err))
+			w.logger.Warn(fmt.Errorf("failed to add iptables rule %s:%s %s->%s %s %s: %w", table, chain, inIface, outIface, jump, state, err))
 		}
 	}
 }
 
-func delIPTablesRule(table, chain, inIface, outIface, jump, state string) {
+func (w *Wifi) delIPTablesRule(table, chain, inIface, outIface, jump, state string) {
 	err := modifyIPTables("-C", table, chain, inIface, outIface, jump, state)
 	if err != nil {
 		return // iptables rule does not exist
 	}
 	err = modifyIPTables("-D", table, chain, inIface, outIface, jump, state)
 	if err != nil {
-		logrus.Warn(fmt.Errorf("failed to del iptables rule %s:%s %s->%s %s %s: %w", table, chain, inIface, outIface, jump, state, err))
+		w.logger.Warn(fmt.Errorf("failed to del iptables rule %s:%s %s->%s %s %s: %w", table, chain, inIface, outIface, jump, state, err))
 	}
 }
 

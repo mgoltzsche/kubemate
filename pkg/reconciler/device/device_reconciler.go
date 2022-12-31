@@ -154,8 +154,8 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		var pw deviceapi.WifiPassword
 		ssid := d.Spec.Wifi.Station.SSID
 		if ssid == "" {
-			e := fmt.Errorf("missing ssid")
-			logger.Error(e, "no ssid configured to connect to")
+			e := fmt.Errorf("no wifi network ssid specified")
+			logger.Error(e, "cannot connect with wifi network")
 		} else {
 			err = r.WifiPasswords.Get(ssidToResourceName(ssid), &pw)
 			if err != nil {
@@ -388,6 +388,7 @@ func buildK3sAgentArgs(server *deviceapi.DeviceDiscovery, joinAddress string, no
 	args = append(args,
 		fmt.Sprintf("--server=%s", joinAddress),
 		fmt.Sprintf("--token=%s", token.Data.Token),
+		// TODO: reuse node name on restart. Looks like some secret value is lost during kubemate container restart.
 		"--with-node-id",
 	)
 	if docker {

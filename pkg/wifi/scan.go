@@ -19,14 +19,14 @@ type WifiNetwork struct {
 	Country string
 }
 
-func scanWifiNetworks(ctx context.Context, iface string) ([]WifiNetwork, error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+func scanWifiNetworks(iface string, logger *logrus.Entry) ([]WifiNetwork, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	out, err := runCmdOut(ctx, "iw", "dev", iface, "scan", "ap-force")
 	if err != nil {
 		return nil, fmt.Errorf("wifi network scan: %w", err)
 	}
-	return parseNetworkScanResult(out), nil
+	return parseNetworkScanResult(out, logger), nil
 }
 
 func runCmdOut(ctx context.Context, cmd string, args ...string) (string, error) {
@@ -41,7 +41,7 @@ func runCmdOut(ctx context.Context, cmd string, args ...string) (string, error) 
 	return stdout.String(), nil
 }
 
-func parseNetworkScanResult(iwOutput string) []WifiNetwork {
+func parseNetworkScanResult(iwOutput string, logger *logrus.Entry) []WifiNetwork {
 	lines := strings.Split(strings.TrimSpace(iwOutput), "\n")
 	networks := make([]WifiNetwork, 0, 5)
 	i := -1
@@ -56,7 +56,7 @@ func parseNetworkScanResult(iwOutput string) []WifiNetwork {
 		}
 		if !strings.HasPrefix(line, iwIndent) {
 			entry = false
-			logrus.Warnf("parse network scan result: unexpected line: %s", line)
+			logger.Warnf("parse network scan result: unexpected line: %s", line)
 			continue
 		}
 		if !entry {

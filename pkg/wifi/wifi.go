@@ -40,6 +40,7 @@ type Wifi struct {
 	station          *runner.Runner
 	wifiIfaceStarted bool
 	mode             WifiMode
+	logger           *logrus.Entry
 	EthIface         string
 	WifiIface        string
 	DHCPLeaseFile    string
@@ -47,17 +48,19 @@ type Wifi struct {
 }
 
 func New(logger *logrus.Entry) *Wifi {
+	logger = logger.WithField("comp", "wifi")
 	ap := runner.New(logger.WithField("proc", "hostapd"))
 	dhcpd := runner.New(logger.WithField("proc", "dhcpd"))
 	station := runner.New(logger.WithField("proc", "wpa_supplicant"))
-	// TODO: reconcile Device when any of the processes above terminates
+	// TODO: reconcile when any of the processes above terminates
 	return &Wifi{
 		ap:            ap,
 		dhcpd:         dhcpd,
 		station:       station,
+		logger:        logger,
 		CountryCode:   "DE",
-		EthIface:      detectIface("eth", "enp"),
-		WifiIface:     detectIface("wlan", "wlp"),
+		EthIface:      detectIface(logger, "eth", "enp"),
+		WifiIface:     detectIface(logger, "wlan", "wlp"),
 		DHCPLeaseFile: "/var/lib/dhcp/dhcpd.leases",
 	}
 }
@@ -93,7 +96,7 @@ func (w *Wifi) DetectCountry() error {
 		if !w.wifiIfaceStarted {
 			return fmt.Errorf("cannot detect country when wifi interface is down")
 		}
-		country, err := detectCountry(w.WifiIface)
+		country, err := detectCountry(w.WifiIface, w.logger)
 		if err != nil {
 			return err
 		}
@@ -107,11 +110,12 @@ func (w *Wifi) Scan() ([]WifiNetwork, error) {
 	if !w.wifiIfaceStarted {
 		return nil, fmt.Errorf("cannot scan wifi networks while network interface %s is down", w.WifiIface)
 	}
-	return scanWifiNetworks(context.Background(), w.WifiIface)
+	w.logger.Debug("scanning wifi networks")
+	return scanWifiNetworks(w.WifiIface, w.logger)
 }
 
 func (w *Wifi) restartWifiInterface() error {
-	logrus.WithField("iface", w.WifiIface).Debug("restarting wifi network interface")
+	w.logger.WithField("iface", w.WifiIface).Debug("restarting wifi network interface")
 	err := runCmds([][]string{
 		//{"ifdown", w.WifiIface},
 		{"ip", "link", "set", w.WifiIface, "down"},
@@ -137,7 +141,7 @@ func (w *Wifi) StartWifiInterface() error {
 
 func (w *Wifi) StopWifiInterface() error {
 	if w.wifiIfaceStarted {
-		logrus.WithField("iface", w.WifiIface).Debug("stopping wifi network interface")
+		w.logger.WithField("iface", w.WifiIface).Debug("stopping wifi network interface")
 		err := runCmds([][]string{
 			//{"ifdown", w.WifiIface},
 			{"ip", "link", "set", w.WifiIface, "down"},
@@ -189,10 +193,10 @@ func runCmds(cmds [][]string) error {
 	return nil
 }
 
-func detectIface(prefixes ...string) string {
+func detectIface(logger *logrus.Entry, prefixes ...string) string {
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		logrus.Error(fmt.Errorf("detect %s interface: %w", prefixes[0], err))
+		logger.Error(fmt.Errorf("detect %s interface: %w", prefixes[0], err))
 		return ""
 	}
 	for _, iface := range ifaces {
