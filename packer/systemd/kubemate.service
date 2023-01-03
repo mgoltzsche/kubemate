@@ -14,6 +14,7 @@ ExecStart=/bin/sh -ac 'set -eu; \
 		exec /bin/docker run --name kubemate --rm --network host --pid host --privileged \
 		--tmpfs /run \
 		--tmpfs /var/run \
+		--tmpfs /tmp \
 		--mount type=bind,src=/etc/machine-id,dst=/etc/machine-id \
 		--mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
 		--mount type=bind,src=/var/lib/docker,dst=/var/lib/docker,bind-propagation=rshared \
@@ -22,6 +23,7 @@ ExecStart=/bin/sh -ac 'set -eu; \
 		--mount type=bind,src=/lib/modules,dst=/lib/modules,readonly \
 		--mount type=bind,src=/sys,dst=/sys \
 		-v /data/kubemate:/var/lib/kubemate \
+		-v /data/rancher:/etc/rancher \
 		-v /etc/kubemate:/output \
 		"mgoltzsche/kubemate:$VERSION" \
 		connect --docker --https-port=443 --http-port=80'

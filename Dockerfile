@@ -44,6 +44,7 @@ VOLUME /var/lib/kubelet
 VOLUME /var/lib/kubemate
 VOLUME /var/lib/cni
 VOLUME /var/log/pods
+VOLUME /etc/rancher
 ENV PATH="$PATH:/bin/aux:/opt/cni/bin" \
 	CRI_CONFIG_FILE="/var/lib/kubemate/k3s/agent/etc/crictl.yaml" \
 	K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml \

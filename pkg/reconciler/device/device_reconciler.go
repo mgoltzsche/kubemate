@@ -388,8 +388,6 @@ func buildK3sAgentArgs(server *deviceapi.DeviceDiscovery, joinAddress string, no
 	args = append(args,
 		fmt.Sprintf("--server=%s", joinAddress),
 		fmt.Sprintf("--token=%s", token.Data.Token),
-		// TODO: reuse node name on restart. Looks like some secret value is lost during kubemate container restart.
-		"--with-node-id",
 	)
 	if docker {
 		args = append(args, "--docker")

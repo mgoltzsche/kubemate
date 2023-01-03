@@ -104,8 +104,9 @@ run: container ## Run a kubemate container locally within the host network.
 	mkdir -p ./data/pod-log
 	docker rm -f kubemate 2>/dev/null || true
 	docker run --name kubemate --rm -it --network host --pid host --privileged \
-		--tmpfs /run --tmpfs /var/run \
+		--tmpfs /run --tmpfs /var/run --tmpfs /tmp \
 		-v `pwd`/data/kubemate:/var/lib/kubemate \
+		-v `pwd`/data/rancher:/etc/rancher \
 		--mount type=bind,src=/etc/machine-id,dst=/etc/machine-id \
 		--mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
 		--mount type=bind,src=/var/lib/docker,dst=/var/lib/docker,bind-propagation=rshared \
