@@ -143,6 +143,14 @@ build {
   }
 
   provisioner "shell" {
+    # Disable default wpa_supplicant (to let kubemate manage the wifi)
+    inline = [
+      "systemctl mask wpa_supplicant.service",
+      "echo 'denyinterfaces wlan0' >> /etc/dhcpcd.conf",
+    ]
+  }
+
+  provisioner "shell" {
     # Enable the previously added systemd units and remove /etc/hostname
     inline = [
       "systemctl daemon-reload",
