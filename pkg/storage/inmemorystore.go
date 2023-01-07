@@ -37,7 +37,8 @@ func (s *inMemoryStore) Watch(ctx context.Context, resourceVersion string) (pubs
 	if resourceVersion != "" && resourceVersion != fmt.Sprintf("%d", s.seq) {
 		return nil, errors.NewGone(fmt.Sprintf("provided resource version %q is outdated", resourceVersion))
 	}
-	return s.pubsub.Subscribe(ctx), nil
+	w := s.pubsub.Subscribe()
+	return pubsub.Cancelable(ctx, w), nil
 }
 
 func (s *inMemoryStore) List(l runtime.Object) error {

@@ -1,7 +1,7 @@
 package pubsub
 
 import (
-	"context"
+	"fmt"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/watch"
@@ -29,7 +29,7 @@ func New() *PubSub {
 	return &PubSub{watchers: map[int64]*watcher{}}
 }
 
-func (s *PubSub) Subscribe(ctx context.Context) watch.Interface {
+func (s *PubSub) Subscribe() watch.Interface {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.seq++
@@ -46,7 +46,9 @@ func (s *PubSub) Publish(evt Event) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	for _, w := range s.watchers {
+		fmt.Printf("## sending event %#v\n", evt)
 		w.ch <- evt
+		fmt.Printf("## sent event %#v\n", evt)
 	}
 }
 
@@ -57,10 +59,9 @@ type watcher struct {
 }
 
 func (w *watcher) Stop() {
-	var ch chan Event
 	w.pubsub.mutex.Lock()
 	delete(w.pubsub.watchers, w.id)
-	ch = w.ch
+	ch := w.ch
 	w.ch = nil
 	w.pubsub.mutex.Unlock()
 	if ch != nil {
