@@ -20,7 +20,7 @@ type WifiNetwork struct {
 }
 
 func scanWifiNetworks(iface string, logger *logrus.Entry) ([]WifiNetwork, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 9*time.Second)
 	defer cancel()
 	out, err := runCmdOut(ctx, "iw", "dev", iface, "scan", "ap-force")
 	if err != nil {
