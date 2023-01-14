@@ -129,11 +129,18 @@ func (s *filestore) Update(key string, res resource.Resource, modify func() erro
 		if err != nil {
 			return err
 		}
-		eq, err := specEqual(res, existing)
+
+		// TODO: also strip creationDate and generation
+		// TODO: strip resourceVersion and status within the file but not within the provided res.
+		/*existing, err = withoutStatusAndResourceVersion(existing)
 		if err != nil {
-			return fmt.Errorf("compare spec: %w", err)
+			return err
 		}
-		if !eq {
+		res, err = withoutStatusAndResourceVersion(res)
+		if err != nil {
+			return err
+		}*/
+		if !equality.Semantic.DeepEqual(existing, res) {
 			err := s.writeFile(key, res)
 			if err != nil {
 				return err
@@ -141,18 +148,6 @@ func (s *filestore) Update(key string, res resource.Resource, modify func() erro
 		}
 		return nil
 	})
-}
-
-func specEqual(a, b runtime.Object) (bool, error) {
-	a, err := withoutStatusAndResourceVersion(a)
-	if err != nil {
-		return false, err
-	}
-	b, err = withoutStatusAndResourceVersion(b)
-	if err != nil {
-		return false, err
-	}
-	return equality.Semantic.DeepEqual(a, b), nil
 }
 
 func clear(v interface{}) {
@@ -191,7 +186,7 @@ func (s *filestore) writeFile(key string, obj resource.Resource) error {
 	return os.Rename(f.Name(), dstFile)
 }
 
-func withoutStatusAndResourceVersion(obj runtime.Object) (runtime.Object, error) {
+func withoutStatusAndResourceVersion(obj resource.Resource) (resource.Resource, error) {
 	obj = obj.DeepCopyObject().(resource.Resource)
 	objs, ok := obj.(resource.ResourceWithStatus)
 	if ok {
@@ -199,7 +194,7 @@ func withoutStatusAndResourceVersion(obj runtime.Object) (runtime.Object, error)
 	}
 	m, err := meta.Accessor(obj)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("strip status: %w", err)
 	}
 	m.SetResourceVersion("")
 	return obj, nil

@@ -53,7 +53,7 @@ func (d *DeviceDiscovery) Store() storage.Interface {
 	return d.store
 }
 
-func (d *DeviceDiscovery) Advertise(device *deviceapi.DeviceDiscovery, ips []net.IP) error {
+func (d *DeviceDiscovery) Advertise(device *deviceapi.DeviceDiscovery, ip net.IP) error {
 	if device.Name != d.deviceName {
 		return fmt.Errorf("refusing to advertise a different device than this one via mdns")
 	}
@@ -64,15 +64,12 @@ func (d *DeviceDiscovery) Advertise(device *deviceapi.DeviceDiscovery, ips []net
 	if device.Spec.Server != "" {
 		info = append(info, fmt.Sprintf("%s=%s", mdnsFieldServer, device.Spec.Server))
 	}
-	ipStrs := make([]string, len(ips))
-	for i, ip := range ips {
-		ipStrs[i] = ip.String()
-	}
 	logrus.
-		WithField("ips", ips).
+		WithField("ip", ip.String()).
 		WithField("device", d.deviceName).
 		Info("advertise device via mdns")
 	hostname := fmt.Sprintf("%s.", d.deviceName)
+	ips := []net.IP{ip}
 	svc, err := mdns.NewMDNSService(d.deviceName, mdnsZone, "", hostname, d.port, ips, info)
 	if err != nil {
 		return fmt.Errorf("advertise mdns name: %s", err)
@@ -112,6 +109,7 @@ func (d *DeviceDiscovery) Discover() error {
 	return populateDevicesFromMDNS(d.deviceName, d.store, d.logger)
 }
 
+// TODO: remove this in favour of the NetworkInterface resource, each exposing an IP within its status.
 func (d *DeviceDiscovery) ExternalIPs() ([]net.IP, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {

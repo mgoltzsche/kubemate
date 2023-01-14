@@ -40,6 +40,7 @@ import (
 	restclient "k8s.io/client-go/rest"
 )
 
+// ServerOptions defines the configuration options for the server.
 type ServerOptions struct {
 	DeviceName      string
 	HTTPSAddress    string
@@ -53,6 +54,7 @@ type ServerOptions struct {
 	Docker          bool
 }
 
+// NewServerOptions creates server options with defaults.
 func NewServerOptions() ServerOptions {
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -68,6 +70,7 @@ func NewServerOptions() ServerOptions {
 	}
 }
 
+// NewServer creates a new server.
 func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if o.DeviceName == "" {
 		return nil, fmt.Errorf("no device name specified")
@@ -179,7 +182,11 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		return nil, err
 	}
 	logger := logrus.NewEntry(logrus.StandardLogger())
-	ifaceStore := storage.InMemory(scheme)
+	netConfigDir := filepath.Join(o.DataDir, "netconfig")
+	ifaceStore, err := storage.FileStore(netConfigDir, &deviceapi.NetworkInterface{}, scheme)
+	if err != nil {
+		return nil, err
+	}
 	ifaceREST := rest.NewNetworkInterfaceREST(ifaceStore)
 	discoveryStore := storage.InMemory(scheme)
 	discovery := discovery.NewDeviceDiscovery(o.DeviceName, o.HTTPSPort, o.AdvertiseIfaces, discoveryStore, logger)
@@ -201,10 +208,6 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, err
 	}
-	installNetworkInterfaceSync(genericServer, &networkifaces.NetworkIfaceSync{
-		ExternalNetworkInterfaces: o.AdvertiseIfaces,
-		NetworkInterfaceStore:     ifaceStore,
-	})
 	installDeviceDiscovery(genericServer, discovery)
 	ingressRouter := ingress.NewIngressController("kubemate", logrus.WithField("comp", "ingress-controller"))
 	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known", "/version"}
@@ -230,23 +233,30 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("install apigroup: %w", err)
 	}
-	installDeviceControllers(genericServer, logger, &devicectrl.DeviceReconciler{
-		DeviceName:        o.DeviceName,
-		DeviceAddress:     genericServer.ExternalAddress,
-		DeviceDiscovery:   discovery,
-		DataDir:           k3sDataDir,
-		ManifestDir:       o.ManifestDir,
-		ExternalPort:      o.HTTPSPort,
-		Docker:            o.Docker,
-		KubeletArgs:       o.KubeletArgs,
-		Devices:           deviceREST.Store(),
-		DeviceTokens:      deviceTokenREST.Store(),
-		WifiPasswords:     wifiPasswordREST.Store(),
-		Wifi:              wifi,
-		IngressController: ingressRouter,
-		K3sProxyEnabled:   &k3sProxyEnabled,
-		Logger:            logger,
-	})
+	installDeviceControllers(genericServer, logger,
+		&devicectrl.NetworkInterfaceReconciler{
+			DeviceName:        o.DeviceName,
+			NetworkInterfaces: o.AdvertiseIfaces,
+			Store:             ifaceStore,
+			WifiPasswords:     wifiPasswordREST.Store(),
+			Wifi:              wifi,
+		},
+		&devicectrl.DeviceReconciler{
+			DeviceName:        o.DeviceName,
+			DeviceAddress:     genericServer.ExternalAddress,
+			DeviceDiscovery:   discovery,
+			DataDir:           k3sDataDir,
+			ManifestDir:       o.ManifestDir,
+			ExternalPort:      o.HTTPSPort,
+			Docker:            o.Docker,
+			KubeletArgs:       o.KubeletArgs,
+			Devices:           deviceREST.Store(),
+			DeviceTokens:      deviceTokenREST.Store(),
+			NetworkInterfaces: ifaceStore,
+			IngressController: ingressRouter,
+			K3sProxyEnabled:   &k3sProxyEnabled,
+			Logger:            logger,
+		})
 	return genericServer, nil
 }
 

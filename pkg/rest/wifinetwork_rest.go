@@ -18,7 +18,6 @@ import (
 
 type wifiNetworkREST struct {
 	*REST
-	wifi *wifi.Wifi
 }
 
 func NewWifiNetworkREST(wifi *wifi.Wifi, scheme *runtime.Scheme) *wifiNetworkREST {
@@ -30,7 +29,6 @@ func NewWifiNetworkREST(wifi *wifi.Wifi, scheme *runtime.Scheme) *wifiNetworkRES
 	})
 	return &wifiNetworkREST{
 		REST: NewREST(&deviceapi.WifiNetwork{}, store),
-		wifi: wifi,
 	}
 }
 
@@ -58,6 +56,7 @@ func updateWifiNetworkList(w *wifi.Wifi, wifiNetworks storage.Interface) error {
 		n.Name = utils.TruncateName(n.Name, utils.MaxResourceNameLength)
 		n.Data.SSID = network.SSID
 		foundNetworks[n.Name] = struct{}{}
+		logrus.WithField("ssid", n.Data.SSID).Info("discovered new wifi network")
 		err := wifiNetworks.Create(n.Name, n)
 		if err != nil {
 			if errors.IsAlreadyExists(err) {
@@ -65,7 +64,6 @@ func updateWifiNetworkList(w *wifi.Wifi, wifiNetworks storage.Interface) error {
 			}
 			return err
 		}
-		logrus.WithField("ssid", n.Data.SSID).Info("discovered new wifi network")
 	}
 
 	// Remove old networks

@@ -1,7 +1,6 @@
 package pubsub
 
 import (
-	"fmt"
 	"runtime"
 	"strings"
 	"sync"
@@ -69,9 +68,7 @@ func (s *PubSub) Publish(evt Event) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	for _, w := range s.watchers {
-		fmt.Printf("## sending event %#v\n", evt)
 		sendEvent(evt, w)
-		fmt.Printf("## sent event %#v\n", evt)
 	}
 }
 

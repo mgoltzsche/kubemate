@@ -129,22 +129,22 @@ import { io_k8s_api_networking_v1_Ingress as Ingress } from 'src/gen';
 
 const linksList = [
   {
-    title: 'Devices & Clusters',
-    caption: 'devices',
-    icon: 'hub',
-    link: '#/devices',
-  },
-  {
     title: 'Manage Apps',
     caption: 'apps',
     icon: 'extension',
     link: '#/apps',
   },
   {
-    title: 'Wifi',
-    caption: 'Hotspot',
+    title: 'Devices & Clusters',
+    caption: 'devices',
+    icon: 'hub',
+    link: '#/devices',
+  },
+  {
+    title: 'Network',
+    caption: 'Wifi settings & ethernet status',
     icon: 'wifi',
-    link: '#/wifi',
+    link: '#/networkinterfaces',
   },
   {
     title: 'Source code and issue tracker',

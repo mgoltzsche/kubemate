@@ -17,8 +17,6 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/reconciler/app"
 	"github.com/mgoltzsche/kubemate/pkg/runner"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
-	"github.com/mgoltzsche/kubemate/pkg/utils"
-	"github.com/mgoltzsche/kubemate/pkg/wifi"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,8 +41,7 @@ type DeviceReconciler struct {
 	KubeletArgs       []string
 	Devices           storage.Interface
 	DeviceTokens      storage.Interface
-	WifiPasswords     storage.Interface
-	Wifi              *wifi.Wifi
+	NetworkInterfaces storage.Interface
 	DeviceDiscovery   *discovery.DeviceDiscovery
 	IngressController *ingress.IngressController
 	Logger            *logrus.Entry
@@ -125,68 +122,17 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	}
 	logger.V(1).Info("reconcile device")
 
-	// Reconcile wifi
-	switch d.Spec.Wifi.Mode {
-	case deviceapi.WifiModeAccessPoint:
-		err = setWifiCountry(&d, r.Devices, r.Wifi, r.Logger)
-		if err != nil {
-			return requeue(err)
-		}
-		wifiPassword := deviceapi.WifiPassword{}
-		err = r.WifiPasswords.Get(deviceapi.AccessPointPasswordKey, &wifiPassword)
-		if err != nil {
-			return requeue(err)
-		}
-		err = r.Wifi.StartAccessPoint(r.DeviceName, wifiPassword.Data.Password)
-		if err != nil {
-			return requeue(err)
-		}
-	case deviceapi.WifiModeStation:
-		r.Wifi.StopAccessPoint()
-		err = setWifiCountry(&d, r.Devices, r.Wifi, r.Logger)
-		if err != nil {
-			return requeue(err)
-		}
-		err = r.Wifi.StartWifiInterface()
-		if err != nil {
-			return requeue(err)
-		}
-		var pw deviceapi.WifiPassword
-		ssid := d.Spec.Wifi.Station.SSID
-		if ssid == "" {
-			e := fmt.Errorf("no wifi network ssid specified")
-			logger.Error(e, "cannot connect with wifi network")
-		} else {
-			err = r.WifiPasswords.Get(ssidToResourceName(ssid), &pw)
-			if err != nil {
-				logger.Error(err, "no password configured for wifi network", "ssid", ssid)
-			}
-		}
-		err = r.Wifi.StartStation(ssid, pw.Data.Password)
-		if err != nil {
-			return requeue(err)
-		}
-	default:
-		r.Wifi.StopStation()
-		r.Wifi.StopAccessPoint()
-		err = r.Wifi.StopWifiInterface()
-		if err != nil {
-			return requeue(err)
-		}
-	}
-
-	// Reconcile k3s
 	if m := d.Spec.Mode; m != deviceapi.DeviceModeServer && m != deviceapi.DeviceModeAgent {
 		e := fmt.Errorf("unsupported device mode %q specified", d.Spec.Mode)
 		logger.Error(e, "unsupported device mode specified")
 		return ctrl.Result{}, nil
 	}
 
-	ips, err := r.DeviceDiscovery.ExternalIPs()
+	nodeIP, err := r.ipAddress()
 	if err != nil {
-		return requeue(err)
+		logger.Error(err, "no ip address available")
+		return ctrl.Result{}, nil
 	}
-	nodeIP := ips[0]
 	var args []string
 	fn := func() error {
 		*r.K3sProxyEnabled = d.Spec.Mode == deviceapi.DeviceModeServer
@@ -254,7 +200,7 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 				Server:  d.Spec.Server,
 				Current: true,
 			},
-		}, ips)
+		}, nodeIP)
 		if err != nil {
 			return requeue(err)
 		}
@@ -278,8 +224,30 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 			r.IngressController.Stop()
 		}
 	}
-
+	logger.V(1).Info("device reconciliation complete")
 	return ctrl.Result{}, nil
+}
+
+func (r *DeviceReconciler) ipAddress() (net.IP, error) {
+	l := &deviceapi.NetworkInterfaceList{}
+	err := r.NetworkInterfaces.List(l)
+	if err != nil {
+		return nil, fmt.Errorf("detect ip address: %w", err)
+	}
+	idx := 9999999
+	ip := ""
+	for _, iface := range l.Items {
+		if iface.Status.Link.Up && iface.Status.Link.IP4 != "" {
+			if i := iface.Status.Link.Index; i < idx {
+				idx = i
+				ip = iface.Status.Link.IP4
+			}
+		}
+	}
+	if ip == "" {
+		return nil, fmt.Errorf("all network links appear to be down")
+	}
+	return net.ParseIP(ip), nil
 }
 
 func (r *DeviceReconciler) reconcileServerToken() error {
@@ -304,35 +272,6 @@ func (r *DeviceReconciler) reconcileServerToken() error {
 func requeue(err error) (r ctrl.Result, e error) {
 	r.RequeueAfter = time.Second
 	return r, err
-}
-
-func ssidToResourceName(ssid string) string {
-	ssid = fmt.Sprintf("ssid-%s", ssid)
-	return utils.TruncateName(ssid, utils.MaxResourceNameLength)
-}
-
-// setWifiCountry detects the wifi country and stores it with the Device resource.
-func setWifiCountry(d *deviceapi.Device, devices storage.Interface, w *wifi.Wifi, logger *logrus.Entry) error {
-	w.CountryCode = d.Spec.Wifi.CountryCode
-	if w.CountryCode == "" {
-		err := w.StartWifiInterface()
-		if err != nil {
-			return err
-		}
-		err = w.DetectCountry()
-		if err != nil {
-			return err
-		}
-		err = devices.Update(d.Name, d, func() error {
-			d.Spec.Wifi.CountryCode = w.CountryCode
-			return nil
-		})
-		if err != nil {
-			return err
-		}
-		logger.Infof("detected wifi country %s", w.CountryCode)
-	}
-	return nil
 }
 
 func joinAddress(d *deviceapi.DeviceDiscovery) (string, error) {

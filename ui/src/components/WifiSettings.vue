@@ -1,7 +1,7 @@
 <template>
-  <div v-if="!device && synchronizing">Loading...</div>
-  <div v-if="!device && !synchronizing">Device not found</div>
-  <div v-if="device">
+  <div v-if="!iface && synchronizing">Loading...</div>
+  <div v-if="!iface && !synchronizing">Device not found</div>
+  <div v-if="iface">
     <q-card flat>
       <q-card-section>
         <div class="text-h6">Wifi settings</div>
@@ -28,7 +28,7 @@
                 <div v-if="scanning">scanning...</div>
                 <div v-if="!scanning && availableNetworks.length == 0">
                   No wifi networks found!
-                  <div v-if="device.spec.wifi.mode !== stationMode">
+                  <div v-if="iface?.spec.wifi?.mode !== stationMode">
                     <i
                       >You may need to activate station mode in order to be able
                       to scan wifi networks!
@@ -112,16 +112,17 @@
 
 <script lang="ts">
 import { computed, defineComponent, reactive, Ref, toRefs, ref } from 'vue';
-import { useDeviceStore } from 'src/stores/resources';
+//import { useDeviceStore } from 'src/stores/resources';
 import apiclient from 'src/k8sclient';
 import { catchError, error } from 'src/notify';
 import {
-  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_WifiConfig as WifiConfig,
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_WifiSpec as WifiSpec,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_WifiNetwork as WifiNetwork,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_WifiPassword as WifiPassword,
 } from 'src/gen';
 import sync from 'src/stores/sync';
 import { CancelablePromise } from 'src/k8sclient/CancelablePromise';
+import { useNetworkInterfaceStore } from 'src/stores/resources';
 
 const kc = new apiclient.KubeConfig();
 const wifiNetworkClient = kc.newClient<WifiNetwork>(
@@ -140,23 +141,43 @@ interface WifiConnectPassword {
 }
 
 let wifiNetworkSync: CancelablePromise<void> | null = null;
+let netIfaceSync: CancelablePromise<void> | null = null;
 
 export default defineComponent({
   name: 'WifiSettings',
+  props: {
+    interfaceName: {
+      type: String,
+      required: true,
+    },
+  },
   beforeUnmount() {
     wifiNetworkSync?.cancel();
+    netIfaceSync?.cancel();
   },
-  setup() {
-    const deviceStore = useDeviceStore();
-    const wifi = ref<WifiConfig>({
+  setup(props) {
+    const ifaceStore = useNetworkInterfaceStore();
+    //const deviceStore = useDeviceStore();
+    const wifi = ref<WifiSpec>({
+      mode: WifiSpec.mode.DISABLED,
       accessPoint: { SSID: '' },
       station: { SSID: '' },
     });
-    deviceStore.sync(() => {
+    ifaceStore.sync(() => {
+      const r = ifaceStore.resources.find(
+        (r) => r.metadata.name == props.interfaceName
+      );
+      if (!r) return;
+      wifi.value = JSON.parse(JSON.stringify(r.spec.wifi));
+    });
+    /*deviceStore.sync(() => {
       const d = deviceStore.resources.find((d) => d.status.current);
       if (!d) return;
       wifi.value = JSON.parse(JSON.stringify(d.spec.wifi));
-    });
+    });*/
+    //const availableInterfaces = ref([]) as Ref<NetworkInterface[]>;
+    //const loading = ref(false);
+    //netIfaceSync = sync(networkInterfaceClient, availableInterfaces, loading);
     const availableNetworks = ref([]) as Ref<WifiNetwork[]>;
     const scanning = ref(false);
     wifiNetworkSync = sync(wifiNetworkClient, availableNetworks, scanning);
@@ -168,10 +189,10 @@ export default defineComponent({
     }) as Ref<WifiConnectPassword>;
 
     const state = reactive({
-      synchronizing: deviceStore.synchronizing,
-      availableNetworks: availableNetworks,
-      device: computed(() =>
-        deviceStore.resources.find((d) => d.status.current)
+      synchronizing: ifaceStore.synchronizing,
+      availableNetworks,
+      iface: computed(() =>
+        ifaceStore.resources.find((r) => r.metadata.name == props.interfaceName)
       ),
       promptWifiConnectPassword: promptWifiConnectPassword,
       showWifiConnectPassword: false,
@@ -230,21 +251,23 @@ export default defineComponent({
         }
       },
       apply: () => {
-        const d = deviceStore.resources.find((d) => d.status.current);
-        if (!d) return;
-        d.spec.wifi = wifi.value;
-        catchError(deviceStore.client.update(d));
+        const r = ifaceStore.resources.find(
+          (r) => r.metadata.name == props.interfaceName
+        );
+        if (!r) return;
+        r.spec.wifi = wifi.value;
+        catchError(ifaceStore.client.update(r));
       },
     });
     return {
       ...toRefs(state),
       wifi,
       scanning,
-      stationMode: WifiConfig.mode.STATION,
+      stationMode: WifiSpec.mode.STATION,
       availableWifiModes: [
-        { label: 'Disabled', value: WifiConfig.mode.DISABLED },
-        { label: 'Access Point', value: WifiConfig.mode.ACCESSPOINT },
-        { label: 'Station', value: WifiConfig.mode.STATION },
+        { label: 'Disabled', value: WifiSpec.mode.DISABLED },
+        { label: 'Access Point', value: WifiSpec.mode.ACCESSPOINT },
+        { label: 'Station', value: WifiSpec.mode.STATION },
       ],
     };
   },

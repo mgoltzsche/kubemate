@@ -102,17 +102,9 @@ func newDeviceStore(deviceName, dir string, scheme *runtime.Scheme) (storage.Int
 		d = &deviceapi.Device{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: deviceName,
-				//CreationTimestamp: metav1.Now(),
 			},
 			Spec: deviceapi.DeviceSpec{
 				Mode: deviceapi.DeviceModeServer,
-				Wifi: deviceapi.WifiConfig{
-					CountryCode: "", // auto-detected by device controller
-					Mode:        deviceapi.WifiModeDisabled,
-					AccessPoint: deviceapi.WifiAccessPointConf{
-						SSID: deviceName,
-					},
-				},
 			},
 			Status: deviceapi.DeviceStatus{
 				Current: true,

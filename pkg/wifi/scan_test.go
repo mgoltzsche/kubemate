@@ -3,6 +3,7 @@ package wifi
 import (
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )
 
@@ -253,6 +254,7 @@ BSS d0:05:2a:71:b8:75(on wlp6s0)
 `
 
 func TestParseNetworkScanResult(t *testing.T) {
+	logger := logrus.NewEntry(logrus.New())
 	for _, c := range []struct {
 		name   string
 		input  string
@@ -306,7 +308,7 @@ func TestParseNetworkScanResult(t *testing.T) {
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			networks := parseNetworkScanResult(c.input)
+			networks := parseNetworkScanResult(c.input, logger)
 			require.Equal(t, c.expect, networks)
 		})
 	}

@@ -35,16 +35,18 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenStatus":                       schema_pkg_apis_devices_v1_DeviceTokenStatus(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterface":                        schema_pkg_apis_devices_v1_NetworkInterface(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceList":                    schema_pkg_apis_devices_v1_NetworkInterfaceList(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceSpec":                    schema_pkg_apis_devices_v1_NetworkInterfaceSpec(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceStatus":                  schema_pkg_apis_devices_v1_NetworkInterfaceStatus(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiAccessPointConf":                     schema_pkg_apis_devices_v1_WifiAccessPointConf(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiConfig":                              schema_pkg_apis_devices_v1_WifiConfig(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkLinkStatus":                       schema_pkg_apis_devices_v1_NetworkLinkStatus(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiAccessPointSpec":                     schema_pkg_apis_devices_v1_WifiAccessPointSpec(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetwork":                             schema_pkg_apis_devices_v1_WifiNetwork(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetworkData":                         schema_pkg_apis_devices_v1_WifiNetworkData(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetworkList":                         schema_pkg_apis_devices_v1_WifiNetworkList(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPassword":                            schema_pkg_apis_devices_v1_WifiPassword(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPasswordData":                        schema_pkg_apis_devices_v1_WifiPasswordData(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPasswordList":                        schema_pkg_apis_devices_v1_WifiPasswordList(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiStationConf":                         schema_pkg_apis_devices_v1_WifiStationConf(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiSpec":                                schema_pkg_apis_devices_v1_WifiSpec(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiStationSpec":                         schema_pkg_apis_devices_v1_WifiStationSpec(ref),
 		"k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource":                                        schema_k8sio_api_core_v1_AWSElasticBlockStoreVolumeSource(ref),
 		"k8s.io/api/core/v1.Affinity":                                                                schema_k8sio_api_core_v1_Affinity(ref),
 		"k8s.io/api/core/v1.AttachedVolume":                                                          schema_k8sio_api_core_v1_AttachedVolume(ref),
@@ -883,18 +885,10 @@ func schema_pkg_apis_devices_v1_DeviceSpec(ref common.ReferenceCallback) common.
 							Format: "",
 						},
 					},
-					"wifi": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiConfig"),
-						},
-					},
 				},
-				Required: []string{"mode", "wifi"},
+				Required: []string{"mode"},
 			},
 		},
-		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiConfig"},
 	}
 }
 
@@ -1114,6 +1108,12 @@ func schema_pkg_apis_devices_v1_NetworkInterface(ref common.ReferenceCallback) c
 							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceSpec"),
+						},
+					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
@@ -1121,11 +1121,11 @@ func schema_pkg_apis_devices_v1_NetworkInterface(ref common.ReferenceCallback) c
 						},
 					},
 				},
-				Required: []string{"metadata", "status"},
+				Required: []string{"metadata", "spec", "status"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceSpec", "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -1178,6 +1178,27 @@ func schema_pkg_apis_devices_v1_NetworkInterfaceList(ref common.ReferenceCallbac
 	}
 }
 
+func schema_pkg_apis_devices_v1_NetworkInterfaceSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NetworkInterfaceSpec defines the network interface configuration.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"wifi": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiSpec"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiSpec"},
+	}
+}
+
 func schema_pkg_apis_devices_v1_NetworkInterfaceStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1185,11 +1206,69 @@ func schema_pkg_apis_devices_v1_NetworkInterfaceStatus(ref common.ReferenceCallb
 				Description: "NetworkInterfaceStatus defines the observed state of the network interface.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"link": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkLinkStatus"),
+						},
+					},
+					"error": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkLinkStatus"},
+	}
+}
+
+func schema_pkg_apis_devices_v1_NetworkLinkStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NetworkLinkStatus defines the observed state of the network link.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"index": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Possible enum values:\n - `\"ether\"`\n - `\"wifi\"`",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"ether", "wifi"}},
+					},
 					"up": {
 						SchemaProps: spec.SchemaProps{
 							Default: false,
 							Type:    []string{"boolean"},
 							Format:  "",
+						},
+					},
+					"mac": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"ip4": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"error": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 				},
@@ -1199,11 +1278,11 @@ func schema_pkg_apis_devices_v1_NetworkInterfaceStatus(ref common.ReferenceCallb
 	}
 }
 
-func schema_pkg_apis_devices_v1_WifiAccessPointConf(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1_WifiAccessPointSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "WifiAccessPointConf defines the wifi access point configuration.",
+				Description: "WifiAccessPointSpec defines the wifi access point configuration.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"SSID": {
@@ -1217,47 +1296,6 @@ func schema_pkg_apis_devices_v1_WifiAccessPointConf(ref common.ReferenceCallback
 				Required: []string{"SSID"},
 			},
 		},
-	}
-}
-
-func schema_pkg_apis_devices_v1_WifiConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "WifiConfig defines the wifi configuration for the device.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"mode": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Possible enum values:\n - `\"accesspoint\"`\n - `\"disabled\"`\n - `\"station\"`",
-							Type:        []string{"string"},
-							Format:      "",
-							Enum:        []interface{}{"accesspoint", "disabled", "station"}},
-					},
-					"countryCode": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"station": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiStationConf"),
-						},
-					},
-					"accessPoint": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiAccessPointConf"),
-						},
-					},
-				},
-				Required: []string{"station", "accessPoint"},
-			},
-		},
-		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiAccessPointConf", "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiStationConf"},
 	}
 }
 
@@ -1485,11 +1523,53 @@ func schema_pkg_apis_devices_v1_WifiPasswordList(ref common.ReferenceCallback) c
 	}
 }
 
-func schema_pkg_apis_devices_v1_WifiStationConf(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1_WifiSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "WifiStationConf defines the wifi client configuration.",
+				Description: "WifiSpec defines the wifi configuration for the device.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"mode": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Possible enum values:\n - `\"accesspoint\"`\n - `\"disabled\"`\n - `\"station\"`",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"accesspoint", "disabled", "station"}},
+					},
+					"countryCode": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"station": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiStationSpec"),
+						},
+					},
+					"accessPoint": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiAccessPointSpec"),
+						},
+					},
+				},
+				Required: []string{"mode", "station", "accessPoint"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiAccessPointSpec", "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiStationSpec"},
+	}
+}
+
+func schema_pkg_apis_devices_v1_WifiStationSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WifiStationSpec defines the wifi client configuration.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"SSID": {

@@ -59,7 +59,7 @@ func (r *refresher) Watch(ctx context.Context, resourceVersion string) (watch.In
 }
 
 func (r *refresher) List(l runtime.Object) error {
-	r.refresh()
+	go r.refresh()
 	return r.Interface.List(l)
 }
 

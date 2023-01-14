@@ -139,8 +139,7 @@ func runControllerManager(ctx context.Context, cfg ConfigFunc, scheme *runtime.S
 		MetricsBindAddress:     "0",
 		HealthProbeBindAddress: "0",
 		LeaderElection:         false,
-		//LeaderElectionID:       "kubemate-controller-manager",
-		Logger: logger,
+		Logger:                 logger,
 	})
 	if err != nil {
 		return err

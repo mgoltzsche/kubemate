@@ -190,6 +190,7 @@ func (in *NetworkInterface) DeepCopyInto(out *NetworkInterface) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	out.Spec = in.Spec
 	out.Status = in.Status
 }
 

@@ -199,12 +199,8 @@ definitions:
         type: string
       server:
         type: string
-      wifi:
-        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiConfig'
-        default: {}
     required:
     - mode
-    - wifi
     type: object
   com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceStatus:
     description: DeviceStatus defines the observed state of Cache
@@ -298,57 +294,69 @@ definitions:
       metadata:
         $ref: '#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta'
         default: {}
+      spec:
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.NetworkInterfaceSpec'
+        default: {}
       status:
         $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.NetworkInterfaceStatus'
         default: {}
     required:
     - metadata
+    - spec
     - status
+    type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.NetworkInterfaceSpec:
+    description: NetworkInterfaceSpec defines the network interface configuration.
+    properties:
+      wifi:
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiSpec'
+        default: {}
     type: object
   com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.NetworkInterfaceStatus:
     description: NetworkInterfaceStatus defines the observed state of the network
       interface.
     properties:
+      error:
+        type: string
+      link:
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.NetworkLinkStatus'
+        default: {}
+    type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.NetworkLinkStatus:
+    description: NetworkLinkStatus defines the observed state of the network link.
+    properties:
+      error:
+        type: string
+      index:
+        format: int32
+        type: integer
+      ip4:
+        type: string
+      mac:
+        type: string
+      type:
+        description: |-
+          Possible enum values:
+           - `"ether"`
+           - `"wifi"`
+        enum:
+        - ether
+        - wifi
+        type: string
       up:
         default: false
         type: boolean
     required:
     - up
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiAccessPointConf:
-    description: WifiAccessPointConf defines the wifi access point configuration.
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiAccessPointSpec:
+    description: WifiAccessPointSpec defines the wifi access point configuration.
     properties:
       SSID:
         default: ""
         type: string
     required:
     - SSID
-    type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiConfig:
-    description: WifiConfig defines the wifi configuration for the device.
-    properties:
-      accessPoint:
-        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiAccessPointConf'
-        default: {}
-      countryCode:
-        type: string
-      mode:
-        description: |-
-          Possible enum values:
-           - `"accesspoint"`
-           - `"disabled"`
-           - `"station"`
-        enum:
-        - accesspoint
-        - disabled
-        - station
-        type: string
-      station:
-        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiStationConf'
-        default: {}
-    required:
-    - station
-    - accessPoint
     type: object
   com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiNetwork:
     description: WifiNetwork is the Schema for the devices API
@@ -414,8 +422,36 @@ definitions:
     required:
     - password
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiStationConf:
-    description: WifiStationConf defines the wifi client configuration.
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiSpec:
+    description: WifiSpec defines the wifi configuration for the device.
+    properties:
+      accessPoint:
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiAccessPointSpec'
+        default: {}
+      countryCode:
+        type: string
+      mode:
+        default: ""
+        description: |-
+          Possible enum values:
+           - `"accesspoint"`
+           - `"disabled"`
+           - `"station"`
+        enum:
+        - accesspoint
+        - disabled
+        - station
+        type: string
+      station:
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiStationSpec'
+        default: {}
+    required:
+    - mode
+    - station
+    - accessPoint
+    type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiStationSpec:
+    description: WifiStationSpec defines the wifi client configuration.
     properties:
       SSID:
         default: ""

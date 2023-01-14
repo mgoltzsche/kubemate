@@ -34,6 +34,8 @@ const (
 	WifiModeAccessPoint WifiMode = "accesspoint"
 )
 
+var WifiInterfaceNamePrefixes = []string{"wlan", "wlp"}
+
 type Wifi struct {
 	dhcpd            *runner.Runner
 	ap               *runner.Runner
@@ -59,8 +61,8 @@ func New(logger *logrus.Entry) *Wifi {
 		station:       station,
 		logger:        logger,
 		CountryCode:   "DE",
-		EthIface:      detectIface(logger, "eth", "enp"),
-		WifiIface:     detectIface(logger, "wlan", "wlp"),
+		EthIface:      detectIface(logger, []string{"eth", "enp"}),
+		WifiIface:     detectIface(logger, WifiInterfaceNamePrefixes),
 		DHCPLeaseFile: "/var/lib/dhcp/dhcpd.leases",
 	}
 }
@@ -193,7 +195,7 @@ func runCmds(cmds [][]string) error {
 	return nil
 }
 
-func detectIface(logger *logrus.Entry, prefixes ...string) string {
+func detectIface(logger *logrus.Entry, prefixes []string) string {
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		logger.Error(fmt.Errorf("detect %s interface: %w", prefixes[0], err))
