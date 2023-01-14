@@ -36,7 +36,8 @@ func (w *cancelableWatcher) ResultChan() <-chan watch.Event {
 				}
 				w.ch <- evt
 			case <-done:
-				w.Stop()
+				w.delegate.Stop()
+				done = nil
 				continue
 			}
 		}
