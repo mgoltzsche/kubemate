@@ -34,8 +34,8 @@ func (l *logrusSink) Enabled(level int) bool {
 // only be called when Enabled(level) is true. See Logger.Info for more
 // details.
 func (l *logrusSink) Info(level int, msg string, keysAndValues ...interface{}) {
-	//l.withFields(keysAndValues).Log(toLogrusLevel(level), msg)
-	l.withFields(keysAndValues).Debug(msg)
+	//l.withFields(keysAndValues...).Log(toLogrusLevel(level), msg)
+	l.withFields(keysAndValues...).Debug(msg)
 }
 
 // Error logs an error, with the given message and key/value pairs as
