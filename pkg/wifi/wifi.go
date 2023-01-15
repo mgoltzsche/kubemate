@@ -37,33 +37,44 @@ const (
 var WifiInterfaceNamePrefixes = []string{"wlan", "wlp"}
 
 type Wifi struct {
-	dhcpd            *runner.Runner
-	ap               *runner.Runner
-	station          *runner.Runner
-	wifiIfaceStarted bool
-	mode             WifiMode
-	logger           *logrus.Entry
-	EthIface         string
-	WifiIface        string
-	DHCPLeaseFile    string
-	CountryCode      string
+	dhcpd             *runner.Runner
+	ap                *runner.Runner
+	station           *runner.Runner
+	wifiIfaceStarted  bool
+	mode              WifiMode
+	logger            *logrus.Entry
+	EthIface          string
+	WifiIface         string
+	DHCPDLeaseFile    string
+	DHClientLeaseFile string
+	CountryCode       string
+	networks          []WifiNetwork
 }
 
-func New(logger *logrus.Entry) *Wifi {
+type WifiNetwork struct {
+	MAC     string
+	SSID    string
+	Country string
+}
+
+func New(logger *logrus.Entry, dataDir string, onProcessTermination runner.StatusReportFunc) *Wifi {
 	logger = logger.WithField("comp", "wifi")
 	ap := runner.New(logger.WithField("proc", "hostapd"))
+	ap.Reporter = onProcessTermination
 	dhcpd := runner.New(logger.WithField("proc", "dhcpd"))
+	dhcpd.Reporter = onProcessTermination
 	station := runner.New(logger.WithField("proc", "wpa_supplicant"))
-	// TODO: reconcile when any of the processes above terminates
+	station.Reporter = onProcessTermination
 	return &Wifi{
-		ap:            ap,
-		dhcpd:         dhcpd,
-		station:       station,
-		logger:        logger,
-		CountryCode:   "DE",
-		EthIface:      detectIface(logger, []string{"eth", "enp"}),
-		WifiIface:     detectIface(logger, WifiInterfaceNamePrefixes),
-		DHCPLeaseFile: "/var/lib/dhcp/dhcpd.leases",
+		ap:                ap,
+		dhcpd:             dhcpd,
+		station:           station,
+		logger:            logger,
+		CountryCode:       "DE",
+		EthIface:          detectIface(logger, []string{"eth", "enp"}),
+		WifiIface:         detectIface(logger, WifiInterfaceNamePrefixes),
+		DHCPDLeaseFile:    filepath.Join(dataDir, "dhcp", "dhcpd.lease"),
+		DHClientLeaseFile: filepath.Join(dataDir, "dhcp", "dhclient.lease"),
 	}
 }
 
@@ -94,11 +105,14 @@ func (w *Wifi) Mode() WifiMode {
 
 // DetectCountry derives the wifi country based on near wifi networks.
 func (w *Wifi) DetectCountry() error {
+	if !w.wifiIfaceStarted {
+		return fmt.Errorf("cannot detect wifi country while wifi interface is down")
+	}
 	if w.CountryCode == "" {
 		if !w.wifiIfaceStarted {
 			return fmt.Errorf("cannot detect country when wifi interface is down")
 		}
-		country, err := detectCountry(w.WifiIface, w.logger)
+		country, err := w.detectCountry(w.WifiIface, w.logger)
 		if err != nil {
 			return err
 		}
@@ -107,16 +121,25 @@ func (w *Wifi) DetectCountry() error {
 	return nil
 }
 
-// Scan returns a list of available wifi networks.
-func (w *Wifi) Scan() ([]WifiNetwork, error) {
-	if !w.wifiIfaceStarted {
-		return nil, fmt.Errorf("cannot scan wifi networks while network interface %s is down", w.WifiIface)
-	}
-	w.logger.Debug("scanning wifi networks")
-	return scanWifiNetworksIw(w.WifiIface, w.logger)
+// Networks returns the list of available wifi networks.
+func (w *Wifi) Networks() []WifiNetwork {
+	return w.networks
 }
 
-func (w *Wifi) restartWifiInterface(onStart func() error) error {
+func (w *Wifi) scan() error {
+	if !w.wifiIfaceStarted {
+		return fmt.Errorf("cannot scan wifi networks while network interface %s is down", w.WifiIface)
+	}
+	w.logger.Debug("scanning wifi networks")
+	l, err := scanWifiNetworksIw(w.WifiIface, w.logger)
+	if err != nil {
+		return err
+	}
+	w.networks = l
+	return nil
+}
+
+func (w *Wifi) restartWifiInterface() error {
 	w.logger.WithField("iface", w.WifiIface).Debug("restarting wifi network interface")
 	err := runCmds([][]string{
 		//{"ifdown", w.WifiIface},
@@ -126,22 +149,21 @@ func (w *Wifi) restartWifiInterface(onStart func() error) error {
 		{"ip", "link", "set", w.WifiIface, "up"},
 		//{"ifconfig", w.WifiIface, "11.0.0.1", "up"},
 		//{"ip", "addr", "add", "11.0.0.1/24", "dev", w.WifiIface},
-		{"dhclient"},
 	})
 	if err != nil {
 		return fmt.Errorf("restart wifi network interface %s: %w", w.WifiIface, err)
 	}
 	w.wifiIfaceStarted = true
-	err = onStart()
+	err = w.scan()
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (w *Wifi) StartWifiInterface(onStart func() error) error {
+func (w *Wifi) StartWifiInterface() error {
 	if !w.wifiIfaceStarted {
-		return w.restartWifiInterface(onStart)
+		return w.restartWifiInterface()
 	}
 	return nil
 }

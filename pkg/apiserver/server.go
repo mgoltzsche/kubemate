@@ -17,6 +17,7 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/networkifaces"
 	devicectrl "github.com/mgoltzsche/kubemate/pkg/reconciler/device"
 	"github.com/mgoltzsche/kubemate/pkg/rest"
+	"github.com/mgoltzsche/kubemate/pkg/runner"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"github.com/mgoltzsche/kubemate/pkg/tokengen"
 	"github.com/mgoltzsche/kubemate/pkg/wifi"
@@ -201,8 +202,24 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, err
 	}
-	wifi := wifi.New(logger)
-	wifi.DHCPLeaseFile = filepath.Join(o.DataDir, "dhcpd.leases")
+	wifi := wifi.New(logger, o.DataDir, func(cmd runner.Command) {
+		time.Sleep(time.Second)
+		l := deviceapi.NetworkInterfaceList{}
+		err := ifaceStore.List(&l)
+		if err != nil {
+			logger.WithError(err).Error("cannot trigger network interface reconciliation")
+			return
+		}
+		for _, iface := range l.Items {
+			if iface.Status.Link.Type == deviceapi.NetworkInterfaceTypeWifi {
+				logger.WithField("iface", iface.Name).Debug("triggering NetworkInterface reconciliation")
+				err = ifaceStore.Update(iface.Name, &iface, func() error { return nil })
+				if err != nil {
+					logger.WithError(err).Error("cannot trigger network interface reconciliation")
+				}
+			}
+		}
+	})
 	wifiNetworkREST := rest.NewWifiNetworkREST(wifi, scheme)
 	wifiPasswordDir := filepath.Join(o.DataDir, "wifipasswords")
 	wifiPasswordREST, err := rest.NewWifiPasswordREST(wifiPasswordDir, scheme)

@@ -78,25 +78,25 @@ func (r *NetworkInterfaceReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	case deviceapi.NetworkInterfaceTypeWifi:
 		err = r.reconcileWifiNetworkInterface(&iface, logger)
 	}
+	if err == nil {
+		err = r.ensureIPAddress(&iface)
+	}
+	var errMsg string
 	if err != nil {
-		errMsg := err.Error()
+		errMsg = err.Error()
 		if linkMsg := iface.Status.Link.Error; linkMsg != "" {
 			errMsg = fmt.Sprintf("%s. %s", linkMsg, err)
 		}
-		if iface.Status.Error != errMsg {
-			e := r.Store.Update(iface.Name, &iface, func() error {
-				iface.Status.Error = errMsg
-				return nil
-			})
-			if e != nil {
-				logger.Error(err, "wifi reconciliation failed")
-				return requeue(e)
-			}
-		}
-		return requeue(err)
 	}
-	// Expose IP address within resource or schedule reconciliation to do so
-	err = r.ensureIPAddress(&iface)
+	if iface.Status.Error != errMsg {
+		e := r.Store.Update(iface.Name, &iface, func() error {
+			iface.Status.Error = errMsg
+			return nil
+		})
+		if e != nil {
+			return requeue(e)
+		}
+	}
 	if err != nil {
 		return requeue(err)
 	}
@@ -115,12 +115,6 @@ func (r *NetworkInterfaceReconciler) ensureIPAddress(iface *deviceapi.NetworkInt
 			if err == nil {
 				err = fmt.Errorf("no ip address assigned to network interface")
 			}
-			if iface.Status.Error != err.Error() {
-				_ = r.Store.Update(iface.Name, iface, func() error {
-					iface.Status.Error = err.Error()
-					return nil
-				})
-			}
 			return err
 		}
 		err = r.Store.Update(iface.Name, iface, func() error {
@@ -135,12 +129,9 @@ func (r *NetworkInterfaceReconciler) ensureIPAddress(iface *deviceapi.NetworkInt
 }
 
 func (r *NetworkInterfaceReconciler) reconcileWifiNetworkInterface(iface *deviceapi.NetworkInterface, logger logr.Logger) error {
-	onStart := func() error {
-		return updateWifiNetworkList(r.Wifi, r.WifiNetworks, logger)
-	}
 	switch iface.Spec.Wifi.Mode {
 	case deviceapi.WifiModeAccessPoint:
-		err := setWifiIfaceCountry(iface, r.Store, r.Wifi, logger, onStart)
+		err := setWifiIfaceCountry(iface, r.Store, r.Wifi, logger)
 		if err != nil {
 			return err
 		}
@@ -149,17 +140,21 @@ func (r *NetworkInterfaceReconciler) reconcileWifiNetworkInterface(iface *device
 		if err != nil {
 			return err
 		}
-		err = r.Wifi.StartAccessPoint(r.DeviceName, wifiPassword.Data.Password, onStart)
+		err = r.Wifi.StartAccessPoint(r.DeviceName, wifiPassword.Data.Password)
+		if err != nil {
+			return err
+		}
+		err = updateWifiNetworkList(r.Wifi, r.WifiNetworks, logger)
 		if err != nil {
 			return err
 		}
 	case deviceapi.WifiModeStation:
 		r.Wifi.StopAccessPoint()
-		err := setWifiIfaceCountry(iface, r.Store, r.Wifi, logger, onStart)
+		err := setWifiIfaceCountry(iface, r.Store, r.Wifi, logger)
 		if err != nil {
 			return err
 		}
-		err = r.Wifi.StartWifiInterface(onStart)
+		err = r.Wifi.StartWifiInterface()
 		if err != nil {
 			return err
 		}
@@ -190,7 +185,11 @@ func (r *NetworkInterfaceReconciler) reconcileWifiNetworkInterface(iface *device
 				return nil
 			}
 		}
-		err = r.Wifi.StartStation(ssid, pw.Data.Password, onStart)
+		err = updateWifiNetworkList(r.Wifi, r.WifiNetworks, logger)
+		if err != nil {
+			return err
+		}
+		err = r.Wifi.StartStation(ssid, pw.Data.Password)
 		if err != nil {
 			return err
 		}
@@ -198,17 +197,6 @@ func (r *NetworkInterfaceReconciler) reconcileWifiNetworkInterface(iface *device
 		r.Wifi.StopStation()
 		r.Wifi.StopAccessPoint()
 		err := r.Wifi.StopWifiInterface()
-		if err != nil {
-			return err
-		}
-	}
-	done := iface.Spec.Wifi.Mode != deviceapi.WifiModeDisabled && iface.Status.Link.Up ||
-		iface.Spec.Wifi.Mode == deviceapi.WifiModeDisabled && !iface.Status.Link.Up
-	if done && iface.Status.Error != "" {
-		err := r.Store.Update(iface.Name, iface, func() error {
-			iface.Status.Error = ""
-			return nil
-		})
 		if err != nil {
 			return err
 		}
@@ -222,10 +210,10 @@ func ssidToResourceName(ssid string) string {
 }
 
 // setWifiIfaceCountry detects the wifi country and stores it with the provided NetworkInterface resource.
-func setWifiIfaceCountry(iface *deviceapi.NetworkInterface, devices storage.Interface, w *wifi.Wifi, logger logr.Logger, onStart func() error) error {
+func setWifiIfaceCountry(iface *deviceapi.NetworkInterface, ifaces storage.Interface, w *wifi.Wifi, logger logr.Logger) error {
 	w.CountryCode = iface.Spec.Wifi.CountryCode
 	if w.CountryCode == "" {
-		err := w.StartWifiInterface(onStart)
+		err := w.StartWifiInterface()
 		if err != nil {
 			return err
 		}
@@ -234,7 +222,7 @@ func setWifiIfaceCountry(iface *deviceapi.NetworkInterface, devices storage.Inte
 			return err
 		}
 		logger.Info(fmt.Sprintf("detected wifi country %s", w.CountryCode))
-		return devices.Update(iface.Name, iface, func() error {
+		return ifaces.Update(iface.Name, iface, func() error {
 			iface.Spec.Wifi.CountryCode = w.CountryCode
 			return nil
 		})
@@ -244,17 +232,12 @@ func setWifiIfaceCountry(iface *deviceapi.NetworkInterface, devices storage.Inte
 
 func updateWifiNetworkList(w *wifi.Wifi, wifiNetworks storage.Interface, logger logr.Logger) error {
 	foundNetworks := map[string]struct{}{}
-	networks, err := w.Scan()
-	if err != nil {
-		return err
-	}
-	for _, network := range networks {
+	for _, network := range w.Networks() {
 		n := &deviceapi.WifiNetwork{}
 		n.Name = fmt.Sprintf("ssid-%s", network.SSID)
 		n.Name = utils.TruncateName(n.Name, utils.MaxResourceNameLength)
 		n.Data.SSID = network.SSID
 		foundNetworks[n.Name] = struct{}{}
-		logger.Info("discovered new wifi network", "ssid", n.Data.SSID)
 		err := wifiNetworks.Create(n.Name, n)
 		if err != nil {
 			if errors.IsAlreadyExists(err) {
@@ -262,11 +245,12 @@ func updateWifiNetworkList(w *wifi.Wifi, wifiNetworks storage.Interface, logger 
 			}
 			return err
 		}
+		logger.Info("discovered new wifi network", "ssid", n.Data.SSID)
 	}
 
 	// Remove old networks
 	l := &deviceapi.WifiNetworkList{}
-	err = wifiNetworks.List(l)
+	err := wifiNetworks.List(l)
 	if err != nil {
 		return err
 	}

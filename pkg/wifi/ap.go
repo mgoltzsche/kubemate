@@ -3,11 +3,12 @@ package wifi
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/mgoltzsche/kubemate/pkg/runner"
 )
 
-func (w *Wifi) StartAccessPoint(ssid, password string, onStart func() error) error {
+func (w *Wifi) StartAccessPoint(ssid, password string) error {
 	if password == "" {
 		return fmt.Errorf("start accesspoint: no wifi password configured")
 	}
@@ -23,12 +24,12 @@ func (w *Wifi) StartAccessPoint(ssid, password string, onStart func() error) err
 	if err != nil {
 		return err
 	}
-	err = w.createDHCPLeaseFileIfNotExist()
+	err = w.createDHCPDLeaseFileIfNotExist()
 	if err != nil {
 		return err
 	}
 	if w.mode != WifiModeAccessPoint {
-		err = w.restartWifiInterface(onStart)
+		err = w.restartWifiInterface()
 		if err != nil {
 			return err
 		}
@@ -36,12 +37,12 @@ func (w *Wifi) StartAccessPoint(ssid, password string, onStart func() error) err
 	}
 	w.installAPRoutes()
 	if ifacesConfChanged || hostapdConfChanged || dhcpdConfChanged {
-		err = w.restartWifiInterface(onStart)
+		err = w.restartWifiInterface()
 		if err != nil {
 			return err
 		}
 	}
-	err = w.dhcpd.Start(runner.Cmd("dhcpd", "-4", "-f", "-d", w.WifiIface, "-cf", dhcpdConf, "-lf", w.DHCPLeaseFile, "--no-pid"))
+	err = w.dhcpd.Start(runner.Cmd("dhcpd", "-4", "-f", "-d", w.WifiIface, "-cf", dhcpdConf, "-lf", w.DHCPDLeaseFile, "--no-pid"))
 	if err != nil {
 		return err
 	}
@@ -116,10 +117,14 @@ macaddr_acl=0
 `, w.WifiIface, w.CountryCode, ssid, password)
 }
 
-func (w *Wifi) createDHCPLeaseFileIfNotExist() error {
-	f, err := os.OpenFile(w.DHCPLeaseFile, os.O_CREATE|os.O_APPEND, 0600)
+func (w *Wifi) createDHCPDLeaseFileIfNotExist() error {
+	err := os.MkdirAll(filepath.Dir(w.DHCPDLeaseFile), 0755)
 	if err != nil {
-		return fmt.Errorf("create dhcp lease file: %w", err)
+		return fmt.Errorf("create dhcpd lease file: %w", err)
+	}
+	f, err := os.OpenFile(w.DHCPDLeaseFile, os.O_CREATE|os.O_APPEND, 0600)
+	if err != nil {
+		return fmt.Errorf("create dhcpd lease file: %w", err)
 	}
 	_ = f.Close()
 	return nil

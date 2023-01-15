@@ -13,12 +13,6 @@ import (
 
 const iwIndent = "	"
 
-type WifiNetwork struct {
-	MAC     string
-	SSID    string
-	Country string
-}
-
 // scanWifiNetworksIw uses the iw CLI to scan wifi networks.
 // The result specifies the country per wifi network.
 func scanWifiNetworksIw(iface string, logger *logrus.Entry) ([]WifiNetwork, error) {
