@@ -13,17 +13,17 @@ import (
 
 const wpaSupplicantConfFile = "/tmp/kubemate-wpa-supplicant.conf"
 
-func (w *Wifi) StartStation(ssid, password string) error {
+func (w *Wifi) StartStation(ssid, password string, onStart func() error) error {
 	confFile, confChanged, err := w.generateWpaSupplicantConf(ssid, password)
 	if err != nil {
 		return err
 	}
 	if confChanged || w.mode != WifiModeStation {
-		err = w.restartWifiInterface()
+		err = w.restartWifiInterface(onStart)
 		if err != nil {
 			return err
 		}
-		_, err = w.Scan() // TODO: prevent this from running concurrently with the scan that is triggered by the wifinetwork_rest controller
+		err = w.station.Stop()
 		if err != nil {
 			return err
 		}

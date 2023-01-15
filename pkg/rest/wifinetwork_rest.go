@@ -3,14 +3,10 @@ package rest
 import (
 	"context"
 	"fmt"
-	"time"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
-	"github.com/mgoltzsche/kubemate/pkg/utils"
 	"github.com/mgoltzsche/kubemate/pkg/wifi"
-	"github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	registryrest "k8s.io/apiserver/pkg/registry/rest"
@@ -21,12 +17,13 @@ type wifiNetworkREST struct {
 }
 
 func NewWifiNetworkREST(wifi *wifi.Wifi, scheme *runtime.Scheme) *wifiNetworkREST {
-	store := storage.RefreshPeriodically(storage.InMemory(scheme), 10*time.Second, func(store storage.Interface) {
+	store := storage.InMemory(scheme)
+	/*store := storage.RefreshPeriodically(storage.InMemory(scheme), 10*time.Second, func(store storage.Interface) {
 		err := updateWifiNetworkList(wifi, store)
 		if err != nil {
 			logrus.Warn(err)
 		}
-	})
+	})*/
 	return &wifiNetworkREST{
 		REST: NewREST(&deviceapi.WifiNetwork{}, store),
 	}
@@ -44,7 +41,7 @@ func (r *wifiNetworkREST) Update(ctx context.Context, key string, objInfo regist
 	return nil, false, fmt.Errorf("cannot update wifi network scan result")
 }
 
-func updateWifiNetworkList(w *wifi.Wifi, wifiNetworks storage.Interface) error {
+/*func updateWifiNetworkList(w *wifi.Wifi, wifiNetworks storage.Interface) error {
 	foundNetworks := map[string]struct{}{}
 	networks, err := w.Scan()
 	if err != nil {
@@ -81,4 +78,4 @@ func updateWifiNetworkList(w *wifi.Wifi, wifiNetworks storage.Interface) error {
 		}
 	}
 	return err
-}
+}*/

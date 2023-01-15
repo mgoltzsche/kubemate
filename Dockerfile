@@ -14,7 +14,7 @@ COPY --from=build /work/kubemate /bin/kubemate
 
 FROM alpine:3.16
 RUN apk add --update --no-cache iptables socat openssl ca-certificates apparmor
-RUN apk add --no-cache iptables ip6tables ipset dhcp iproute2 iw wpa_supplicant hostapd
+RUN apk add --no-cache iptables ip6tables ipset dhcp dhclient iproute2 iw wpa_supplicant hostapd
 ARG VERSION="dev"
 RUN set -eu; \
 	mkdir -p /etc; \

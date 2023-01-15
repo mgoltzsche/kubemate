@@ -120,7 +120,7 @@ func updateNetworkInterfaceStatus(a *netlink.LinkAttrs, o *deviceapi.NetworkInte
 	l.IP4 = ""
 	l.Error = ""
 	if l.Up {
-		ipv4, err := ifaceIPv4Addr(a.Name)
+		ipv4, err := IPv4Address(a.Name)
 		if err != nil {
 			logrus.Warnf("failed to get IPv4 address for network interface %s: %s", o.Name, err)
 			l.Error = err.Error()
@@ -149,14 +149,14 @@ func startsWith(name string, prefixes []string) bool {
 	return false
 }
 
-func ifaceIPv4Addr(name string) (net.IP, error) {
-	iface, err := net.InterfaceByName(name)
+func IPv4Address(ifaceName string) (net.IP, error) {
+	iface, err := net.InterfaceByName(ifaceName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get network interface %s: %w", ifaceName, err)
 	}
 	addrs, err := iface.Addrs()
 	if err != nil {
-		return nil, fmt.Errorf("get network interface %s addrs: %w", name, err)
+		return nil, fmt.Errorf("get network interface %s addrs: %w", ifaceName, err)
 	}
 	for _, a := range addrs {
 		ipnet, ok := a.(*net.IPNet)

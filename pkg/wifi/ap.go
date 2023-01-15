@@ -7,7 +7,7 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/runner"
 )
 
-func (w *Wifi) StartAccessPoint(ssid, password string) error {
+func (w *Wifi) StartAccessPoint(ssid, password string, onStart func() error) error {
 	if password == "" {
 		return fmt.Errorf("start accesspoint: no wifi password configured")
 	}
@@ -28,7 +28,7 @@ func (w *Wifi) StartAccessPoint(ssid, password string) error {
 		return err
 	}
 	if w.mode != WifiModeAccessPoint {
-		err = w.restartWifiInterface()
+		err = w.restartWifiInterface(onStart)
 		if err != nil {
 			return err
 		}
@@ -36,7 +36,7 @@ func (w *Wifi) StartAccessPoint(ssid, password string) error {
 	}
 	w.installAPRoutes()
 	if ifacesConfChanged || hostapdConfChanged || dhcpdConfChanged {
-		err = w.restartWifiInterface()
+		err = w.restartWifiInterface(onStart)
 		if err != nil {
 			return err
 		}

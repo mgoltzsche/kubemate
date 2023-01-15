@@ -23,6 +23,7 @@ type NetworkInterfaceReconciler struct {
 	NetworkInterfaces []string
 	Store             storage.Interface
 	WifiPasswords     storage.Interface
+	WifiNetworks      storage.Interface
 	Wifi              *wifi.Wifi
 	client.Client
 	scheme   *runtime.Scheme
@@ -94,15 +95,52 @@ func (r *NetworkInterfaceReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 		return requeue(err)
 	}
+	// Expose IP address within resource or schedule reconciliation to do so
+	err = r.ensureIPAddress(&iface)
+	if err != nil {
+		return requeue(err)
+	}
+
 	logger.V(1).Info("network interface reconciliation complete")
 
 	return ctrl.Result{}, nil
 }
 
+// ensureIPAddress copies the IP address from the interface into the resource status or returns an error.
+// This is because the IP may be set after the link up status event was received in which case a reconciliation can be scheduled here.
+func (r *NetworkInterfaceReconciler) ensureIPAddress(iface *deviceapi.NetworkInterface) error {
+	if iface.Status.Link.Up && iface.Status.Link.IP4 == "" {
+		ip, err := networkifaces.IPv4Address(iface.Name)
+		if err != nil || ip == nil {
+			if err == nil {
+				err = fmt.Errorf("no ip address assigned to network interface")
+			}
+			if iface.Status.Error != err.Error() {
+				_ = r.Store.Update(iface.Name, iface, func() error {
+					iface.Status.Error = err.Error()
+					return nil
+				})
+			}
+			return err
+		}
+		err = r.Store.Update(iface.Name, iface, func() error {
+			iface.Status.Link.IP4 = ip.String()
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (r *NetworkInterfaceReconciler) reconcileWifiNetworkInterface(iface *deviceapi.NetworkInterface, logger logr.Logger) error {
+	onStart := func() error {
+		return updateWifiNetworkList(r.Wifi, r.WifiNetworks, logger)
+	}
 	switch iface.Spec.Wifi.Mode {
 	case deviceapi.WifiModeAccessPoint:
-		err := setWifiIfaceCountry(iface, r.Store, r.Wifi, logger)
+		err := setWifiIfaceCountry(iface, r.Store, r.Wifi, logger, onStart)
 		if err != nil {
 			return err
 		}
@@ -111,17 +149,17 @@ func (r *NetworkInterfaceReconciler) reconcileWifiNetworkInterface(iface *device
 		if err != nil {
 			return err
 		}
-		err = r.Wifi.StartAccessPoint(r.DeviceName, wifiPassword.Data.Password)
+		err = r.Wifi.StartAccessPoint(r.DeviceName, wifiPassword.Data.Password, onStart)
 		if err != nil {
 			return err
 		}
 	case deviceapi.WifiModeStation:
 		r.Wifi.StopAccessPoint()
-		err := setWifiIfaceCountry(iface, r.Store, r.Wifi, logger)
+		err := setWifiIfaceCountry(iface, r.Store, r.Wifi, logger, onStart)
 		if err != nil {
 			return err
 		}
-		err = r.Wifi.StartWifiInterface()
+		err = r.Wifi.StartWifiInterface(onStart)
 		if err != nil {
 			return err
 		}
@@ -152,7 +190,7 @@ func (r *NetworkInterfaceReconciler) reconcileWifiNetworkInterface(iface *device
 				return nil
 			}
 		}
-		err = r.Wifi.StartStation(ssid, pw.Data.Password)
+		err = r.Wifi.StartStation(ssid, pw.Data.Password, onStart)
 		if err != nil {
 			return err
 		}
@@ -184,10 +222,10 @@ func ssidToResourceName(ssid string) string {
 }
 
 // setWifiIfaceCountry detects the wifi country and stores it with the provided NetworkInterface resource.
-func setWifiIfaceCountry(iface *deviceapi.NetworkInterface, devices storage.Interface, w *wifi.Wifi, logger logr.Logger) error {
+func setWifiIfaceCountry(iface *deviceapi.NetworkInterface, devices storage.Interface, w *wifi.Wifi, logger logr.Logger, onStart func() error) error {
 	w.CountryCode = iface.Spec.Wifi.CountryCode
 	if w.CountryCode == "" {
-		err := w.StartWifiInterface()
+		err := w.StartWifiInterface(onStart)
 		if err != nil {
 			return err
 		}
@@ -202,4 +240,43 @@ func setWifiIfaceCountry(iface *deviceapi.NetworkInterface, devices storage.Inte
 		})
 	}
 	return nil
+}
+
+func updateWifiNetworkList(w *wifi.Wifi, wifiNetworks storage.Interface, logger logr.Logger) error {
+	foundNetworks := map[string]struct{}{}
+	networks, err := w.Scan()
+	if err != nil {
+		return err
+	}
+	for _, network := range networks {
+		n := &deviceapi.WifiNetwork{}
+		n.Name = fmt.Sprintf("ssid-%s", network.SSID)
+		n.Name = utils.TruncateName(n.Name, utils.MaxResourceNameLength)
+		n.Data.SSID = network.SSID
+		foundNetworks[n.Name] = struct{}{}
+		logger.Info("discovered new wifi network", "ssid", n.Data.SSID)
+		err := wifiNetworks.Create(n.Name, n)
+		if err != nil {
+			if errors.IsAlreadyExists(err) {
+				continue
+			}
+			return err
+		}
+	}
+
+	// Remove old networks
+	l := &deviceapi.WifiNetworkList{}
+	err = wifiNetworks.List(l)
+	if err != nil {
+		return err
+	}
+	for _, n := range l.Items {
+		if _, found := foundNetworks[n.Name]; !found {
+			logger.Info("wifi network disappeared", "ssid", n.Data.SSID)
+			if e := wifiNetworks.Delete(n.Name, &n, func() error { return nil }); e != nil && err == nil && !errors.IsNotFound(err) {
+				err = e
+			}
+		}
+	}
+	return err
 }

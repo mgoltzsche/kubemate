@@ -113,10 +113,10 @@ func (w *Wifi) Scan() ([]WifiNetwork, error) {
 		return nil, fmt.Errorf("cannot scan wifi networks while network interface %s is down", w.WifiIface)
 	}
 	w.logger.Debug("scanning wifi networks")
-	return scanWifiNetworks(w.WifiIface, w.logger)
+	return scanWifiNetworksIw(w.WifiIface, w.logger)
 }
 
-func (w *Wifi) restartWifiInterface() error {
+func (w *Wifi) restartWifiInterface(onStart func() error) error {
 	w.logger.WithField("iface", w.WifiIface).Debug("restarting wifi network interface")
 	err := runCmds([][]string{
 		//{"ifdown", w.WifiIface},
@@ -125,18 +125,23 @@ func (w *Wifi) restartWifiInterface() error {
 		//{"ifup", w.WifiIface},
 		{"ip", "link", "set", w.WifiIface, "up"},
 		//{"ifconfig", w.WifiIface, "11.0.0.1", "up"},
-		{"ip", "addr", "add", "11.0.0.1/24", "dev", w.WifiIface},
+		//{"ip", "addr", "add", "11.0.0.1/24", "dev", w.WifiIface},
+		{"dhclient"},
 	})
 	if err != nil {
 		return fmt.Errorf("restart wifi network interface %s: %w", w.WifiIface, err)
 	}
 	w.wifiIfaceStarted = true
+	err = onStart()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func (w *Wifi) StartWifiInterface() error {
+func (w *Wifi) StartWifiInterface(onStart func() error) error {
 	if !w.wifiIfaceStarted {
-		return w.restartWifiInterface()
+		return w.restartWifiInterface(onStart)
 	}
 	return nil
 }
@@ -173,7 +178,7 @@ func writeConf(name, confTpl string, args ...interface{}) (string, bool, error) 
 }
 
 func runCmd(cmd string, args ...string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	c := exec.CommandContext(ctx, cmd, args...)
 	var stderr bytes.Buffer

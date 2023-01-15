@@ -203,6 +203,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	}
 	wifi := wifi.New(logger)
 	wifi.DHCPLeaseFile = filepath.Join(o.DataDir, "dhcpd.leases")
+	wifiNetworkREST := rest.NewWifiNetworkREST(wifi, scheme)
 	wifiPasswordDir := filepath.Join(o.DataDir, "wifipasswords")
 	wifiPasswordREST, err := rest.NewWifiPasswordREST(wifiPasswordDir, scheme)
 	if err != nil {
@@ -225,7 +226,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 				"devicediscovery":   discoveryREST,
 				"devicetokens":      deviceTokenREST,
 				"wifipasswords":     wifiPasswordREST,
-				"wifinetworks":      rest.NewWifiNetworkREST(wifi, scheme),
+				"wifinetworks":      wifiNetworkREST,
 			},
 		},
 	}
@@ -238,6 +239,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 			DeviceName:        o.DeviceName,
 			NetworkInterfaces: o.AdvertiseIfaces,
 			Store:             ifaceStore,
+			WifiNetworks:      wifiNetworkREST.Store(),
 			WifiPasswords:     wifiPasswordREST.Store(),
 			Wifi:              wifi,
 		},

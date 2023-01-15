@@ -308,7 +308,7 @@ func TestParseNetworkScanResult(t *testing.T) {
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			networks := parseNetworkScanResult(c.input, logger)
+			networks := parseIwNetworkScanResult(c.input, logger)
 			require.Equal(t, c.expect, networks)
 		})
 	}

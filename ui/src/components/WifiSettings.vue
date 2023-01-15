@@ -9,6 +9,16 @@
 
       <q-card-section class="q-pt-none q-gutter-y-md">
         <div>
+          <div style="max-width: 300px">
+            <q-input
+              filled
+              v-model="wifi.countryCode"
+              label="Country code"
+              mask="AA"
+              fill-mask
+              size="2"
+            />
+          </div>
           <div class="q-gutter-sm">
             <q-radio
               v-model="wifi.mode"
@@ -25,6 +35,7 @@
           >
             <q-tab-panel name="station">
               <q-card-section>
+                <p>Connect with wifi network:</p>
                 <div v-if="scanning">scanning...</div>
                 <div v-if="!scanning && availableNetworks.length == 0">
                   No wifi networks found!

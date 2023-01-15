@@ -76,7 +76,7 @@ func sendEvent(evt Event, w *watcher) {
 	select {
 	case w.ch <- evt:
 	case <-time.After(20 * time.Second):
-		logrus.Errorf("kicking subscriber for resource of type %T since it timed out after 20s accepting the event, subscriber stack trace:\n  %s", evt.Object, strings.ReplaceAll(w.stack, "\n", "\n  "))
+		logrus.Errorf("kicking %T event subscriber since it timed out accepting the event after 20s, subscriber stack trace:\n  %s", evt.Object, strings.ReplaceAll(w.stack, "\n", "\n  "))
 		go w.Stop()
 	}
 }

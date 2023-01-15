@@ -27,14 +27,25 @@ func (w *cancelableWatcher) ResultChan() <-chan watch.Event {
 	ch := w.delegate.ResultChan()
 	done := w.ctx.Done()
 	go func() {
-		defer close(w.ch)
+		defer func() {
+			close(w.ch)
+			for _ = range w.ch {
+			}
+		}()
 		for {
 			select {
 			case evt, ok := <-ch:
 				if !ok {
 					return
 				}
-				w.ch <- evt
+				if done != nil {
+					select {
+					case w.ch <- evt:
+					case <-done:
+						w.delegate.Stop()
+						done = nil
+					}
+				}
 			case <-done:
 				w.delegate.Stop()
 				done = nil

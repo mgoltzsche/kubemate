@@ -8,7 +8,7 @@ import (
 
 // detectCountry derives the wifi country based on near wifi networks.
 func detectCountry(iface string, logger *logrus.Entry) (string, error) {
-	networks, err := scanWifiNetworks(iface, logger)
+	networks, err := scanWifiNetworksIw(iface, logger)
 	if err != nil {
 		return "", fmt.Errorf("detect wifi country: %w", err)
 	}

@@ -19,29 +19,19 @@ type WifiNetwork struct {
 	Country string
 }
 
-func scanWifiNetworks(iface string, logger *logrus.Entry) ([]WifiNetwork, error) {
+// scanWifiNetworksIw uses the iw CLI to scan wifi networks.
+// The result specifies the country per wifi network.
+func scanWifiNetworksIw(iface string, logger *logrus.Entry) ([]WifiNetwork, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 9*time.Second)
 	defer cancel()
 	out, err := runCmdOut(ctx, "iw", "dev", iface, "scan", "ap-force")
 	if err != nil {
 		return nil, fmt.Errorf("wifi network scan: %w", err)
 	}
-	return parseNetworkScanResult(out, logger), nil
+	return parseIwNetworkScanResult(out, logger), nil
 }
 
-func runCmdOut(ctx context.Context, cmd string, args ...string) (string, error) {
-	c := exec.CommandContext(ctx, cmd, args...)
-	var stdout, stderr bytes.Buffer
-	c.Stdout = &stdout
-	c.Stderr = &stderr
-	err := c.Run()
-	if err != nil {
-		return "", fmt.Errorf("%s: %w: %s", cmd, err, strings.TrimSpace(stderr.String()))
-	}
-	return stdout.String(), nil
-}
-
-func parseNetworkScanResult(iwOutput string, logger *logrus.Entry) []WifiNetwork {
+func parseIwNetworkScanResult(iwOutput string, logger *logrus.Entry) []WifiNetwork {
 	lines := strings.Split(strings.TrimSpace(iwOutput), "\n")
 	networks := make([]WifiNetwork, 0, 5)
 	i := -1
@@ -86,4 +76,16 @@ func parseNetworkScanResult(iwOutput string, logger *logrus.Entry) []WifiNetwork
 		}
 	}
 	return filtered
+}
+
+func runCmdOut(ctx context.Context, cmd string, args ...string) (string, error) {
+	c := exec.CommandContext(ctx, cmd, args...)
+	var stdout, stderr bytes.Buffer
+	c.Stdout = &stdout
+	c.Stderr = &stderr
+	err := c.Run()
+	if err != nil {
+		return "", fmt.Errorf("%s: %w: %s", cmd, err, strings.TrimSpace(stderr.String()))
+	}
+	return stdout.String(), nil
 }
