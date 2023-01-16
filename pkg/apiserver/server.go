@@ -288,7 +288,11 @@ func installNetworkInterfaceSync(genericServer *genericapiserver.GenericAPIServe
 
 func installDeviceDiscovery(genericServer *genericapiserver.GenericAPIServer, discovery *discovery.DeviceDiscovery) {
 	genericServer.AddPostStartHookOrDie("device-discovery", func(ctx genericapiserver.PostStartHookContext) error {
-		return discovery.Discover()
+		err := discovery.Discover()
+		if err != nil {
+			logrus.WithError(err).Error("device discovery post start hook failed")
+		}
+		return nil
 	})
 	genericServer.AddPreShutdownHookOrDie("device-discovery", discovery.Close)
 }
