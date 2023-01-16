@@ -3,7 +3,6 @@ package wifi
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/mgoltzsche/kubemate/pkg/runner"
 )
@@ -24,7 +23,7 @@ func (w *Wifi) StartAccessPoint(ssid, password string) error {
 	if err != nil {
 		return err
 	}
-	err = w.createDHCPDLeaseFileIfNotExist()
+	err = createLeaseFileIfNotExist(w.DHCPDLeaseFile)
 	if err != nil {
 		return err
 	}
@@ -115,19 +114,6 @@ rsn_pairwise=CCMP
 auth_algs=1
 macaddr_acl=0
 `, w.WifiIface, w.CountryCode, ssid, password)
-}
-
-func (w *Wifi) createDHCPDLeaseFileIfNotExist() error {
-	err := os.MkdirAll(filepath.Dir(w.DHCPDLeaseFile), 0755)
-	if err != nil {
-		return fmt.Errorf("create dhcpd lease file: %w", err)
-	}
-	f, err := os.OpenFile(w.DHCPDLeaseFile, os.O_CREATE|os.O_APPEND, 0600)
-	if err != nil {
-		return fmt.Errorf("create dhcpd lease file: %w", err)
-	}
-	_ = f.Close()
-	return nil
 }
 
 func (w *Wifi) installAPRoutes() {

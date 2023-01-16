@@ -14,7 +14,7 @@ COPY --from=build /work/kubemate /bin/kubemate
 
 FROM alpine:3.16
 RUN apk add --update --no-cache iptables socat openssl ca-certificates apparmor
-RUN apk add --no-cache iptables ip6tables ipset dhcp dhclient iproute2 iw wpa_supplicant hostapd
+RUN apk add --no-cache iptables ip6tables ipset dhcp dhcpcd iproute2 iw wpa_supplicant hostapd
 ARG VERSION="dev"
 RUN set -eu; \
 	mkdir -p /etc; \
@@ -35,6 +35,8 @@ RUN set -ex; \
 	ln -s cni /opt/cni/bin/flannel; \
 	ln -s kubemate /bin/kubectl; \
 	ln -s kubemate /bin/crictl; \
+	mkdir /var/lib/dhcpd; \
+	ln -s /var/lib/kubemate/dhcp/dhcpd.leases /var/lib/dhcpd/dhcpd.leases; \
 	mkdir -p /etc/kubemate; \
 	echo 'adminsecret,admin,admin,"admin,ui"' > /etc/kubemate/tokens
 COPY --from=build /work/kubemate /bin/kubemate

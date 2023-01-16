@@ -37,18 +37,18 @@ const (
 var WifiInterfaceNamePrefixes = []string{"wlan", "wlp"}
 
 type Wifi struct {
-	dhcpd             *runner.Runner
-	ap                *runner.Runner
-	station           *runner.Runner
-	wifiIfaceStarted  bool
-	mode              WifiMode
-	logger            *logrus.Entry
-	EthIface          string
-	WifiIface         string
-	DHCPDLeaseFile    string
-	DHClientLeaseFile string
-	CountryCode       string
-	networks          []WifiNetwork
+	dhcpd            *runner.Runner
+	ap               *runner.Runner
+	station          *runner.Runner
+	wifiIfaceStarted bool
+	mode             WifiMode
+	logger           *logrus.Entry
+	EthIface         string
+	WifiIface        string
+	DHCPDLeaseFile   string
+	DHCPCDLeaseFile  string
+	CountryCode      string
+	networks         []WifiNetwork
 }
 
 type WifiNetwork struct {
@@ -66,15 +66,15 @@ func New(logger *logrus.Entry, dataDir string, onProcessTermination runner.Statu
 	station := runner.New(logger.WithField("proc", "wpa_supplicant"))
 	station.Reporter = onProcessTermination
 	return &Wifi{
-		ap:                ap,
-		dhcpd:             dhcpd,
-		station:           station,
-		logger:            logger,
-		CountryCode:       "DE",
-		EthIface:          detectIface(logger, []string{"eth", "enp"}),
-		WifiIface:         detectIface(logger, WifiInterfaceNamePrefixes),
-		DHCPDLeaseFile:    filepath.Join(dataDir, "dhcp", "dhcpd.lease"),
-		DHClientLeaseFile: filepath.Join(dataDir, "dhcp", "dhclient.lease"),
+		ap:              ap,
+		dhcpd:           dhcpd,
+		station:         station,
+		logger:          logger,
+		CountryCode:     "DE",
+		EthIface:        detectIface(logger, []string{"eth", "enp"}),
+		WifiIface:       detectIface(logger, WifiInterfaceNamePrefixes),
+		DHCPDLeaseFile:  filepath.Join(dataDir, "dhcp", "dhcpd.leases"),
+		DHCPCDLeaseFile: filepath.Join(dataDir, "dhcp", "dhcpcd.leases"),
 	}
 }
 
@@ -180,6 +180,19 @@ func (w *Wifi) StopWifiInterface() error {
 		}
 		w.wifiIfaceStarted = false
 	}
+	return nil
+}
+
+func createLeaseFileIfNotExist(file string) error {
+	err := os.MkdirAll(filepath.Dir(file), 0755)
+	if err != nil {
+		return fmt.Errorf("create dhcpd lease file: %w", err)
+	}
+	f, err := os.OpenFile(file, os.O_CREATE|os.O_APPEND, 0600)
+	if err != nil {
+		return fmt.Errorf("create dhcpd lease file: %w", err)
+	}
+	_ = f.Close()
 	return nil
 }
 

@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -77,39 +75,35 @@ country=%s
 }
 
 func (w *Wifi) runDHClient() error {
-	err := os.MkdirAll(filepath.Dir(w.DHClientLeaseFile), 0755)
+	err := createLeaseFileIfNotExist(w.DHCPCDLeaseFile)
 	if err != nil {
 		return err
 	}
-	cf, err := w.generateDHClientConfig()
+	/*cf, err := w.generateDHClientConfig()
 	if err != nil {
 		return err
-	}
-	logger := w.logger.WithField("proc", "dhclient")
+	}*/
+	logger := w.logger.WithField("proc", "dhcpcd")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	c := exec.CommandContext(ctx, "dhclient", "-cf", cf, "-sf", "/etc/dhclient-script", "-lf", w.DHClientLeaseFile, w.WifiIface)
-	var stdout, stderr bytes.Buffer
-	c.Stdout = &stdout
-	c.Stderr = &stderr
+	// TODO: store w.DHClientLeaseFile permanently
+	c := exec.CommandContext(ctx, "dhcpcd", w.WifiIface)
+	var out bytes.Buffer
+	c.Stdout = &out
+	c.Stderr = &out
 	err = c.Run()
 	if err != nil {
-		return fmt.Errorf("dhclient: %w: %s", err, strings.TrimSpace(stderr.String()))
+		return fmt.Errorf("dhcpcd: %w: %s", err, strings.TrimSpace(out.String()))
 	}
-	for _, line := range strings.Split(stdout.String(), "\n") {
+	for _, line := range strings.Split(out.String(), "\n") {
 		if line != "" {
 			logger.Debug(line)
-		}
-	}
-	for _, line := range strings.Split(stderr.String(), "\n") {
-		if line != "" {
-			logger.Error(line)
 		}
 	}
 	return err
 }
 
-func (w *Wifi) generateDHClientConfig() (string, error) {
+/*func (w *Wifi) generateDHClientConfig() (string, error) {
 	confTpl := `
 backoff-cutoff 2;
 initial-interval 1;
@@ -133,4 +127,4 @@ interface %q {
  }`
 	file, _, err := writeConf("dhclient", confTpl, w.WifiIface)
 	return file, err
-}
+}*/
