@@ -143,13 +143,9 @@ func (w *Wifi) scan() error {
 func (w *Wifi) restartWifiInterface() error {
 	w.logger.WithField("iface", w.WifiIface).Debug("restarting wifi network interface")
 	err := runCmds([][]string{
-		//{"ifdown", w.WifiIface},
 		{"ip", "link", "set", w.WifiIface, "down"},
 		{"ip", "addr", "flush", "dev", w.WifiIface},
-		//{"ifup", w.WifiIface},
 		{"ip", "link", "set", w.WifiIface, "up"},
-		//{"ifconfig", w.WifiIface, "11.0.0.1", "up"},
-		//{"ip", "addr", "add", "11.0.0.1/24", "dev", w.WifiIface},
 	})
 	if err != nil {
 		return fmt.Errorf("restart wifi network interface %s: %w", w.WifiIface, err)
@@ -173,7 +169,6 @@ func (w *Wifi) StopWifiInterface() error {
 	if w.wifiIfaceStarted {
 		w.logger.WithField("iface", w.WifiIface).Debug("stopping wifi network interface")
 		err := runCmds([][]string{
-			//{"ifdown", w.WifiIface},
 			{"ip", "link", "set", w.WifiIface, "down"},
 		})
 		if err != nil {

@@ -52,6 +52,7 @@ ENV PATH="$PATH:/bin/aux:/opt/cni/bin" \
 	K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml \
 	K3S_KUBECONFIG_MODE=0640 \
 	KUBECONFIG=/output/kubeconfig.yaml \
-	KUBEMATE_WEB_DIR=/usr/share/kubemate/web
+	KUBEMATE_WEB_DIR=/usr/share/kubemate/web \
+	KUBEMATE_WRITE_HOST_RESOLVCONF=false
 ENTRYPOINT ["/bin/kubemate"]
 CMD ["server"]
