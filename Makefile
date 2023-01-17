@@ -43,6 +43,7 @@ ui: ## Build a the UI.
 	$(DOCKER) rm kubemate-webui-build 2>/dev/null || true
 	$(DOCKER) create --name=kubemate-webui-build kubemate-webui-build:local
 	rm -rf ./ui/dist/spa
+	mkdir -p ./ui/dist
 	$(DOCKER) cp kubemate-webui-build:/src/ui/dist/spa ./ui/dist/spa
 	$(DOCKER) rm kubemate-webui-build
 
