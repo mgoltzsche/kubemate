@@ -131,7 +131,15 @@ func (r *NetworkInterfaceReconciler) ensureIPAddress(iface *deviceapi.NetworkInt
 func (r *NetworkInterfaceReconciler) reconcileWifiNetworkInterface(iface *deviceapi.NetworkInterface, logger logr.Logger) error {
 	switch iface.Spec.Wifi.Mode {
 	case deviceapi.WifiModeAccessPoint:
-		err := setWifiIfaceCountry(iface, r.Store, r.Wifi, logger)
+		err := r.Wifi.StartWifiInterface()
+		if err != nil {
+			return err
+		}
+		err = updateWifiNetworkList(r.Wifi, r.WifiNetworks, logger)
+		if err != nil {
+			return err
+		}
+		err = setWifiIfaceCountry(iface, r.Store, r.Wifi, logger)
 		if err != nil {
 			return err
 		}
@@ -144,50 +152,28 @@ func (r *NetworkInterfaceReconciler) reconcileWifiNetworkInterface(iface *device
 		if err != nil {
 			return err
 		}
+	case deviceapi.WifiModeStation:
+		r.Wifi.StopAccessPoint()
+		err := r.Wifi.StartWifiInterface()
+		if err != nil {
+			return err
+		}
 		err = updateWifiNetworkList(r.Wifi, r.WifiNetworks, logger)
 		if err != nil {
 			return err
 		}
-	case deviceapi.WifiModeStation:
-		r.Wifi.StopAccessPoint()
-		err := setWifiIfaceCountry(iface, r.Store, r.Wifi, logger)
-		if err != nil {
-			return err
-		}
-		err = r.Wifi.StartWifiInterface()
+		err = setWifiIfaceCountry(iface, r.Store, r.Wifi, logger)
 		if err != nil {
 			return err
 		}
 		var pw deviceapi.WifiPassword
 		ssid := iface.Spec.Wifi.Station.SSID
 		if ssid == "" {
-			e := fmt.Errorf("no wifi network ssid specified")
-			logger.Error(e, "cannot connect with wifi network")
-			errMsg := "no wifi network ssid configured to connect to"
-			if iface.Status.Error != errMsg {
-				return r.Store.Update(iface.Name, iface, func() error {
-					iface.Status.Error = errMsg
-					return nil
-				})
-			}
-			return nil
-		} else {
-			err = r.WifiPasswords.Get(ssidToResourceName(ssid), &pw)
-			if err != nil {
-				logger.Error(err, "no password configured for wifi network", "ssid", ssid)
-				errMsg := fmt.Sprintf("no password configured for wifi network %q", ssid)
-				if iface.Status.Error != errMsg {
-					return r.Store.Update(iface.Name, iface, func() error {
-						iface.Status.Error = errMsg
-						return nil
-					})
-				}
-				return nil
-			}
+			return fmt.Errorf("no wifi network configured to connect to")
 		}
-		err = updateWifiNetworkList(r.Wifi, r.WifiNetworks, logger)
+		err = r.WifiPasswords.Get(ssidToResourceName(ssid), &pw)
 		if err != nil {
-			return err
+			return fmt.Errorf("no password configured for wifi network %q", ssid)
 		}
 		err = r.Wifi.StartStation(ssid, pw.Data.Password)
 		if err != nil {
@@ -213,11 +199,7 @@ func ssidToResourceName(ssid string) string {
 func setWifiIfaceCountry(iface *deviceapi.NetworkInterface, ifaces storage.Interface, w *wifi.Wifi, logger logr.Logger) error {
 	w.CountryCode = iface.Spec.Wifi.CountryCode
 	if w.CountryCode == "" {
-		err := w.StartWifiInterface()
-		if err != nil {
-			return err
-		}
-		err = w.DetectCountry()
+		err := w.DetectCountry()
 		if err != nil {
 			return err
 		}
