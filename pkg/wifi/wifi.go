@@ -37,18 +37,19 @@ const (
 var WifiInterfaceNamePrefixes = []string{"wlan", "wlp"}
 
 type Wifi struct {
-	dhcpd            *runner.Runner
-	ap               *runner.Runner
-	station          *runner.Runner
-	wifiIfaceStarted bool
-	mode             WifiMode
-	logger           *logrus.Entry
-	EthIface         string
-	WifiIface        string
-	DHCPDLeaseFile   string
-	DHCPCDLeaseFile  string
-	CountryCode      string
-	networks         []WifiNetwork
+	dhcpd               *runner.Runner
+	ap                  *runner.Runner
+	station             *runner.Runner
+	wifiIfaceStarted    bool
+	mode                WifiMode
+	logger              *logrus.Entry
+	EthIface            string
+	WifiIface           string
+	DHCPDLeaseFile      string
+	DHCPCDLeaseFile     string
+	CountryCode         string
+	WriteHostResolvConf bool
+	networks            []WifiNetwork
 }
 
 type WifiNetwork struct {

@@ -107,6 +107,7 @@ run: container ## Run a kubemate container locally within the host network.
 		--tmpfs /run --tmpfs /var/run --tmpfs /tmp \
 		-v `pwd`/data/kubemate:/var/lib/kubemate \
 		-v `pwd`/data/rancher:/etc/rancher \
+		-v /:/host \
 		--mount type=bind,src=/etc/machine-id,dst=/etc/machine-id \
 		--mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
 		--mount type=bind,src=/var/lib/docker,dst=/var/lib/docker,bind-propagation=rshared \
@@ -117,7 +118,7 @@ run: container ## Run a kubemate container locally within the host network.
 		-v `pwd`:/output \
 		--mount type=bind,src=`pwd`/ui/dist,dst=/usr/share/kubemate/web \
 		--device /dev/snd:/dev/snd \
-		$(IMAGE) connect --docker --web-dir=/usr/share/kubemate/web/spa --log-level=trace
+		$(IMAGE) connect --docker --web-dir=/usr/share/kubemate/web/spa --write-host-resolvconf --log-level=trace
 			#--http-port=80 --https-port=443
 			#--no-deploy=servicelb,traefik,metrics-server \
 			#--disable-cloud-controller \

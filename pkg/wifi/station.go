@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -33,7 +34,25 @@ func (w *Wifi) StartStation(ssid, password string) error {
 	if err != nil {
 		return err
 	}
-	err = w.runDHClient()
+	err = w.runDHCPCD()
+	if err != nil {
+		return err
+	}
+	if w.WriteHostResolvConf {
+		err = copyFile("/etc/resolv.conf", "/host/etc/resolv.conf")
+		if err != nil {
+			return fmt.Errorf("copy resolv.conf to host file system: %w", err)
+		}
+	}
+	return nil
+}
+
+func copyFile(src, dst string) error {
+	b, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile(dst, b, 0644)
 	if err != nil {
 		return err
 	}
@@ -74,7 +93,7 @@ country=%s
 	return writeConf("wpa_supplicant", configTpl, w.CountryCode, network)
 }
 
-func (w *Wifi) runDHClient() error {
+func (w *Wifi) runDHCPCD() error {
 	err := createLeaseFileIfNotExist(w.DHCPCDLeaseFile)
 	if err != nil {
 		return err

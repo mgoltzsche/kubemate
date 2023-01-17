@@ -93,6 +93,12 @@ var ConnectFlags = []cli.Flag{
 		EnvVar:      "KUBEMATE_DOCKER",
 		Destination: &Connect.Docker,
 	},
+	cli.BoolFlag{
+		Name:        "write-host-resolvconf",
+		Usage:       "(agent/runtime) let kubemate copy /etc/resolv.conf to /host/etc/resolv.conf",
+		EnvVar:      "KUBEMATE_WRITE_HOST_RESOLVCONF",
+		Destination: &Connect.WriteHostResolvConf,
+	},
 	cli.StringFlag{
 		Name:        "log-level",
 		Usage:       "(agent/runtime) log level",

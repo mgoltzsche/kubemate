@@ -43,16 +43,17 @@ import (
 
 // ServerOptions defines the configuration options for the server.
 type ServerOptions struct {
-	DeviceName      string
-	HTTPSAddress    string
-	HTTPSPort       int
-	HTTPPort        int
-	AdvertiseIfaces []string
-	WebDir          string
-	ManifestDir     string
-	DataDir         string
-	KubeletArgs     []string
-	Docker          bool
+	DeviceName          string
+	HTTPSAddress        string
+	HTTPSPort           int
+	HTTPPort            int
+	AdvertiseIfaces     []string
+	WebDir              string
+	ManifestDir         string
+	DataDir             string
+	KubeletArgs         []string
+	Docker              bool
+	WriteHostResolvConf bool
 }
 
 // NewServerOptions creates server options with defaults.
@@ -220,6 +221,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 			}
 		}
 	})
+	wifi.WriteHostResolvConf = o.WriteHostResolvConf
 	wifiNetworkREST := rest.NewWifiNetworkREST(wifi, scheme)
 	wifiPasswordDir := filepath.Join(o.DataDir, "wifipasswords")
 	wifiPasswordREST, err := rest.NewWifiPasswordREST(wifiPasswordDir, scheme)
