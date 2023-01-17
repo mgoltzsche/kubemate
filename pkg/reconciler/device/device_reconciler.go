@@ -210,10 +210,12 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 			r.k3s.Stop()
 		} else {
 			r.k3s.Start(runner.Cmd("/proc/self/exe", args...))
-			err := r.reconcileServerToken()
-			if err != nil {
-				logger.Error(err, "reconcile server")
-				return ctrl.Result{RequeueAfter: time.Second}, nil
+			if d.Spec.Mode == deviceapi.DeviceModeServer {
+				err := r.reconcileServerToken()
+				if err != nil {
+					logger.Error(err, "reconcile server")
+					return ctrl.Result{RequeueAfter: time.Second}, nil
+				}
 			}
 		}
 		if d.Spec.Mode == deviceapi.DeviceModeServer && d.Status.State != deviceapi.DeviceStateTerminating {
@@ -260,7 +262,8 @@ func (r *DeviceReconciler) reconcileServerToken() error {
 		return nil // already set
 	}
 	return r.DeviceTokens.Update(r.DeviceName, t, func() error {
-		b, err := os.ReadFile(filepath.Join(r.DataDir, "server", "token"))
+		serverTokenFile := filepath.Join(r.DataDir, "server", "token")
+		b, err := os.ReadFile(serverTokenFile)
 		if err != nil {
 			return err
 		}
