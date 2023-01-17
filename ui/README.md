@@ -10,10 +10,12 @@ yarn
 npm install
 ```
 
-### Start the app in development mode (hot-code reloading, error reporting, etc.)
+## Generate TypeScript interfaces from OpenAPI schema
 
 ```bash
-quasar dev
+yarn generate
+# or
+npm run generate
 ```
 
 ### Lint the files
@@ -32,10 +34,22 @@ yarn format
 npm run format
 ```
 
+### Build the app in debug mode
+
+```bash
+yarn debug
+```
+
 ### Build the app for production
 
 ```bash
-quasar build
+yarn build
+```
+
+### Start the app in development mode (hot-code reloading, error reporting, etc.)
+
+```bash
+quasar dev
 ```
 
 ### Customize the configuration
