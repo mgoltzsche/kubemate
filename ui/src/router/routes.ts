@@ -46,6 +46,12 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    name: 'cli-login',
+    path: '/cli-login',
+    component: () => import('layouts/MainLayout.vue'),
+    children: [{ path: '', component: () => import('pages/CLILoginPage.vue') }],
+  },
+  {
     name: 'apps',
     path: '/apps',
     component: () => import('layouts/MainLayout.vue'),

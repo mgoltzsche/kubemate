@@ -19,6 +19,7 @@ func AddToScheme(s *runtime.Scheme) error {
 	s.AddKnownTypeWithName(GroupVersion.WithKind("DeviceToken"), &DeviceToken{})
 	s.AddKnownTypeWithName(GroupVersion.WithKind("WifiNetwork"), &WifiNetwork{})
 	s.AddKnownTypeWithName(GroupVersion.WithKind("WifiPassword"), &WifiPassword{})
+	s.AddKnownTypeWithName(GroupVersion.WithKind("Certificate"), &Certificate{})
 	s.AddKnownTypes(GroupVersion,
 		&NetworkInterfaceList{},
 		&DeviceList{},
@@ -26,6 +27,7 @@ func AddToScheme(s *runtime.Scheme) error {
 		&DeviceTokenList{},
 		&WifiNetworkList{},
 		&WifiPasswordList{},
+		&CertificateList{},
 	)
 	return nil
 }

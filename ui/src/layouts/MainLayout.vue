@@ -147,6 +147,12 @@ const linksList = [
     link: '#/networkinterfaces',
   },
   {
+    title: 'API Access',
+    caption: 'Connect CLI & desktop clients',
+    icon: 'terminal',
+    link: '#/cli-login',
+  },
+  {
     title: 'Source code and issue tracker',
     caption: 'github.com/mgoltzsche/kubemate',
     icon: 'code',

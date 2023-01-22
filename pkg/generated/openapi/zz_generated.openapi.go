@@ -22,6 +22,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.AppStatus":                            schema_pkg_apis_apps_v1alpha1_AppStatus(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.CrossNamespaceSourceReference":        schema_pkg_apis_apps_v1alpha1_CrossNamespaceSourceReference(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.KustomizationSpec":                    schema_pkg_apis_apps_v1alpha1_KustomizationSpec(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.Certificate":                             schema_pkg_apis_devices_v1_Certificate(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.CertificateList":                         schema_pkg_apis_devices_v1_CertificateList(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.CertificateSpec":                         schema_pkg_apis_devices_v1_CertificateSpec(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.Device":                                  schema_pkg_apis_devices_v1_Device(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceDiscovery":                         schema_pkg_apis_devices_v1_DeviceDiscovery(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceDiscoveryList":                     schema_pkg_apis_devices_v1_DeviceDiscoveryList(ref),
@@ -632,6 +635,116 @@ func schema_pkg_apis_apps_v1alpha1_KustomizationSpec(ref common.ReferenceCallbac
 		},
 		Dependencies: []string{
 			"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.CrossNamespaceSourceReference", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
+	}
+}
+
+func schema_pkg_apis_devices_v1_Certificate(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Certificate is the Schema for the certificate API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.CertificateSpec"),
+						},
+					},
+				},
+				Required: []string{"metadata", "spec"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.CertificateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_devices_v1_CertificateList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CertificateList contains a list of Cache",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.Certificate"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.Certificate", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_devices_v1_CertificateSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CertificateSpec defines a certificate.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"caCert": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

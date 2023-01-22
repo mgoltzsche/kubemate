@@ -24,6 +24,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/authentication/authenticator"
 	"k8s.io/apiserver/pkg/authentication/request/anonymous"
@@ -88,7 +89,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		}
 	}
 	scheme := runtime.NewScheme()
-	deviceapi.AddToScheme(scheme)
+	utilruntime.Must(deviceapi.AddToScheme(scheme))
 	codecs := serializer.NewCodecFactory(scheme)
 	paramScheme := runtime.NewScheme()
 	paramCodecs := runtime.NewParameterCodec(paramScheme)
@@ -104,7 +105,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	}
 	tlsCertIPs := []net.IP{net.ParseIP("127.0.0.1")}
 	// TODO: use hostname as external address
-	err := tlsOpts.MaybeDefaultWithSelfSignedCerts(serverConfig.ExternalAddress, nil, tlsCertIPs)
+	err := tlsOpts.MaybeDefaultWithSelfSignedCerts(serverConfig.ExternalAddress, []string{o.DeviceName}, tlsCertIPs)
 	if err != nil {
 		return nil, err
 	}
@@ -189,6 +190,8 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if err != nil {
 		return nil, err
 	}
+	caCert, _ := serverConfig.SecureServing.Cert.CurrentCertKeyContent()
+	certREST := rest.NewCertificateREST(scheme, caCert)
 	ifaceREST := rest.NewNetworkInterfaceREST(ifaceStore)
 	discoveryStore := storage.InMemory(scheme)
 	discovery := discovery.NewDeviceDiscovery(o.DeviceName, o.HTTPSPort, o.AdvertiseIfaces, discoveryStore, logger)
@@ -241,6 +244,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		VersionedResourcesStorageMap: map[string]map[string]registryrest.Storage{
 			"v1": map[string]registryrest.Storage{
 				"networkinterfaces": ifaceREST,
+				"certificates":      certREST,
 				"devices":           deviceREST,
 				"devicediscovery":   discoveryREST,
 				"devicetokens":      deviceTokenREST,

@@ -4,6 +4,7 @@ import {
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_Device as Device,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_DeviceDiscovery as DeviceDiscovery,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_NetworkInterface as NetworkInterface,
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_Certificate as Certificate,
   io_k8s_api_networking_v1_Ingress as Ingress,
   io_k8s_apiextensions_apiserver_pkg_apis_apiextensions_v1_CustomResourceDefinition as CustomResourceDefinition,
 } from 'src/gen';
@@ -67,6 +68,11 @@ export const useNetworkInterfaceStore = defineResourceStore<NetworkInterface>(
 export const useDeviceDiscoveryStore = defineResourceStore<DeviceDiscovery>(
   '/apis/kubemate.mgoltzsche.github.com/v1',
   'devicediscovery'
+);
+
+export const useCertificateStore = defineResourceStore<Certificate>(
+  '/apis/kubemate.mgoltzsche.github.com/v1',
+  'certificates'
 );
 
 export const useAppStore = defineResourceStore<App>(

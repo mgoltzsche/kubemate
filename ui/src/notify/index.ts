@@ -17,3 +17,11 @@ export function catchError(p: Promise<any>) {
     error(e);
   });
 }
+
+export function info(msg: string) {
+  console.log(`INFO: ${msg}`);
+  Notify.create({
+    type: 'positive',
+    message: msg,
+  });
+}

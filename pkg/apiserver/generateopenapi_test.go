@@ -40,6 +40,7 @@ func TestGenerateOpenAPI(t *testing.T) {
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceToken",
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetwork",
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPassword",
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.Certificate",
 		"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.CustomResourceDefinition",
 		"k8s.io/api/networking/v1.Ingress",
 	}

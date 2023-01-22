@@ -9,8 +9,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// +k8s:openapi-gen=true
 // DeviceDiscoverySpec defines the desired state of the Device.
+// +k8s:openapi-gen=true
 type DeviceDiscoverySpec struct {
 	Mode    DeviceMode `json:"mode"`
 	Server  string     `json:"server,omitempty"`
