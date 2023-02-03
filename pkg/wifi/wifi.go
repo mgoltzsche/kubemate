@@ -30,6 +30,7 @@ import (
 type WifiMode string
 
 const (
+	WifiModeDisabled    WifiMode = "disabled"
 	WifiModeStation     WifiMode = "station"
 	WifiModeAccessPoint WifiMode = "accesspoint"
 )

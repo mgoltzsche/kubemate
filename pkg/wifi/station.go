@@ -98,14 +98,9 @@ func (w *Wifi) runDHCPCD() error {
 	if err != nil {
 		return err
 	}
-	/*cf, err := w.generateDHClientConfig()
-	if err != nil {
-		return err
-	}*/
 	logger := w.logger.WithField("proc", "dhcpcd")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	// TODO: store w.DHClientLeaseFile permanently
 	c := exec.CommandContext(ctx, "dhcpcd", w.WifiIface)
 	var out bytes.Buffer
 	c.Stdout = &out
@@ -119,31 +114,6 @@ func (w *Wifi) runDHCPCD() error {
 			logger.Debug(line)
 		}
 	}
+	// TODO: run after ethernet cable has been unplugged, to advertize hostname for the wifi IP: dhcpcd -n wlan0
 	return err
 }
-
-/*func (w *Wifi) generateDHClientConfig() (string, error) {
-	confTpl := `
-backoff-cutoff 2;
-initial-interval 1;
-link-timeout 10;
-reboot 10;
-retry 10;
-select-timeout 5;
-timeout 30;
-
-interface %q {
-  prepend domain-name-servers 127.0.0.1;
-  request subnet-mask,
-          broadcast-address,
-          routers,
-          domain-name,
-          domain-name-servers,
-          host-name;
-  require routers,
-          subnet-mask,
-          domain-name-servers;
- }`
-	file, _, err := writeConf("dhclient", confTpl, w.WifiIface)
-	return file, err
-}*/

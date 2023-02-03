@@ -27,20 +27,18 @@ func (w *Wifi) StartAccessPoint(ssid, password string) error {
 	if err != nil {
 		return err
 	}
-	if w.mode != WifiModeAccessPoint {
+	if ifacesConfChanged || hostapdConfChanged || dhcpdConfChanged || w.mode != WifiModeAccessPoint {
 		err = w.restartWifiInterface()
+		if err != nil {
+			return err
+		}
+		err = runCmd("ip", "addr", "add", "11.0.0.1/24", "dev", w.WifiIface)
 		if err != nil {
 			return err
 		}
 		w.mode = WifiModeAccessPoint
 	}
 	w.installAPRoutes()
-	if ifacesConfChanged || hostapdConfChanged || dhcpdConfChanged {
-		err = w.restartWifiInterface()
-		if err != nil {
-			return err
-		}
-	}
 	err = w.dhcpd.Start(runner.Cmd("dhcpd", "-4", "-f", "-d", w.WifiIface, "-cf", dhcpdConf, "-lf", w.DHCPDLeaseFile, "--no-pid"))
 	if err != nil {
 		return err
@@ -56,7 +54,13 @@ func (w *Wifi) StopAccessPoint() {
 	w.uninstallAPRoutes()
 	w.ap.Stop()
 	w.dhcpd.Stop()
-	//w.restartWifiInterfaceOrWarn()
+	if w.mode == WifiModeAccessPoint {
+		err := w.restartWifiInterface()
+		if err != nil {
+			w.logger.Error(fmt.Errorf("stop access point: %w", err))
+		}
+		w.mode = WifiModeDisabled
+	}
 }
 
 func (w *Wifi) generateNetworkInterfacesConfIfNotExist() (bool, error) {
