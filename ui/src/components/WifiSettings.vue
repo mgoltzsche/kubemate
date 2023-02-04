@@ -33,6 +33,18 @@
             animated
             class="shadow-2 rounded-borders"
           >
+            <q-tab-panel name="accesspoint">
+              <q-btn
+                color="secondary"
+                label="Set password"
+                @click="
+                  promptPassword(
+                    'accesspoint',
+                    iface?.spec.wifi?.accessPoint.SSID || ''
+                  )
+                "
+              />
+            </q-tab-panel>
             <q-tab-panel name="station">
               <q-card-section>
                 <p>Connect with wifi network:</p>
@@ -58,7 +70,9 @@
                       <q-radio
                         v-model="wifi.station.SSID"
                         :val="item.data.ssid"
-                        v-on:click="promptPassword(item)"
+                        v-on:click="
+                          promptPassword(item.metadata.name, item.data.ssid)
+                        "
                       />
                     </q-item-section>
                     <q-item-section>
@@ -75,49 +89,12 @@
         <q-btn color="primary" label="Apply" @click="apply" />
       </q-card-actions>
     </q-card>
-    <q-dialog v-model="promptWifiConnectPassword">
-      <q-card style="min-width: 350px">
-        <q-card-section>
-          <div class="text-h6">
-            Wifi password for {{ wifiConnectPassword.ssid }}
-          </div>
-        </q-card-section>
-
-        <q-card-section class="q-pt-none">
-          <q-input
-            dense
-            autofocus
-            v-model="wifiConnectPassword.password"
-            hint="Must have 8..63 characters!"
-            :type="showWifiConnectPassword ? 'text' : 'password'"
-            @keyup.enter="saveWifiConnectPassword()"
-          >
-            <template v-slot:append>
-              <q-icon
-                :name="
-                  showWifiConnectPassword ? 'visibility_off' : 'visibility'
-                "
-                class="cursor-pointer"
-                @click="showWifiConnectPassword = !showWifiConnectPassword"
-              />
-            </template>
-          </q-input>
-        </q-card-section>
-
-        <q-card-actions align="right" class="text-primary">
-          <q-btn flat label="Cancel" v-close-popup />
-          <q-btn
-            flat
-            label="OK"
-            v-on:click="saveWifiConnectPassword()"
-            :disable="
-              wifiConnectPassword.password.length < 8 ||
-              wifiConnectPassword.password.length > 63
-            "
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+    <wifi-password-dialog
+      v-model="showWifiConnectPassword"
+      :name="password.resourceName"
+      :ssid="password.ssid"
+      :key="password.resourceName"
+    />
   </div>
 </template>
 
@@ -125,37 +102,33 @@
 import { computed, defineComponent, reactive, Ref, toRefs, ref } from 'vue';
 //import { useDeviceStore } from 'src/stores/resources';
 import apiclient from 'src/k8sclient';
-import { catchError, error } from 'src/notify';
+import { catchError } from 'src/notify';
 import {
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_WifiSpec as WifiSpec,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_WifiNetwork as WifiNetwork,
-  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_WifiPassword as WifiPassword,
 } from 'src/gen';
 import sync from 'src/stores/sync';
 import { CancelablePromise } from 'src/k8sclient/CancelablePromise';
 import { useNetworkInterfaceStore } from 'src/stores/resources';
+import WifiPasswordDialog from 'src/components/WifiPasswordDialog.vue';
+
+interface WifiConnectPassword {
+  resourceName: string;
+  ssid: string;
+}
 
 const kc = new apiclient.KubeConfig();
 const wifiNetworkClient = kc.newClient<WifiNetwork>(
   '/apis/kubemate.mgoltzsche.github.com/v1',
   'wifinetworks'
 );
-const wifiPasswordClient = kc.newClient<WifiPassword>(
-  '/apis/kubemate.mgoltzsche.github.com/v1',
-  'wifipasswords'
-);
-
-interface WifiConnectPassword {
-  resourceName: string;
-  ssid: string;
-  password: string;
-}
 
 let wifiNetworkSync: CancelablePromise<void> | null = null;
 let netIfaceSync: CancelablePromise<void> | null = null;
 
 export default defineComponent({
   name: 'WifiSettings',
+  components: { WifiPasswordDialog },
   props: {
     interfaceName: {
       type: String,
@@ -192,74 +165,23 @@ export default defineComponent({
     const availableNetworks = ref([]) as Ref<WifiNetwork[]>;
     const scanning = ref(false);
     wifiNetworkSync = sync(wifiNetworkClient, availableNetworks, scanning);
-    const promptWifiConnectPassword = ref(false);
-    const wifiConnectPassword = ref({
+    const showWifiConnectPassword = ref(false);
+    const password = ref<WifiConnectPassword>({
       resourceName: '',
       ssid: '',
-      password: '',
-    }) as Ref<WifiConnectPassword>;
-
+    });
     const state = reactive({
       synchronizing: ifaceStore.synchronizing,
       availableNetworks,
       iface: computed(() =>
         ifaceStore.resources.find((r) => r.metadata.name == props.interfaceName)
       ),
-      promptWifiConnectPassword: promptWifiConnectPassword,
-      showWifiConnectPassword: false,
-      wifiConnectPassword: wifiConnectPassword,
-      promptPassword: async (n: WifiNetwork) => {
-        const ssid = n.data.ssid;
-        try {
-          promptWifiConnectPassword.value = true;
-          const name = n.metadata.name!;
-          try {
-            const pw = await wifiPasswordClient.get(name);
-            wifiConnectPassword.value = {
-              resourceName: name,
-              ssid: ssid,
-              password: pw.data.password,
-            };
-          } catch (_) {
-            wifiConnectPassword.value = {
-              resourceName: name,
-              ssid: ssid,
-              password: '',
-            };
-          }
-        } catch (e) {
-          error(e);
-        }
-      },
-      saveWifiConnectPassword: async () => {
-        try {
-          const pw = await wifiPasswordClient.get(
-            wifiConnectPassword.value.resourceName
-          );
-          if (wifiConnectPassword.value.password != pw.data.password) {
-            pw.data.password = wifiConnectPassword.value.password;
-            catchError(
-              wifiPasswordClient.update(pw).then(() => {
-                promptWifiConnectPassword.value = false;
-              })
-            );
-          }
-        } catch (_) {
-          catchError(
-            wifiPasswordClient
-              .create({
-                metadata: {
-                  name: wifiConnectPassword.value.resourceName,
-                },
-                data: {
-                  password: wifiConnectPassword.value.password,
-                },
-              })
-              .then(() => {
-                promptWifiConnectPassword.value = false;
-              })
-          );
-        }
+      promptPassword: async (name: string, ssid: string) => {
+        password.value = {
+          resourceName: name,
+          ssid: ssid,
+        };
+        showWifiConnectPassword.value = true;
       },
       apply: () => {
         const r = ifaceStore.resources.find(
@@ -272,6 +194,8 @@ export default defineComponent({
     });
     return {
       ...toRefs(state),
+      password,
+      showWifiConnectPassword,
       wifi,
       scanning,
       stationMode: WifiSpec.mode.STATION,
