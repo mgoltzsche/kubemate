@@ -3,6 +3,7 @@ package ingress
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
@@ -209,21 +210,41 @@ func newRouter(ctx context.Context, c client.Client, ingressClass string, logger
 					// TODO: emit kubernetes event
 					return nil, fmt.Errorf("duplicate ingress endpoint %s, ingresses: %s and %s", path, k, otherIngressKey)
 				}
-				backendURL, err := endpointURL(ctx, p.Backend.Service, ing.Namespace, c)
-				if err != nil {
-					logger.WithField("resource", k).Warn(err.Error())
-					continue
-				}
 				paths[path] = k
 				rewriteTargetPath := ""
+				backendProtocol := "http"
 				if ing.Annotations != nil {
 					rewriteTargetPath = ing.Annotations["kubemate.mgoltzsche.github.com/rewrite-target"]
 					if rewriteTargetPath == "" {
 						rewriteTargetPath = ing.Annotations["nginx.ingress.kubernetes.io/rewrite-target"]
 					}
+					p := ing.Annotations["kubemate.mgoltzsche.github.com/backend-protocol"]
+					if p == "" {
+						p = ing.Annotations["nginx.ingress.kubernetes.io/backend-protocol"]
+					}
+					if p != "" {
+						backendProtocol = p
+					}
+				}
+				backendProtocol = strings.ToLower(backendProtocol)
+				backendURL, err := endpointURL(ctx, backendProtocol, p.Backend.Service, ing.Namespace, c)
+				if err != nil {
+					logger.WithField("resource", k).Warn(err.Error())
+					continue
+				}
+				ph := httputil.NewSingleHostReverseProxy(backendURL)
+				if backendProtocol == "https" {
+					ph.Transport = &http.Transport{
+						Dial: (&net.Dialer{
+							Timeout:   30 * time.Second,
+							KeepAlive: 30 * time.Second,
+						}).Dial,
+						TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+						TLSHandshakeTimeout: 10 * time.Second,
+					}
 				}
 				h := &ingressBackendHandler{
-					proxy:             httputil.NewSingleHostReverseProxy(backendURL),
+					proxy:             ph,
 					targetPath:        p.Path,
 					rewriteTargetPath: rewriteTargetPath,
 					ingressName:       k,
@@ -269,7 +290,7 @@ func validateIngressBackend(b *netv1.IngressBackend) error {
 	return nil
 }
 
-func endpointURL(ctx context.Context, svc *netv1.IngressServiceBackend, ns string, c client.Client) (*url.URL, error) {
+func endpointURL(ctx context.Context, protocol string, svc *netv1.IngressServiceBackend, ns string, c client.Client) (*url.URL, error) {
 	var endpoints corev1.Endpoints
 	key := types.NamespacedName{
 		Name:      svc.Name,
@@ -286,7 +307,7 @@ func endpointURL(ctx context.Context, svc *netv1.IngressServiceBackend, ns strin
 			portMatched = true
 			for _, a := range s.Addresses {
 				if a.IP != "" {
-					u, err := url.Parse(fmt.Sprintf("http://%s:%d", a.IP, port))
+					u, err := url.Parse(fmt.Sprintf("%s://%s:%d", protocol, a.IP, port))
 					if err != nil {
 						return nil, fmt.Errorf("parse backend endpoint url: %w", err)
 					}
