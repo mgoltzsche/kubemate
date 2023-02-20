@@ -16,7 +16,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/mgoltzsche/kubemate/pkg/auth/resourceserver"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/oauth2/clientcredentials"
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,10 +31,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 )
 
-func NewIngressController(ingressClass string, logger *logrus.Entry) *IngressController {
+func NewIngressController(ingressClass string, auth clientcredentials.Config, logger *logrus.Entry) *IngressController {
 	return &IngressController{
 		ingressClass: ingressClass,
-		router:       newEmptyRouter(),
+		router:       newEmptyRouter(auth),
+		auth:         auth,
 		logger:       logger,
 	}
 }
@@ -40,6 +43,7 @@ func NewIngressController(ingressClass string, logger *logrus.Entry) *IngressCon
 type IngressController struct {
 	ingressClass string
 	router       *router
+	auth         clientcredentials.Config
 	logger       *logrus.Entry
 	mutex        sync.Mutex
 	started      bool
@@ -87,6 +91,7 @@ func (s *IngressController) start(ctx context.Context, cancel, prevCancel contex
 	r := &router{
 		Handler:      mux.NewRouter(),
 		ingressClass: s.ingressClass,
+		auth:         s.auth,
 		ctx:          ctx,
 		client:       cl,
 		logger:       s.logger,
@@ -133,7 +138,7 @@ func (s *IngressController) Stop() {
 	if s.started {
 		s.logger.Info("stopping watching ingress resources")
 		s.router.Cancel()
-		s.router = newEmptyRouter()
+		s.router = newEmptyRouter(s.auth)
 		s.started = false
 	}
 }
@@ -145,22 +150,24 @@ func (s *IngressController) ServeHTTP(w http.ResponseWriter, req *http.Request) 
 type router struct {
 	http.Handler
 	ingressClass string
+	auth         clientcredentials.Config
 	ctx          context.Context
 	client       client.Client
 	logger       *logrus.Entry
 	Cancel       context.CancelFunc
 }
 
-func newEmptyRouter() *router {
+func newEmptyRouter(auth clientcredentials.Config) *router {
 	return &router{
 		Handler: mux.NewRouter(),
+		auth:    auth,
 		Cancel:  func() {},
 	}
 }
 
 func (r *router) Update() {
 	r.logger.Debug("reconciling ingress routes")
-	h, err := newRouter(r.ctx, r.client, r.ingressClass, r.logger)
+	h, err := newRouter(r.ctx, r.client, r.ingressClass, r.auth, r.logger)
 	if err != nil {
 		r.logger.Error(err)
 		return
@@ -168,7 +175,7 @@ func (r *router) Update() {
 	r.Handler = h
 }
 
-func newRouter(ctx context.Context, c client.Client, ingressClass string, logger *logrus.Entry) (http.Handler, error) {
+func newRouter(ctx context.Context, c client.Client, ingressClass string, auth clientcredentials.Config, logger *logrus.Entry) (http.Handler, error) {
 	ingresses := netv1.IngressList{}
 	err := c.List(ctx, &ingresses)
 	if err != nil {
@@ -243,7 +250,7 @@ func newRouter(ctx context.Context, c client.Client, ingressClass string, logger
 						TLSHandshakeTimeout: 10 * time.Second,
 					}
 				}
-				h := &ingressBackendHandler{
+				var h http.Handler = &ingressBackendHandler{
 					proxy:             ph,
 					targetPath:        p.Path,
 					rewriteTargetPath: rewriteTargetPath,
@@ -251,6 +258,7 @@ func newRouter(ctx context.Context, c client.Client, ingressClass string, logger
 					serviceName:       p.Backend.Service.Name,
 					logger:            logger,
 				}
+				h = resourceserver.ProtectedEndpoint(h, auth)
 				pattern := p.Path
 				if p.PathType == nil || *p.PathType == netv1.PathTypePrefix || *p.PathType == netv1.PathTypeImplementationSpecific {
 					pattern = fmt.Sprintf("%s**", p.Path)

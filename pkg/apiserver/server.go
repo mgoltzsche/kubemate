@@ -10,10 +10,12 @@ import (
 	"time"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
+	"github.com/mgoltzsche/kubemate/pkg/auth/authserver"
 	"github.com/mgoltzsche/kubemate/pkg/controller"
 	"github.com/mgoltzsche/kubemate/pkg/discovery"
 	generatedopenapi "github.com/mgoltzsche/kubemate/pkg/generated/openapi"
 	"github.com/mgoltzsche/kubemate/pkg/ingress"
+	"github.com/mgoltzsche/kubemate/pkg/middleware"
 	"github.com/mgoltzsche/kubemate/pkg/networkifaces"
 	devicectrl "github.com/mgoltzsche/kubemate/pkg/reconciler/device"
 	"github.com/mgoltzsche/kubemate/pkg/rest"
@@ -22,6 +24,7 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/tokengen"
 	"github.com/mgoltzsche/kubemate/pkg/wifi"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/oauth2/clientcredentials"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -232,9 +235,34 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		return nil, err
 	}
 	installDeviceDiscovery(genericServer, discovery)
-	ingressRouter := ingress.NewIngressController("kubemate", logrus.WithField("comp", "ingress-controller"))
-	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known", "/version"}
-	var handler http.Handler = NewWebUIHandler(o.WebDir, apiPaths, genericServer.Handler.FullHandlerChain, ingressRouter)
+	oidcIssuer := fmt.Sprintf("https://%s", serverConfig.ExternalAddress)
+	/*handler, err := oidc.NewIdentityProvider(context.TODO(), oidcIssuer, genericServer.Handler.FullHandlerChain)
+	if err != nil {
+		return nil, fmt.Errorf("oidc identity provider: %w", err)
+	}
+	rsProvider, err := rs.NewProvider(issuer, keyPath)
+	if err != nil {
+		return nil, fmt.Errorf("oidc resource server authenticator: %w", err)
+	}
+	var handler http.Handler = idp*/
+
+	router := http.NewServeMux()
+	idp := authserver.NewIdentityProvider()
+	idp.RegisterHTTPRoutes(router, logger)
+	router.Handle("/", genericServer.Handler.FullHandlerChain)
+
+	// The same thing (valid oauth2 client) but for using the client credentials grant
+	var appClientConf = clientcredentials.Config{
+		ClientID:     "my-client",
+		ClientSecret: "foobar",
+		Scopes:       []string{"fosite"},
+		TokenURL:     fmt.Sprintf("%s/oauth2/token", oidcIssuer),
+	}
+
+	ingressRouter := ingress.NewIngressController("kubemate", appClientConf, logrus.WithField("comp", "ingress-controller"))
+	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/version", "/.well-known", "/idp/", "/login", "/logged-out"}
+	handler := NewWebUIHandler(o.WebDir, apiPaths, router, ingressRouter)
+	handler = middleware.WithAccessLog(handler, logger)
 	genericServer.Handler.FullHandlerChain = handler
 	apiGroup := &genericapiserver.APIGroupInfo{
 		PrioritizedVersions:  scheme.PrioritizedVersionsForGroup(deviceapi.GroupVersion.Group),
