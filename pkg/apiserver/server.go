@@ -225,6 +225,8 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		}
 	})
 	wifi.WriteHostResolvConf = o.WriteHostResolvConf
+	wifi.DNSKeyFile = filepath.Join(o.DataDir, "k3s", "dns", "zone.key")
+	wifi.CaptivePortalURL = fmt.Sprintf("https://%s", genericServer.ExternalAddress)
 	wifiNetworkREST := rest.NewWifiNetworkREST(wifi, scheme)
 	wifiPasswordDir := filepath.Join(o.DataDir, "wifipasswords")
 	wifiPasswordREST, err := rest.NewWifiPasswordREST(wifiPasswordDir, scheme)

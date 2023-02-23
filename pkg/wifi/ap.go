@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/mgoltzsche/kubemate/pkg/cliutils"
 	"github.com/mgoltzsche/kubemate/pkg/runner"
 )
 
@@ -85,39 +86,64 @@ iface %[2]s inet dhcp
 }
 
 func (w *Wifi) generateDhcpdConf() (string, bool, error) {
-	return writeConf("dhcpd", `authoritative;
-subnet 11.0.0.0 netmask 255.255.255.0 {
-        range 11.0.0.10 11.0.0.20;
-        option broadcast-address 11.0.0.255;
-        option routers 11.0.0.1;
-        default-lease-time 600;
-        max-lease-time 7200;
-        option domain-name "local";
-        option domain-name-servers 1.1.1.1;
+	return cliutils.WriteTempConfigFile("dhcpd", `# DNS update configuration
+ddns-update-style interim;
+update-static-leases on; # update dns for static entries
+allow client-updates;
+include "{dnsKeyFile}";
+
+# options for all networks
+default-lease-time 600;
+max-lease-time 7200;
+
+authoritative;
+
+zone kube.m8. {
+  primary 127.0.0.1;
+  key kubemate;
 }
-`)
+
+zone 0.0.11.in-addr.arpa. {
+  primary 127.0.0.1;
+  key kubemate;
+}
+
+ddns-domainname "kube.m8.";
+ddns-rev-domainname "in-addr.arpa.";
+
+option captive-portal-rfc7710 code 160 = string;
+
+subnet 11.0.0.0 netmask 255.255.255.0 {
+  range 11.0.0.10 11.0.0.20;
+  option broadcast-address 11.0.0.255;
+  option domain-name "kube.m8";
+  option domain-name-servers 11.0.0.1;
+  option routers 11.0.0.1;
+  option captive-portal-rfc7710 "{captivePortal}";
+}
+`, "{dnsKeyFile}", w.DNSKeyFile, "{captivePortal}", w.CaptivePortalURL)
 }
 
 func (w *Wifi) generateHostapdConf(ssid, password string) (string, bool, error) {
 	// See https://wiki.gentoo.org/wiki/Hostapd
-	return writeConf("hostapd", `interface=%s
+	return cliutils.WriteTempConfigFile("hostapd", `interface={iface}
 driver=nl80211
 hw_mode=g
 channel=6
 ieee80211d=1
 ignore_broadcast_ssid=0
-country_code=%s
+country_code={countryCode}
 ieee80211d=1
 
-ssid=%s
+ssid={ssid}
 wpa=2
-wpa_passphrase=%s
+wpa_passphrase={password}
 wpa_key_mgmt=WPA-PSK
 wpa_pairwise=TKIP
 rsn_pairwise=CCMP
 auth_algs=1
 macaddr_acl=0
-`, w.WifiIface, w.CountryCode, ssid, password)
+`, "{iface}", w.WifiIface, "{countryCode}", w.CountryCode, "{ssid}", ssid, "{password}", password)
 }
 
 func (w *Wifi) installAPRoutes() {

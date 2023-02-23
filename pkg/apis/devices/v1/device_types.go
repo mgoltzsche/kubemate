@@ -28,15 +28,15 @@ const (
 	DeviceModeAgent        DeviceMode  = "agent"
 )
 
-// +k8s:openapi-gen=true
 // DeviceSpec defines the desired state of the Device.
+// +k8s:openapi-gen=true
 type DeviceSpec struct {
 	Mode   DeviceMode `json:"mode"`
 	Server string     `json:"server,omitempty"`
 }
 
-// +k8s:openapi-gen=true
 // DeviceStatus defines the observed state of Cache
+// +k8s:openapi-gen=true
 type DeviceStatus struct {
 	Generation  int64       `json:"generation,omitempty"`
 	Current     bool        `json:"current"`
@@ -46,6 +46,16 @@ type DeviceStatus struct {
 	JoinAddress string      `json:"joinAddress,omitempty"`
 	// TODO: add ips (currently this makes the code generation fail):
 	//IPs []string `json:"ips,omitempty"`
+	DNSServer ProcessStatus `json:"dnsServer"`
+}
+
+// ProcessStatus defines the status of a process.
+// +k8s:openapi-gen=true
+type ProcessStatus struct {
+	Running      bool `json:"running"`
+	RestartCount int  `json:"restartCount,omitempty"`
+	// TODO: add this - currently this makes the code generation produce uncompilable code
+	//LastTransition metav1.Time `json:"lastTransition,omitempty"`
 }
 
 // Device is the Schema for the devices API

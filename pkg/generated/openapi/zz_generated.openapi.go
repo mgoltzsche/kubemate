@@ -41,6 +41,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceSpec":                    schema_pkg_apis_devices_v1_NetworkInterfaceSpec(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceStatus":                  schema_pkg_apis_devices_v1_NetworkInterfaceStatus(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkLinkStatus":                       schema_pkg_apis_devices_v1_NetworkLinkStatus(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.ProcessStatus":                           schema_pkg_apis_devices_v1_ProcessStatus(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiAccessPointSpec":                     schema_pkg_apis_devices_v1_WifiAccessPointSpec(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetwork":                             schema_pkg_apis_devices_v1_WifiNetwork(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetworkData":                         schema_pkg_apis_devices_v1_WifiNetworkData(ref),
@@ -1050,10 +1051,19 @@ func schema_pkg_apis_devices_v1_DeviceStatus(ref common.ReferenceCallback) commo
 							Format: "",
 						},
 					},
+					"dnsServer": {
+						SchemaProps: spec.SchemaProps{
+							Description: "IPs []string `json:\"ips,omitempty\"`",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.ProcessStatus"),
+						},
+					},
 				},
-				Required: []string{"current"},
+				Required: []string{"current", "dnsServer"},
 			},
 		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.ProcessStatus"},
 	}
 }
 
@@ -1386,6 +1396,33 @@ func schema_pkg_apis_devices_v1_NetworkLinkStatus(ref common.ReferenceCallback) 
 					},
 				},
 				Required: []string{"up"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_devices_v1_ProcessStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ProcessStatus defines the status of a process.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"running": {
+						SchemaProps: spec.SchemaProps{
+							Default: false,
+							Type:    []string{"boolean"},
+							Format:  "",
+						},
+					},
+					"restartCount": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
+				},
+				Required: []string{"running"},
 			},
 		},
 	}

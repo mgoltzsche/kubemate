@@ -49,6 +49,7 @@ type DeviceReconciler struct {
 	scheme      *runtime.Scheme
 	k3s         *runner.Runner
 	controllers *controller.ControllerManager
+	dnsServer   *deviceDnsServerReconciler
 }
 
 func (r *DeviceReconciler) AddToScheme(s *runtime.Scheme) error {
@@ -61,6 +62,8 @@ func (r *DeviceReconciler) AddToScheme(s *runtime.Scheme) error {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DeviceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	dnsDir := filepath.Join(r.DataDir, "dns")
+	r.dnsServer = newDeviceDnsServerReconciler(dnsDir, r.DeviceName, r.Devices, r.NetworkInterfaces, r.Logger)
 	// TODO: use mgr.GetLogger() logr.Logger that controller-runtime is providing to the Reconcile method as well
 	r.controllers = controller.NewControllerManager(ctrl.GetConfig, logrus.WithField("comp", "controller-manager"))
 	r.controllers.RegisterReconciler(&app.AppReconciler{})
@@ -68,9 +71,9 @@ func (r *DeviceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.k3s.Reporter = func(cmd runner.Command) {
 		// Update device resource's status
 		if cmd.Status.State == runner.ProcessStateFailed {
-			logrus.Warnf("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
+			r.Logger.Warnf("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
 		} else {
-			logrus.Infof("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
+			r.Logger.Infof("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
 		}
 		d := &deviceapi.Device{}
 		err := r.Devices.Update(r.DeviceName, d, func() error {
@@ -85,7 +88,7 @@ func (r *DeviceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			return nil
 		})
 		if err != nil {
-			logrus.WithError(err).Error("failed to update device status")
+			r.Logger.WithError(err).Error("failed to update device status")
 		}
 	}
 	// Add CRDs to k3s' manifest directory
@@ -132,6 +135,11 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	if err != nil {
 		logger.Error(err, "no ip address available")
 		return ctrl.Result{}, nil
+	}
+	// TODO: apply network configuration here instead of managing each networkinterface within a separate resource?!
+	err = r.dnsServer.Reconcile(ctx, &d)
+	if err != nil {
+		return requeue(err)
 	}
 	var args []string
 	fn := func() error {

@@ -48,6 +48,8 @@ type Wifi struct {
 	WifiIface           string
 	DHCPDLeaseFile      string
 	DHCPCDLeaseFile     string
+	DNSKeyFile          string
+	CaptivePortalURL    string
 	CountryCode         string
 	WriteHostResolvConf bool
 	networks            []WifiNetwork
@@ -68,15 +70,17 @@ func New(logger *logrus.Entry, dataDir string, onProcessTermination runner.Statu
 	station := runner.New(logger.WithField("proc", "wpa_supplicant"))
 	station.Reporter = onProcessTermination
 	return &Wifi{
-		ap:              ap,
-		dhcpd:           dhcpd,
-		station:         station,
-		logger:          logger,
-		CountryCode:     "DE",
-		EthIface:        detectIface(logger, []string{"eth", "enp"}),
-		WifiIface:       detectIface(logger, WifiInterfaceNamePrefixes),
-		DHCPDLeaseFile:  filepath.Join(dataDir, "dhcp", "dhcpd.leases"),
-		DHCPCDLeaseFile: filepath.Join(dataDir, "dhcp", "dhcpcd.leases"),
+		ap:               ap,
+		dhcpd:            dhcpd,
+		station:          station,
+		logger:           logger,
+		CountryCode:      "DE",
+		EthIface:         detectIface(logger, []string{"eth", "enp"}),
+		WifiIface:        detectIface(logger, WifiInterfaceNamePrefixes),
+		DHCPDLeaseFile:   filepath.Join(dataDir, "dhcp", "dhcpd.leases"),
+		DHCPCDLeaseFile:  filepath.Join(dataDir, "dhcp", "dhcpcd.leases"),
+		DNSKeyFile:       "/etc/bind/rndc.key",
+		CaptivePortalURL: "localhost",
 	}
 }
 

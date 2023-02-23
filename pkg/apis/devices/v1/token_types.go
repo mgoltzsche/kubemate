@@ -9,14 +9,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// +k8s:openapi-gen=true
 // DeviceTokenData defines the desired state of Cache
+// +k8s:openapi-gen=true
 type DeviceTokenData struct {
 	Token string `json:"token"`
 }
 
-// +k8s:openapi-gen=true
 // DeviceTokenStatus defines the desired state of Cache
+// +k8s:openapi-gen=true
 type DeviceTokenStatus struct {
 	JoinToken string `json:"joinToken,omitempty"`
 }
