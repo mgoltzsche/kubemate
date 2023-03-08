@@ -2,7 +2,9 @@ package runner
 
 import (
 	"fmt"
+	"os"
 	"sync"
+	"syscall"
 
 	"github.com/sirupsen/logrus"
 )
@@ -30,16 +32,18 @@ type StatusReportFunc func(cmd Command)
 func noopStatusReporter(cmd Command) {}
 
 type Runner struct {
-	proc     *Proc
-	mutex    sync.Mutex
-	Reporter StatusReportFunc
-	logger   *logrus.Entry
+	proc              *Proc
+	mutex             sync.Mutex
+	Reporter          StatusReportFunc
+	TerminationSignal os.Signal
+	logger            *logrus.Entry
 }
 
 func New(logger *logrus.Entry) *Runner {
 	return &Runner{
-		Reporter: noopStatusReporter,
-		logger:   logger,
+		Reporter:          noopStatusReporter,
+		TerminationSignal: os.Interrupt,
+		logger:            logger,
 	}
 }
 
@@ -51,6 +55,19 @@ func (m *Runner) Stop() (err error) {
 		m.proc = nil
 	}
 	return
+}
+
+func (m *Runner) SignalReload() error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	if m.proc == nil || m.proc.proc == nil {
+		return fmt.Errorf("signal %s to reload: not running", m.proc.cmd.Command)
+	}
+	err := m.proc.proc.Signal(syscall.SIGHUP)
+	if err != nil {
+		return fmt.Errorf("signal %s to reload: %w", m.proc.cmd.Command, err)
+	}
+	return nil
 }
 
 func (m *Runner) Start(cmd CommandSpec) error {
@@ -67,7 +84,7 @@ func (m *Runner) Start(cmd CommandSpec) error {
 		}
 		m.proc = nil
 	}
-	p, err := StartProcess(m.logger, cmd)
+	p, err := StartProcess(m.logger, m.TerminationSignal, cmd)
 	if err != nil {
 		m.report(cmd, CommandStatus{
 			State:   ProcessStateFailed,

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
 	"github.com/mgoltzsche/kubemate/pkg/cliutils"
@@ -18,17 +19,18 @@ type deviceDnsServerReconciler struct {
 	deviceName string
 	dir        string
 	ifaces     storage.Interface
-	bind       *runner.Runner
+	dnsmasq    *runner.Runner
 }
 
 func newDeviceDnsServerReconciler(dir, deviceName string, deviceStore, ifaces storage.Interface, logger *logrus.Entry) *deviceDnsServerReconciler {
-	bind := runner.New(logger.WithField("proc", "named"))
-	bind.Reporter = func(c runner.Command) {
+	dnsmasq := runner.New(logger.WithField("proc", "dnsmasq"))
+	dnsmasq.TerminationSignal = syscall.SIGTERM
+	dnsmasq.Reporter = func(c runner.Command) {
 		// Update device resource's status
 		if c.Status.State == runner.ProcessStateFailed {
-			logrus.Warnf("bind %s: %s", c.Status.State, c.Status.Message)
+			logrus.Warnf("dnsmasq %s: %s", c.Status.State, c.Status.Message)
 		} else {
-			logrus.Infof("bind %s: %s", c.Status.State, c.Status.Message)
+			logrus.Infof("dnsmasq %s: %s", c.Status.State, c.Status.Message)
 		}
 		d := &deviceapi.Device{}
 		err := deviceStore.Update(deviceName, d, func() error {
@@ -48,39 +50,86 @@ func newDeviceDnsServerReconciler(dir, deviceName string, deviceStore, ifaces st
 		deviceName: deviceName,
 		dir:        dir,
 		ifaces:     ifaces,
-		bind:       bind,
+		dnsmasq:    dnsmasq,
 	}
 }
 
 func (r *deviceDnsServerReconciler) Reconcile(ctx context.Context, d *deviceapi.Device) error {
-	isAP, err := isAccessPoint(r.ifaces)
+	isAP, iface, ip, err := isAccessPoint(r.ifaces)
 	if err != nil {
 		return err
 	}
 	dnsServerEnabled := d.Spec.Mode == deviceapi.DeviceModeServer || isAP
 	if !dnsServerEnabled {
-		return r.bind.Stop()
+		return r.dnsmasq.Stop()
 	}
-
-	conf, err := generateBindConfig(ctx, r.deviceName, r.dir)
+	captivePortalURL := d.Status.Address
+	confPath, err := generateDnsmasqConfig(isAP, iface, r.deviceName, captivePortalURL, ip, "11.0.0.10", "11.0.0.50")
 	if err != nil {
 		return err
 	}
-	return r.bind.Start(runner.Cmd("named", "-gc", conf))
+	err = r.dnsmasq.Start(runner.Cmd("dnsmasq", "-C", confPath, "-zk", "--log-facility=-"))
+	if err != nil {
+		return err
+	}
+	// TODO: reload only when config changed
+	return r.dnsmasq.SignalReload()
 }
 
-func isAccessPoint(ifaces storage.Interface) (bool, error) {
+func isAccessPoint(ifaces storage.Interface) (bool, string, string, error) {
 	l := deviceapi.NetworkInterfaceList{}
 	err := ifaces.List(&l)
 	if err != nil {
-		return false, fmt.Errorf("check access point mode: %w", err)
+		return false, "", "", fmt.Errorf("check access point mode: %w", err)
 	}
+	iface := ""
+	ip := ""
 	for _, r := range l.Items {
-		if r.Spec.Wifi.Mode == deviceapi.WifiModeAccessPoint {
-			return true, nil
+		if r.Status.Link.IP4 != "" {
+			if r.Spec.Wifi.Mode == deviceapi.WifiModeAccessPoint {
+				return true, r.Name, r.Status.Link.IP4, nil
+			}
+			if r.Status.Link.Up && iface == "" {
+				iface = r.Name
+				ip = r.Status.Link.IP4
+			}
 		}
 	}
-	return false, nil
+	return false, iface, ip, nil
+}
+
+func generateDnsmasqConfig(dhcp bool, iface, deviceName, captivePortalURL, ip, dhcpIpFrom, dhcpIpTo string) (string, error) {
+	dhcpConf := ""
+	if dhcp {
+		dhcpConf = strings.NewReplacer("{captivePortalURL}", captivePortalURL, "{ip}", ip, "{ipRangeStart}", dhcpIpFrom, "{ipRangeEnd}", dhcpIpTo).
+			Replace(`dhcp-range={ipRangeStart},{ipRangeEnd},255.255.255.0,2h
+dhcp-option=3,{ip}
+dhcp-option=6,{ip}
+dhcp-option-force=option:domain-search,kube.m8
+dhcp-option-force=option:domain-name,kube.m8
+dhcp-option-force=160,{captivePortalURL}
+address=/detectportal.firefox.com/{ip}
+address=/connectivitycheck.gstatic.com/{ip}
+address=/clients3.google.com/{ip}
+address=/www.msftconnecttest.com/{ip}
+address=/captive.apple.com/{ip}
+address=/connect.rom.miui.com/{ip}
+`)
+	}
+	// TODO: configure data dir
+	// TODO: redirect captive portal detection requests
+	conf := strings.NewReplacer("{dhcpConf}", dhcpConf, "{deviceName}", deviceName, "{ip}", ip, "{iface}", iface).Replace(`
+{dhcpConf}
+interface={iface}
+listen-address={ip}
+port=53
+domain-needed
+bogus-priv
+address=/{deviceName}.kube.m8/{ip}
+`)
+	file, _, err := cliutils.WriteTempConfigFile("dnsmasq", conf)
+	return file, err
+	//return os.WriteFile(confPath, []byte(conf), 0600)
 }
 
 func generateBindConfig(ctx context.Context, deviceName, dir string) (string, error) {

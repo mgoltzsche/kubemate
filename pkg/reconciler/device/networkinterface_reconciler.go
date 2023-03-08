@@ -58,7 +58,10 @@ func (r *NetworkInterfaceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *NetworkInterfaceReconciler) Close() error {
-	return r.linkSync.Stop()
+	if r.linkSync != nil {
+		return r.linkSync.Stop()
+	}
+	return nil
 }
 
 func (r *NetworkInterfaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {

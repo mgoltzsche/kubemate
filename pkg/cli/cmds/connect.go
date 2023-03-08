@@ -9,9 +9,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mgoltzsche/kubemate/pkg/apiserver"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
+	genericapiserver "k8s.io/apiserver/pkg/server"
+
+	"github.com/mgoltzsche/kubemate/pkg/apiserver"
 )
 
 type ConnectConfig struct {
@@ -31,14 +33,14 @@ var ConnectFlags = []cli.Flag{
 		Usage:       "(agent/runtime) net/IP to listen on without TLS",
 		EnvVar:      "KUBEMATE_INSECURE_ADDRESS",
 		Destination: &Connect.HTTPAddress,
-		Value:       "127.0.0.1",
+		Value:       Connect.HTTPAddress,
 	},
 	cli.IntFlag{
 		Name:        "http-port",
-		Usage:       "(agent/runtime) non-TLS port to listen on",
+		Usage:       "(agent/runtime) non-TLS port to listen on.",
 		EnvVar:      "KUBEMATE_INSECURE_PORT",
 		Destination: &Connect.HTTPPort,
-		Value:       8080,
+		Value:       Connect.HTTPPort,
 	},
 	cli.StringFlag{
 		Name:        "https-address",
@@ -119,7 +121,7 @@ func NewConnectCommand(action func(*cli.Context) error) cli.Command {
 }
 
 func RunConnectServer(app *cli.Context) error {
-	return run(newContext())
+	return run(genericapiserver.SetupSignalContext())
 }
 
 func run(ctx context.Context) error {

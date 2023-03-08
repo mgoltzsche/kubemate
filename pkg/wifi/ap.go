@@ -20,15 +20,15 @@ func (w *Wifi) StartAccessPoint(ssid, password string) error {
 	if err != nil {
 		return err
 	}
-	dhcpdConf, dhcpdConfChanged, err := w.generateDhcpdConf()
+	/*dhcpdConf, dhcpdConfChanged, err := w.generateDhcpdConf()
 	if err != nil {
 		return err
 	}
 	err = createLeaseFileIfNotExist(w.DHCPDLeaseFile)
 	if err != nil {
 		return err
-	}
-	if ifacesConfChanged || hostapdConfChanged || dhcpdConfChanged || w.mode != WifiModeAccessPoint {
+	}*/
+	if ifacesConfChanged || hostapdConfChanged || /*dhcpdConfChanged ||*/ w.mode != WifiModeAccessPoint {
 		err = w.restartWifiInterface()
 		if err != nil {
 			return err
@@ -40,10 +40,10 @@ func (w *Wifi) StartAccessPoint(ssid, password string) error {
 		w.mode = WifiModeAccessPoint
 	}
 	w.installAPRoutes()
-	err = w.dhcpd.Start(runner.Cmd("dhcpd", "-4", "-f", "-d", w.WifiIface, "-cf", dhcpdConf, "-lf", w.DHCPDLeaseFile, "--no-pid"))
+	/*err = w.dhcpd.Start(runner.Cmd("dhcpd", "-4", "-f", "-d", w.WifiIface, "-cf", dhcpdConf, "-lf", w.DHCPDLeaseFile, "--no-pid"))
 	if err != nil {
 		return err
-	}
+	}*/
 	err = w.ap.Start(runner.Cmd("hostapd", hostapdConf))
 	if err != nil {
 		return err
@@ -85,7 +85,7 @@ iface %[2]s inet dhcp
 	return false, nil
 }
 
-func (w *Wifi) generateDhcpdConf() (string, bool, error) {
+/*func (w *Wifi) generateDhcpdConf() (string, bool, error) {
 	return cliutils.WriteTempConfigFile("dhcpd", `# DNS update configuration
 ddns-update-style interim;
 update-static-leases on; # update dns for static entries
@@ -122,7 +122,7 @@ subnet 11.0.0.0 netmask 255.255.255.0 {
   option captive-portal-rfc7710 "{captivePortal}";
 }
 `, "{dnsKeyFile}", w.DNSKeyFile, "{captivePortal}", w.CaptivePortalURL)
-}
+}*/
 
 func (w *Wifi) generateHostapdConf(ssid, password string) (string, bool, error) {
 	// See https://wiki.gentoo.org/wiki/Hostapd

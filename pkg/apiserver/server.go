@@ -14,6 +14,7 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/discovery"
 	generatedopenapi "github.com/mgoltzsche/kubemate/pkg/generated/openapi"
 	"github.com/mgoltzsche/kubemate/pkg/ingress"
+	"github.com/mgoltzsche/kubemate/pkg/middleware"
 	"github.com/mgoltzsche/kubemate/pkg/networkifaces"
 	devicectrl "github.com/mgoltzsche/kubemate/pkg/reconciler/device"
 	"github.com/mgoltzsche/kubemate/pkg/rest"
@@ -47,6 +48,7 @@ type ServerOptions struct {
 	DeviceName          string
 	HTTPSAddress        string
 	HTTPSPort           int
+	HTTPAddress         string
 	HTTPPort            int
 	AdvertiseIfaces     []string
 	WebDir              string
@@ -67,6 +69,8 @@ func NewServerOptions() ServerOptions {
 		DeviceName:   hostname,
 		HTTPSAddress: "0.0.0.0",
 		HTTPSPort:    8443,
+		HTTPAddress:  "0.0.0.0",
+		HTTPPort:     80,
 		WebDir:       "/usr/share/kubemate/web",
 		ManifestDir:  "/usr/share/kubemate/manifests",
 		DataDir:      "/var/lib/kubemate",
@@ -237,6 +241,8 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	ingressRouter := ingress.NewIngressController("kubemate", logrus.WithField("comp", "ingress-controller"))
 	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known", "/version"}
 	var handler http.Handler = NewWebUIHandler(o.WebDir, apiPaths, genericServer.Handler.FullHandlerChain, ingressRouter)
+	handler = middleware.ForceHTTPS(handler)
+	handler = middleware.WithCaptivePortalRedirects(wifi.CaptivePortalURL, handler)
 	genericServer.Handler.FullHandlerChain = handler
 	apiGroup := &genericapiserver.APIGroupInfo{
 		PrioritizedVersions:  scheme.PrioritizedVersionsForGroup(deviceapi.GroupVersion.Group),

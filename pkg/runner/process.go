@@ -36,14 +36,15 @@ func Cmd(cmd string, args ...string) CommandSpec {
 }
 
 type Proc struct {
-	proc    *os.Process
-	cmd     CommandSpec
-	running sync.WaitGroup
-	err     error
-	logger  *logrus.Entry
+	proc              *os.Process
+	cmd               CommandSpec
+	running           sync.WaitGroup
+	terminationSignal os.Signal
+	err               error
+	logger            *logrus.Entry
 }
 
-func StartProcess(logger *logrus.Entry, cmd CommandSpec) (*Proc, error) {
+func StartProcess(logger *logrus.Entry, terminationSignal os.Signal, cmd CommandSpec) (*Proc, error) {
 	c := exec.Command(cmd.Command, cmd.Args...)
 	c.Env = os.Environ()
 	stdout, err := c.StdoutPipe()
@@ -78,9 +79,10 @@ func StartProcess(logger *logrus.Entry, cmd CommandSpec) (*Proc, error) {
 		}
 	})
 	p := &Proc{
-		proc:   c.Process,
-		cmd:    cmd,
-		logger: logger,
+		proc:              c.Process,
+		cmd:               cmd,
+		terminationSignal: terminationSignal,
+		logger:            logger,
 	}
 	p.running.Add(1)
 	go func() {
@@ -102,8 +104,8 @@ func (p *Proc) Wait() error {
 }
 
 func (p *Proc) Stop() error {
-	p.logger.Debug("stopping process")
-	err := p.proc.Signal(os.Interrupt)
+	p.logger.Debugf("stopping process (signal %s)", p.terminationSignal)
+	err := p.proc.Signal(p.terminationSignal)
 	if err != nil && err != os.ErrProcessDone {
 		return fmt.Errorf("stop %s process: %w", p.cmd.Command, err)
 	}
