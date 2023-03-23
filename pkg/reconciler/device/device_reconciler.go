@@ -2,6 +2,7 @@ package device
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -18,7 +19,7 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/runner"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -118,7 +119,7 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	d := deviceapi.Device{}
 	err = r.Client.Get(ctx, req.NamespacedName, &d)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
 		return requeue(err)
@@ -282,6 +283,11 @@ func (r *DeviceReconciler) reconcileServerToken() error {
 
 func requeue(err error) (r ctrl.Result, e error) {
 	r.RequeueAfter = time.Second
+	var cooldown *runner.CooldownError
+	if errors.As(err, &cooldown) {
+		r.RequeueAfter = cooldown.Duration + time.Millisecond
+		err = nil
+	}
 	return r, err
 }
 
