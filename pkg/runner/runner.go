@@ -2,12 +2,14 @@ package runner
 
 import (
 	"fmt"
-	"os"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
+
+const cooldown = time.Second
 
 type ProcessState string
 
@@ -31,18 +33,24 @@ type StatusReportFunc func(cmd Command)
 
 func noopStatusReporter(cmd Command) {}
 
+type CooldownError struct {
+	error
+	Duration time.Duration
+}
+
 type Runner struct {
 	proc              *Proc
 	mutex             sync.Mutex
 	Reporter          StatusReportFunc
-	TerminationSignal os.Signal
+	TerminationSignal syscall.Signal
+	terminated        time.Time
 	logger            *logrus.Entry
 }
 
 func New(logger *logrus.Entry) *Runner {
 	return &Runner{
 		Reporter:          noopStatusReporter,
-		TerminationSignal: os.Interrupt,
+		TerminationSignal: syscall.SIGINT,
 		logger:            logger,
 	}
 }
@@ -84,7 +92,16 @@ func (m *Runner) Start(cmd CommandSpec) error {
 		}
 		m.proc = nil
 	}
+	now := time.Now()
+	if r := m.terminated.Add(cooldown); now.Before(r) {
+		d := r.Sub(now)
+		return &CooldownError{
+			error:    fmt.Errorf("refusing to restart %s during cooldown period", cmd.Command),
+			Duration: d,
+		}
+	}
 	p, err := StartProcess(m.logger, m.TerminationSignal, cmd)
+	m.terminated = time.Now()
 	if err != nil {
 		m.report(cmd, CommandStatus{
 			State:   ProcessStateFailed,
@@ -93,11 +110,14 @@ func (m *Runner) Start(cmd CommandSpec) error {
 		return err
 	}
 	m.proc = p
+	// wait so that the process has enough time to register SIGHUP handler (which is called afterwards to reload config in case of dnsmasq)
+	time.Sleep(50 * time.Millisecond)
 	go func() {
 		m.report(cmd, CommandStatus{
 			State: ProcessStateRunning,
 		})
 		err := p.Wait()
+		m.terminated = time.Now()
 		s := CommandStatus{}
 		s.State = ProcessStateExited
 		if err != nil {

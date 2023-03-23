@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/sirupsen/logrus"
 )
@@ -39,13 +40,14 @@ type Proc struct {
 	proc              *os.Process
 	cmd               CommandSpec
 	running           sync.WaitGroup
-	terminationSignal os.Signal
+	terminationSignal syscall.Signal
 	err               error
 	logger            *logrus.Entry
 }
 
-func StartProcess(logger *logrus.Entry, terminationSignal os.Signal, cmd CommandSpec) (*Proc, error) {
+func StartProcess(logger *logrus.Entry, terminationSignal syscall.Signal, cmd CommandSpec) (*Proc, error) {
 	c := exec.Command(cmd.Command, cmd.Args...)
+	c.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	c.Env = os.Environ()
 	stdout, err := c.StdoutPipe()
 	if err != nil {
@@ -84,10 +86,15 @@ func StartProcess(logger *logrus.Entry, terminationSignal os.Signal, cmd Command
 		terminationSignal: terminationSignal,
 		logger:            logger,
 	}
+	pgid, err := syscall.Getpgid(p.proc.Pid)
+	if err != nil {
+		return nil, fmt.Errorf("get %s process group: %w", p.cmd.Command, err)
+	}
 	p.running.Add(1)
 	go func() {
 		defer p.running.Done()
 		err := c.Wait()
+		syscall.Kill(-pgid, syscall.SIGKILL) // kill children
 		log := logger
 		if err != nil {
 			log = log.WithError(err)
@@ -105,10 +112,19 @@ func (p *Proc) Wait() error {
 
 func (p *Proc) Stop() error {
 	p.logger.Debugf("stopping process (signal %s)", p.terminationSignal)
-	err := p.proc.Signal(p.terminationSignal)
+	pgid, err := syscall.Getpgid(p.proc.Pid)
+	if err != nil {
+		return fmt.Errorf("stop %s process: get pgid: %w", p.cmd.Command, err)
+	}
+	err = p.proc.Signal(p.terminationSignal)
 	if err != nil && err != os.ErrProcessDone {
+		syscall.Kill(-pgid, syscall.SIGKILL) // kill children
 		return fmt.Errorf("stop %s process: %w", p.cmd.Command, err)
 	}
-	p.Wait()
+	_ = p.Wait()
+	err = syscall.Kill(-pgid, syscall.SIGKILL) // kill children
+	if err != nil {
+		return fmt.Errorf("kill %s process children: %w", p.cmd.Command, err)
+	}
 	return nil
 }
