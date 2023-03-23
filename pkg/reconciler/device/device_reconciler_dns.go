@@ -101,6 +101,9 @@ func isAccessPoint(ifaces storage.Interface) (bool, string, string, error) {
 func generateDnsmasqConfig(dhcp bool, iface, deviceName, captivePortalURL, ip, dhcpIpFrom, dhcpIpTo string) (string, error) {
 	dhcpConf := ""
 	if dhcp {
+		// Route non-resolvable hosts as well as known captive portal test requests to captive portal.
+		// Vendor connectivity request domains have been mapped here explicitly to also show the captive portal page when connected to the internet.
+		// See https://wiki.ding.net/index.php?title=Detecting_captive_portals
 		dhcpConf = strings.NewReplacer("{captivePortalURL}", captivePortalURL, "{ip}", ip, "{ipRangeStart}", dhcpIpFrom, "{ipRangeEnd}", dhcpIpTo).
 			Replace(`dhcp-range={ipRangeStart},{ipRangeEnd},255.255.255.0,2h
 dhcp-option=3,{ip}
@@ -108,24 +111,64 @@ dhcp-option=6,{ip}
 dhcp-option-force=option:domain-search,kube.m8
 dhcp-option-force=option:domain-name,kube.m8
 dhcp-option-force=160,{captivePortalURL}
+# Firefox connectivity test
 address=/detectportal.firefox.com/{ip}
+# Android connectivity test
+address=/connectivitycheck.android.com/{ip}
 address=/connectivitycheck.gstatic.com/{ip}
+address=/www.gstatic.com/{ip}
+address=/gstatic.com/{ip}
+address=/android.clients.google.com/{ip}
+address=/play.googleapis.com/{ip}
+address=/clients1.google.com/{ip}
 address=/clients3.google.com/{ip}
-address=/www.msftconnecttest.com/{ip}
-address=/captive.apple.com/{ip}
+address=/clients4.google.com/{ip}
+# Chinese Android device connectivity test
+address=/g.cn/{ip}
 address=/connect.rom.miui.com/{ip}
+address=/www.androidbak.net/{ip}
+address=/www.qualcomm.cn/{ip}
+address=/captive.v2ex.co/{ip}
+address=/noisyfox.cn/{ip}
+# Microsoft Windows connectivity test
+address=/www.msftconnecttest.com/{ip}
+address=/www.msftncsi.com/{ip}
+address=/www.msftncsi.edgesuite.net/{ip}
+# Apple connectivity test
+address=/captive.apple.com/{ip}
+address=/gsp1.apple.com/{ip}
+address=/www.airport.us/{ip}
+address=/www.ibook.info/{ip}
+address=/www.itools.info/{ip}
+address=/www.thinkdifferent.us/{ip}
+address=/attwifi.apple.com/{ip}
+# Amazon Kindle connectivity test
+address=/spectrum.s3.amazonaws.com/{ip}
+# Arch linux connectivity test
+address=/archlinux.org/{ip}
+address=/ipv4.connman.net/{ip}
+# elementary OS connectivity test
+address=/capnet.elementary.io/{ip}
+# Debian/Gnome connectivity test
+address=/network-test.debian.org/{ip}
+address=/nmcheck.gnome.org/{ip}
+# Ubuntu connectivity test
+address=/connectivity-check.ubuntu.com/{ip}
+# Fallback for all unknown names
+address=/#/{ip}
 `)
 	}
 	// TODO: configure data dir
 	// TODO: redirect captive portal detection requests
 	conf := strings.NewReplacer("{dhcpConf}", dhcpConf, "{deviceName}", deviceName, "{ip}", ip, "{iface}", iface).Replace(`
-{dhcpConf}
 interface={iface}
 listen-address={ip}
 port=53
 domain-needed
 bogus-priv
+address=/kube.m8/{ip}
 address=/{deviceName}.kube.m8/{ip}
+{dhcpConf}
 `)
 	file, _, err := cliutils.WriteTempConfigFile("dnsmasq", conf)
 	return file, err

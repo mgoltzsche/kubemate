@@ -242,7 +242,8 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known", "/version"}
 	var handler http.Handler = NewWebUIHandler(o.WebDir, apiPaths, genericServer.Handler.FullHandlerChain, ingressRouter)
 	handler = middleware.ForceHTTPS(handler)
-	handler = middleware.WithCaptivePortalRedirects(wifi.CaptivePortalURL, handler)
+	// TODO: don't redirect ingress hosts
+	handler = middleware.ForceHTTPSHost(genericServer.ExternalAddress, handler)
 	genericServer.Handler.FullHandlerChain = handler
 	apiGroup := &genericapiserver.APIGroupInfo{
 		PrioritizedVersions:  scheme.PrioritizedVersionsForGroup(deviceapi.GroupVersion.Group),

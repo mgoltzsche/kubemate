@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
@@ -69,6 +70,7 @@ func (r *DeviceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.controllers = controller.NewControllerManager(ctrl.GetConfig, logrus.WithField("comp", "controller-manager"))
 	r.controllers.RegisterReconciler(&app.AppReconciler{})
 	r.k3s = runner.New(r.Logger.WithField("proc", "k3s"))
+	r.k3s.TerminationSignal = syscall.SIGQUIT
 	r.k3s.Reporter = func(cmd runner.Command) {
 		// Update device resource's status
 		if cmd.Status.State == runner.ProcessStateFailed {
