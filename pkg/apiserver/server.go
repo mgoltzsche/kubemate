@@ -68,7 +68,7 @@ func NewServerOptions() ServerOptions {
 	return ServerOptions{
 		DeviceName:   hostname,
 		HTTPSAddress: "0.0.0.0",
-		HTTPSPort:    8443,
+		HTTPSPort:    443,
 		HTTPAddress:  "0.0.0.0",
 		HTTPPort:     80,
 		WebDir:       "/usr/share/kubemate/web",

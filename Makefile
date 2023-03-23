@@ -119,7 +119,7 @@ run: container ## Run a kubemate container locally within the host network.
 		-v `pwd`:/output \
 		--mount type=bind,src=`pwd`/ui/dist,dst=/usr/share/kubemate/web \
 		--device /dev/snd:/dev/snd \
-		$(IMAGE) connect --docker --web-dir=/usr/share/kubemate/web/spa --write-host-resolvconf --log-level=trace
+		$(IMAGE) connect --docker --web-dir=/usr/share/kubemate/web/spa --write-host-resolvconf --log-level=trace --https-port=8443
 			#--http-port=80 --https-port=443
 			#--no-deploy=servicelb,traefik,metrics-server \
 			#--disable-cloud-controller \
