@@ -28,9 +28,9 @@ func newDeviceDnsServerReconciler(dir, deviceName string, deviceStore, ifaces st
 	dnsmasq.Reporter = func(c runner.Command) {
 		// Update device resource's status
 		if c.Status.State == runner.ProcessStateFailed {
-			logrus.Warnf("dnsmasq %s: %s", c.Status.State, c.Status.Message)
+			logrus.WithField("pid", c.Status.Pid).Warnf("dnsmasq %s: %s", c.Status.State, c.Status.Message)
 		} else {
-			logrus.Infof("dnsmasq %s: %s", c.Status.State, c.Status.Message)
+			logrus.WithField("pid", c.Status.Pid).Infof("dnsmasq %s", c.Status.State)
 		}
 		d := &deviceapi.Device{}
 		err := deviceStore.Update(deviceName, d, func() error {
@@ -61,19 +61,25 @@ func (r *deviceDnsServerReconciler) Reconcile(ctx context.Context, d *deviceapi.
 	}
 	dnsServerEnabled := d.Spec.Mode == deviceapi.DeviceModeServer || isAP
 	if !dnsServerEnabled {
-		return r.dnsmasq.Stop()
+		r.dnsmasq.Stop()
 	}
 	captivePortalURL := d.Status.Address
 	confPath, err := generateDnsmasqConfig(isAP, iface, r.deviceName, captivePortalURL, ip, "11.0.0.10", "11.0.0.50")
 	if err != nil {
 		return err
 	}
-	err = r.dnsmasq.Start(runner.Cmd("dnsmasq", "-C", confPath, "-zk", "--log-facility=-"))
+	restarted, err := r.dnsmasq.Start(runner.Cmd("dnsmasq", "-C", confPath, "-zk", "--log-facility=-"))
 	if err != nil {
 		return err
 	}
-	// TODO: reload only when config changed
-	return r.dnsmasq.SignalReload()
+	if !restarted {
+		// Reload hosts
+		err := r.dnsmasq.SignalReload()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func isAccessPoint(ifaces storage.Interface) (bool, string, string, error) {

@@ -74,9 +74,9 @@ func (r *DeviceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.k3s.Reporter = func(cmd runner.Command) {
 		// Update device resource's status
 		if cmd.Status.State == runner.ProcessStateFailed {
-			r.Logger.Warnf("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
+			r.Logger.WithField("pid", cmd.Status.Pid).Warnf("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
 		} else {
-			r.Logger.Infof("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
+			r.Logger.WithField("pid", cmd.Status.Pid).Infof("k3s %s", cmd.Status.State)
 		}
 		d := &deviceapi.Device{}
 		err := r.Devices.Update(r.DeviceName, d, func() error {

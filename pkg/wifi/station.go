@@ -24,13 +24,10 @@ func (w *Wifi) StartStation(ssid, password string) error {
 		if err != nil {
 			return err
 		}
-		err = w.station.Stop()
-		if err != nil {
-			return err
-		}
+		w.station.Stop()
 		w.mode = WifiModeStation
 	}
-	err = w.station.Start(runner.Cmd("wpa_supplicant", "-i", w.WifiIface, "-c", confFile))
+	_, err = w.station.Start(runner.Cmd("wpa_supplicant", "-i", w.WifiIface, "-c", confFile))
 	if err != nil {
 		return err
 	}
@@ -59,8 +56,8 @@ func copyFile(src, dst string) error {
 	return nil
 }
 
-func (w *Wifi) StopStation() error {
-	return w.station.Stop()
+func (w *Wifi) StopStation() {
+	w.station.Stop()
 }
 
 func (w *Wifi) generateWpaSupplicantConf(ssid, password string) (string, bool, error) {

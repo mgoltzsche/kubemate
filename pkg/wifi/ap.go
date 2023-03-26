@@ -20,14 +20,6 @@ func (w *Wifi) StartAccessPoint(ssid, password string) error {
 	if err != nil {
 		return err
 	}
-	/*dhcpdConf, dhcpdConfChanged, err := w.generateDhcpdConf()
-	if err != nil {
-		return err
-	}
-	err = createLeaseFileIfNotExist(w.DHCPDLeaseFile)
-	if err != nil {
-		return err
-	}*/
 	if ifacesConfChanged || hostapdConfChanged || /*dhcpdConfChanged ||*/ w.mode != WifiModeAccessPoint {
 		err = w.restartWifiInterface()
 		if err != nil {
@@ -40,11 +32,7 @@ func (w *Wifi) StartAccessPoint(ssid, password string) error {
 		w.mode = WifiModeAccessPoint
 	}
 	w.installAPRoutes()
-	/*err = w.dhcpd.Start(runner.Cmd("dhcpd", "-4", "-f", "-d", w.WifiIface, "-cf", dhcpdConf, "-lf", w.DHCPDLeaseFile, "--no-pid"))
-	if err != nil {
-		return err
-	}*/
-	err = w.ap.Start(runner.Cmd("hostapd", hostapdConf))
+	_, err = w.ap.Start(runner.Cmd("hostapd", hostapdConf))
 	if err != nil {
 		return err
 	}
@@ -54,7 +42,6 @@ func (w *Wifi) StartAccessPoint(ssid, password string) error {
 func (w *Wifi) StopAccessPoint() {
 	w.uninstallAPRoutes()
 	w.ap.Stop()
-	w.dhcpd.Stop()
 	if w.mode == WifiModeAccessPoint {
 		err := w.restartWifiInterface()
 		if err != nil {
@@ -84,45 +71,6 @@ iface %[2]s inet dhcp
 	}
 	return false, nil
 }
-
-/*func (w *Wifi) generateDhcpdConf() (string, bool, error) {
-	return cliutils.WriteTempConfigFile("dhcpd", `# DNS update configuration
-ddns-update-style interim;
-update-static-leases on; # update dns for static entries
-allow client-updates;
-include "{dnsKeyFile}";
-
-# options for all networks
-default-lease-time 600;
-max-lease-time 7200;
-
-authoritative;
-
-zone kube.m8. {
-  primary 127.0.0.1;
-  key kubemate;
-}
-
-zone 0.0.11.in-addr.arpa. {
-  primary 127.0.0.1;
-  key kubemate;
-}
-
-ddns-domainname "kube.m8.";
-ddns-rev-domainname "in-addr.arpa.";
-
-option captive-portal-rfc7710 code 160 = string;
-
-subnet 11.0.0.0 netmask 255.255.255.0 {
-  range 11.0.0.10 11.0.0.20;
-  option broadcast-address 11.0.0.255;
-  option domain-name "kube.m8";
-  option domain-name-servers 11.0.0.1;
-  option routers 11.0.0.1;
-  option captive-portal-rfc7710 "{captivePortal}";
-}
-`, "{dnsKeyFile}", w.DNSKeyFile, "{captivePortal}", w.CaptivePortalURL)
-}*/
 
 func (w *Wifi) generateHostapdConf(ssid, password string) (string, bool, error) {
 	// See https://wiki.gentoo.org/wiki/Hostapd

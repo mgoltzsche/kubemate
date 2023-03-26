@@ -38,7 +38,6 @@ const (
 var WifiInterfaceNamePrefixes = []string{"wlan", "wlp"}
 
 type Wifi struct {
-	dhcpd               *runner.Runner
 	ap                  *runner.Runner
 	station             *runner.Runner
 	wifiIfaceStarted    bool
@@ -71,7 +70,6 @@ func New(logger *logrus.Entry, dataDir string, onProcessTermination runner.Statu
 	station.Reporter = onProcessTermination
 	return &Wifi{
 		ap:               ap,
-		dhcpd:            dhcpd,
 		station:          station,
 		logger:           logger,
 		CountryCode:      "DE",
@@ -86,23 +84,9 @@ func New(logger *logrus.Entry, dataDir string, onProcessTermination runner.Statu
 
 func (w *Wifi) Close() (err error) {
 	w.StopAccessPoint()
-	err1 := w.ap.Stop()
-	err2 := w.dhcpd.Stop()
-	err3 := w.StopStation()
-	err4 := w.StopWifiInterface()
-	if err1 != nil {
-		err = err1
-	}
-	if err2 != nil {
-		err = err2
-	}
-	if err3 != nil {
-		err = err3
-	}
-	if err4 != nil {
-		err = err4
-	}
-	return err
+	w.ap.Stop()
+	w.StopStation()
+	return w.StopWifiInterface()
 }
 
 func (w *Wifi) Mode() WifiMode {
