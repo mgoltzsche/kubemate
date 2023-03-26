@@ -35,6 +35,10 @@ Within the device list you should be able to see the first container and make th
 
 _Please note that within this local test setup only the 2nd container (that is within a docker network) can find the 1st container (that is within the host network) since discovery works using mDNS but docker propagates only mDNS broadcasts from the host into the container networks - not the other way around._
 
+### Networking
+
+To make sure pod networking is working properly, use nf_tables instead of iptables legacy on your host.
+
 ### Prepare a Raspberry Pi OS image
 
 To build a complete SD card image to run kubemate on a Raspberry Pi on top of the Raspberry Pi OS, run

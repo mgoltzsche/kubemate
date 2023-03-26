@@ -1,4 +1,4 @@
-FROM golang:1.19-alpine3.16 AS build
+FROM golang:1.19-alpine3.17 AS build
 RUN apk add --update --no-cache musl-dev gcc binutils-gold
 COPY go.mod go.sum /work/
 WORKDIR /work
@@ -12,11 +12,16 @@ RUN go build -o kubemate -ldflags "-X main.Version=$VERSION -s -w -extldflags \"
 FROM rancher/k3s:v1.26.0-k3s1 AS k3s
 COPY --from=build /work/kubemate /bin/kubemate
 
-FROM alpine:3.16
-RUN apk add --update --no-cache iptables socat openssl ca-certificates apparmor
-RUN apk add --no-cache iptables ip6tables ipset dhcpcd iproute2 iw wpa_supplicant hostapd dnsmasq
+FROM alpine:3.17
+RUN apk add --update --no-cache iptables ip6tables socat openssl ca-certificates apparmor iw wpa_supplicant dhcpcd hostapd dnsmasq
 ARG VERSION="dev"
 RUN set -eu; \
+	ln -sf xtables-nft-multi /sbin/iptables; \
+	ln -sf xtables-nft-multi /sbin/iptables-save; \
+	ln -sf xtables-nft-multi /sbin/iptables-restore; \
+	ln -sf xtables-nft-multi /sbin/ip6tables; \
+	ln -sf xtables-nft-multi /sbin/ip6tables-save; \
+	ln -sf xtables-nft-multi /sbin/ip6tables-restore; \
 	mkdir -p /etc; \
     echo 'hosts: files dns' > /etc/nsswitch.conf; \
     echo "PRETTY_NAME=\"kubemate ${VERSION}\"" > /etc/os-release; \
