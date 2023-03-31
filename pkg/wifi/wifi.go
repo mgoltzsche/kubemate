@@ -40,6 +40,7 @@ var WifiInterfaceNamePrefixes = []string{"wlan", "wlp"}
 type Wifi struct {
 	ap                  *runner.Runner
 	station             *runner.Runner
+	dhcpcd              *runner.Runner
 	wifiIfaceStarted    bool
 	mode                WifiMode
 	logger              *logrus.Entry
@@ -64,13 +65,14 @@ func New(logger *logrus.Entry, dataDir string, onProcessTermination runner.Statu
 	logger = logger.WithField("comp", "wifi")
 	ap := runner.New(logger.WithField("proc", "hostapd"))
 	ap.Reporter = onProcessTermination
-	dhcpd := runner.New(logger.WithField("proc", "dhcpd"))
-	dhcpd.Reporter = onProcessTermination
 	station := runner.New(logger.WithField("proc", "wpa_supplicant"))
 	station.Reporter = onProcessTermination
+	dhcpcd := runner.New(logger.WithField("proc", "dhcpcd"))
+	dhcpcd.Reporter = onProcessTermination
 	return &Wifi{
 		ap:               ap,
 		station:          station,
+		dhcpcd:           dhcpcd,
 		logger:           logger,
 		CountryCode:      "DE",
 		EthIface:         detectIface(logger, []string{"eth", "enp"}),

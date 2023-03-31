@@ -134,6 +134,7 @@ func (r *NetworkInterfaceReconciler) ensureIPAddress(iface *deviceapi.NetworkInt
 func (r *NetworkInterfaceReconciler) reconcileWifiNetworkInterface(iface *deviceapi.NetworkInterface, logger logr.Logger) error {
 	switch iface.Spec.Wifi.Mode {
 	case deviceapi.WifiModeAccessPoint:
+		r.Wifi.StopStation()
 		err := r.Wifi.StartWifiInterface()
 		if err != nil {
 			return err
