@@ -102,14 +102,16 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	tlsOpts.BindAddress = net.ParseIP(o.HTTPSAddress)
 	tlsOpts.BindPort = o.HTTPSPort
 	tlsOpts.ServerCert.CertDirectory = filepath.Join(o.DataDir, "certificates")
+	var externalAddr string
 	if o.HTTPSPort == 443 {
-		serverConfig.ExternalAddress = fmt.Sprintf("%s", o.DeviceName)
+		externalAddr = fmt.Sprintf("%s", o.DeviceName)
 	} else {
-		serverConfig.ExternalAddress = fmt.Sprintf("%s:%d", o.DeviceName, o.HTTPSPort)
+		externalAddr = fmt.Sprintf("%s:%d", o.DeviceName, o.HTTPSPort)
 	}
+	serverConfig.ExternalAddress = externalAddr
 	tlsCertIPs := []net.IP{net.ParseIP("127.0.0.1")}
 	// TODO: use hostname as external address
-	err := tlsOpts.MaybeDefaultWithSelfSignedCerts(serverConfig.ExternalAddress, []string{o.DeviceName}, tlsCertIPs)
+	err := tlsOpts.MaybeDefaultWithSelfSignedCerts(externalAddr, []string{o.DeviceName}, tlsCertIPs)
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +232,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	})
 	wifi.WriteHostResolvConf = o.WriteHostResolvConf
 	wifi.DNSKeyFile = filepath.Join(o.DataDir, "k3s", "dns", "zone.key")
-	wifi.CaptivePortalURL = fmt.Sprintf("https://%s", genericServer.ExternalAddress)
+	wifi.CaptivePortalURL = fmt.Sprintf("https://%s", externalAddr)
 	wifiNetworkREST := rest.NewWifiNetworkREST(wifi, scheme)
 	wifiPasswordDir := filepath.Join(o.DataDir, "wifipasswords")
 	wifiPasswordREST, err := rest.NewWifiPasswordREST(wifiPasswordDir, scheme)
@@ -243,7 +245,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	var handler http.Handler = NewWebUIHandler(o.WebDir, apiPaths, genericServer.Handler.FullHandlerChain, ingressRouter)
 	handler = middleware.ForceHTTPS(handler)
 	// TODO: don't redirect ingress hosts
-	handler = middleware.ForceHTTPSHost(genericServer.ExternalAddress, handler)
+	handler = middleware.ForceHTTPSHost(externalAddr, handler)
 	genericServer.Handler.FullHandlerChain = handler
 	apiGroup := &genericapiserver.APIGroupInfo{
 		PrioritizedVersions:  scheme.PrioritizedVersionsForGroup(deviceapi.GroupVersion.Group),
@@ -277,7 +279,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		},
 		&devicectrl.DeviceReconciler{
 			DeviceName:        o.DeviceName,
-			DeviceAddress:     genericServer.ExternalAddress,
+			DeviceAddress:     externalAddr,
 			DeviceDiscovery:   discovery,
 			DataDir:           k3sDataDir,
 			ManifestDir:       o.ManifestDir,
