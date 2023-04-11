@@ -33,27 +33,7 @@
           label="Apps"
           header-class="text-primary"
         >
-          <q-list>
-            <q-item
-              clickable
-              tag="a"
-              :href="ingress.url"
-              :title="ingress.info"
-              :key="`${ingress.key}`"
-              v-for="ingress in ingresses"
-            >
-              <q-item-section avatar>
-                <q-icon
-                  :name="`img:${ingress.url}${ingress.iconPath}`"
-                  v-if="ingress.iconPath"
-                />
-              </q-item-section>
-              <q-item-section>
-                <q-item-label>{{ ingress.title }}</q-item-label>
-                <q-item-label caption>{{ ingress.caption }}</q-item-label>
-              </q-item-section>
-            </q-item>
-          </q-list>
+          <app-launcher />
         </q-expansion-item>
         <q-separator />
         <q-expansion-item
@@ -87,7 +67,7 @@
           header-class="text-primary"
         >
           <EssentialLink
-            v-for="link in mainLinks"
+            v-for="link in settingsLinks"
             :key="link.title"
             v-bind="link"
           />
@@ -117,17 +97,16 @@
 
 <script lang="ts">
 import { defineComponent, ref, toRefs, computed, reactive } from 'vue';
+import AppLauncher from 'components/AppLauncher.vue';
 import EssentialLink from 'components/EssentialLink.vue';
 import { version } from '../../package.json';
 import {
   useCustomResourceDefinitionStore,
   useDeviceStore,
-  useIngressStore,
 } from 'src/stores/resources';
 import LoginDialog from 'src/components/LoginDialog.vue';
-import { io_k8s_api_networking_v1_Ingress as Ingress } from 'src/gen';
 
-const linksList = [
+const settingsLinks = [
   {
     title: 'Manage Apps',
     caption: 'apps',
@@ -206,58 +185,21 @@ function useCustomResourceDefinitions() {
   };
 }
 
-const navTitleAnnotation = 'kubemate.mgoltzsche.github.com/nav-title';
-
-function useIngresses() {
-  const store = useIngressStore();
-  store.sync();
-  const state = reactive({
-    ingresses: computed(() =>
-      store.resources
-        .filter(
-          (ing: Ingress) =>
-            ing.metadata?.annotations &&
-            ing.metadata?.annotations[navTitleAnnotation]
-        )
-        .map((ing: Ingress) => {
-          const a = ing.metadata?.annotations;
-          const title = a ? a[navTitleAnnotation] : '';
-          const key = `${ing.metadata?.namespace}/${ing.metadata?.name}`;
-          const url = ing.spec?.rules?.find((r) => {
-            return !r.host && r.http?.paths && r.http.paths.length > 0;
-          })?.http?.paths[0].path;
-          return {
-            key: key,
-            title: title ? title : key,
-            caption: title ? key : '',
-            info: title ? `${title} (${key})` : key,
-            url: url,
-            iconPath: a ? a['kubemate.mgoltzsche.github.com/nav-icon'] : '',
-          };
-        })
-        .filter((ing) => ing.url)
-    ),
-  });
-  return {
-    ...toRefs(state),
-  };
-}
-
 export default defineComponent({
   name: 'MainLayout',
 
   components: {
+    AppLauncher,
     EssentialLink,
     LoginDialog,
   },
 
   setup() {
     return {
-      mainLinks: linksList,
+      settingsLinks: settingsLinks,
       ...useLeftDrawerToggle(),
       ...useLoginDialog(),
       ...useDeviceName(),
-      ...useIngresses(),
       ...useCustomResourceDefinitions(),
       version,
     };

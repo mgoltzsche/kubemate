@@ -1,65 +1,76 @@
 <template>
   <q-page class="row items-center justify-evenly">
-    <example-component
-      title="Example component"
-      active
-      :todos="todos"
-      :meta="meta"
-    ></example-component>
+    <div class="q-pa-md row items-start q-gutter-md">
+      <q-card v-if="appLinks.length > 0">
+        <q-card-section>
+          <div class="text-h6">Apps</div>
+        </q-card-section>
+        <app-launcher />
+      </q-card>
+      <q-card>
+        <q-card-section>
+          <div class="text-h6">Settings</div>
+        </q-card-section>
+        <q-list>
+          <EssentialLink
+            v-bind="link"
+            v-for="link in mainLinks"
+            :key="link.title"
+          />
+        </q-list>
+      </q-card>
+    </div>
   </q-page>
 </template>
 
 <script lang="ts">
-import { Todo, Meta } from 'components/models';
-import ExampleComponent from 'components/ExampleComponent.vue';
-import { defineComponent, ref } from 'vue';
-import client from 'src/k8sclient';
-import { com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_Device as Device } from 'src/gen';
+import { computed } from '@vue/reactivity';
+import EssentialLink from 'components/EssentialLink.vue';
+import AppLauncher from 'components/AppLauncher.vue';
+import { useIngressStore } from 'src/stores/resources';
+import { defineComponent, reactive, toRefs } from 'vue';
+import { appLinks } from 'src/stores/queries';
 
-const kc = new client.KubeConfig();
-const c = kc.newClient<Device>(
-  '/apis/kubemate.mgoltzsche.github.com/v1',
-  'devices'
-);
-c.list().then((list) => {
-  list.items.forEach((item) => {
-    console.log('DEVICE', item);
+const mainLinks = [
+  {
+    title: 'Make kubemate join a wifi network',
+    icon: 'wifi',
+    link: '#/networkinterfaces',
+  },
+  {
+    title: 'Make kubemate join a cluster',
+    icon: 'hub',
+    link: '#/devices',
+  },
+  {
+    title: 'Manage kubemate apps',
+    icon: 'extension',
+    link: '#/apps',
+  },
+];
+
+function useAppLinks() {
+  const store = useIngressStore();
+  store.sync();
+  const state = reactive({
+    appLinks: computed(() => appLinks(store.resources)),
   });
-  c.watch((evt) => {
-    console.log('EVENT ' + evt.type, evt.object);
-  }, list.metadata.resourceVersion || '');
-});
+  return {
+    ...toRefs(state),
+  };
+}
 
 export default defineComponent({
   name: 'IndexPage',
-  components: { ExampleComponent },
+  components: {
+    AppLauncher,
+    EssentialLink,
+  },
   setup() {
-    const todos = ref<Todo[]>([
-      {
-        id: 1,
-        content: 'ct1',
-      },
-      {
-        id: 2,
-        content: 'ct2',
-      },
-      {
-        id: 3,
-        content: 'ct3',
-      },
-      {
-        id: 4,
-        content: 'ct4',
-      },
-      {
-        id: 5,
-        content: 'ct5',
-      },
-    ]);
-    const meta = ref<Meta>({
-      totalCount: 1200,
-    });
-    return { todos, meta };
+    return {
+      mainLinks,
+      ...useAppLinks(),
+    };
   },
 });
 </script>

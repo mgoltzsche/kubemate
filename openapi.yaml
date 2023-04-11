@@ -239,6 +239,10 @@ definitions:
       current:
         default: false
         type: boolean
+      dnsServer:
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.ProcessStatus'
+        default: {}
+        description: IPs []string `json:"ips,omitempty"`
       generation:
         format: int64
         type: integer
@@ -265,6 +269,7 @@ definitions:
         type: string
     required:
     - current
+    - dnsServer
     type: object
   com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceToken:
     description: DeviceToken is the Schema for the devices API
@@ -377,6 +382,18 @@ definitions:
         type: boolean
     required:
     - up
+    type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.ProcessStatus:
+    description: ProcessStatus defines the status of a process.
+    properties:
+      restartCount:
+        format: int32
+        type: integer
+      running:
+        default: false
+        type: boolean
+    required:
+    - running
     type: object
   com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiAccessPointSpec:
     description: WifiAccessPointSpec defines the wifi access point configuration.
