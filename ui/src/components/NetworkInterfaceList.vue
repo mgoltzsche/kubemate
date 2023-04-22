@@ -33,8 +33,8 @@ import { defineComponent } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useNetworkInterfaceStore } from 'src/stores/resources';
 import {
-  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_NetworkInterface as NetworkInterface,
-  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_NetworkLinkStatus as NetworkLinkStatus,
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_NetworkInterface as NetworkInterface,
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_NetworkLinkStatus as NetworkLinkStatus,
 } from 'src/gen';
 
 export default defineComponent({

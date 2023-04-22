@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
+	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1"
 	"github.com/mgoltzsche/kubemate/pkg/passwordgen"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"k8s.io/apimachinery/pkg/api/errors"

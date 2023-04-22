@@ -81,7 +81,7 @@ generate: $(CONTROLLER_GEN) $(KUBE_OPENAPI_GEN) ## Generate code.
 	$(CONTROLLER_GEN) object paths=./pkg/apis/... paths=./pkg/resource/fake
 	$(CONTROLLER_GEN) crd paths="./pkg/apis/apps/..." output:crd:artifacts:config=config/crd
 	$(KUBE_OPENAPI_GEN) --output-base=./pkg/generated --output-package=openapi -O zz_generated.openapi -h ./boilerplate/boilerplate.go.txt \
-		--input-dirs=github.com/mgoltzsche/kubemate/pkg/apis/devices/v1,github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/api/core/v1,k8s.io/apimachinery/pkg/runtime,k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1,k8s.io/api/networking/v1
+		--input-dirs=github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1,github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/api/core/v1,k8s.io/apimachinery/pkg/runtime,k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1,k8s.io/api/networking/v1
 
 .PHONY: manifests
 manifests: $(KUSTOMIZE) ## Generate static Kubernetes manifests.
@@ -102,7 +102,7 @@ clean: ## Purge local storage and docker containers created by kubemate.
 .PHONY: run
 run: container ## Run a kubemate container locally within the host network.
 	chmod 2775 .
-	mkdir -p ./data/pod-log
+	mkdir -p ./data/pod-log /var/lib/kubelet
 	docker rm -f kubemate 2>/dev/null || true
 	docker run --name kubemate --rm -it --network host --pid host --privileged \
 		--tmpfs /run --tmpfs /var/run --tmpfs /tmp \
@@ -119,7 +119,7 @@ run: container ## Run a kubemate container locally within the host network.
 		-v `pwd`:/output \
 		--mount type=bind,src=`pwd`/ui/dist,dst=/usr/share/kubemate/web \
 		--device /dev/snd:/dev/snd \
-		$(IMAGE) connect --docker --web-dir=/usr/share/kubemate/web/spa --write-host-resolvconf --log-level=trace --https-port=8443
+		$(IMAGE) connect --docker --web-dir=/usr/share/kubemate/web/spa --write-host-resolvconf --log-level=trace
 			#--http-port=80 --https-port=443
 			#--no-deploy=servicelb,traefik,metrics-server \
 			#--disable-cloud-controller \

@@ -1,4 +1,4 @@
-package v1
+package v1alpha1
 
 import (
 	"fmt"
@@ -35,7 +35,7 @@ type DeviceSpec struct {
 	Server string     `json:"server,omitempty"`
 }
 
-// DeviceStatus defines the observed state of Cache
+// DeviceStatus defines the observed state of the Device.
 // +k8s:openapi-gen=true
 type DeviceStatus struct {
 	Generation  int64       `json:"generation,omitempty"`
@@ -94,7 +94,7 @@ func (in *Device) DeepCopyIntoResource(res resource.Resource) error {
 	return nil
 }
 
-// DeviceList contains a list of Cache
+// DeviceList contains a list of Device resources.
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type DeviceList struct {

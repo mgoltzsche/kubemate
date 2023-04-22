@@ -37,7 +37,7 @@ import { computed, defineComponent, reactive, toRefs } from 'vue';
 import { useRoute } from 'vue-router';
 import LoginDialog from 'src/components/LoginDialog.vue';
 import apiclient from 'src/k8sclient';
-import { com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_DeviceToken as DeviceToken } from 'src/gen';
+import { com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_DeviceToken as DeviceToken } from 'src/gen';
 import { useAuthStore } from 'src/stores/auth';
 
 export default defineComponent({
@@ -51,7 +51,7 @@ export default defineComponent({
     const quasar = useQuasar();
     const kc = new apiclient.KubeConfig();
     const client = kc.newClient<DeviceToken>(
-      '/apis/kubemate.mgoltzsche.github.com/v1',
+      '/apis/kubemate.mgoltzsche.github.com/v1alpha1',
       'devicetokens'
     );
     function browseToAgentPage() {

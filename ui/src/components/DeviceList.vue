@@ -23,7 +23,7 @@
 import { defineComponent } from 'vue';
 import { useDeviceDiscoveryStore } from 'src/stores/resources';
 import { storeToRefs } from 'pinia';
-import { com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_DeviceDiscovery as DeviceDiscovery } from 'src/gen';
+import { com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_DeviceDiscovery as DeviceDiscovery } from 'src/gen';
 
 function deviceLinkTo(d: DeviceDiscovery) {
   return d.spec.current ? `/devices/${d.metadata.name}` : undefined;

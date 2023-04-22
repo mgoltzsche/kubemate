@@ -21,8 +21,8 @@ import { computed, defineComponent, toRefs } from 'vue';
 import WifiSettings from 'src/components/WifiSettings.vue';
 import { useRoute } from 'vue-router';
 import {
-  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_NetworkInterface as NetworkInterface,
-  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_NetworkLinkStatus as NetworkLinkStatus,
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_NetworkInterface as NetworkInterface,
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_NetworkLinkStatus as NetworkLinkStatus,
 } from 'src/gen';
 import { useNetworkInterfaceStore } from 'src/stores/resources';
 

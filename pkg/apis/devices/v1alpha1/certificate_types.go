@@ -1,4 +1,4 @@
-package v1
+package v1alpha1
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ type CertificateSpec struct {
 	CACert string `json:"caCert,omitempty"`
 }
 
-// Certificate is the Schema for the certificate API
+// Certificate is the Schema for the certificate API.
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type Certificate struct {
@@ -46,7 +46,7 @@ func (in *Certificate) DeepCopyIntoResource(res resource.Resource) error {
 	return nil
 }
 
-// CertificateList contains a list of Cache
+// CertificateList contains a list of Certificate resources.
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type CertificateList struct {

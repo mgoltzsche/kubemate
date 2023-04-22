@@ -1,4 +1,4 @@
-package v1
+package v1alpha1
 
 import (
 	"fmt"
@@ -15,14 +15,14 @@ const (
 )
 
 // +k8s:openapi-gen=true
-// WifiPasswordData defines the desired state of Cache
+// WifiPasswordData defines the wifi password data.
 type WifiPasswordData struct {
 	Password string `json:"password"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// WifiPassword is the Schema for the wifi key API
+// WifiPassword is the Schema for the wifi key API.
 // +k8s:openapi-gen=true
 type WifiPassword struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -52,7 +52,7 @@ func (in *WifiPassword) DeepCopyIntoResource(res resource.Resource) error {
 	return nil
 }
 
-// WifiPasswordList contains a list of Cache
+// WifiPasswordList contains a list of WifiPassword resources.
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type WifiPasswordList struct {

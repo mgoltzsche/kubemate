@@ -1,4 +1,4 @@
-package v1
+package v1alpha1
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// DeviceDiscoverySpec defines the desired state of the Device.
+// DeviceDiscoverySpec provides information about the discovered device.
 // +k8s:openapi-gen=true
 type DeviceDiscoverySpec struct {
 	Mode    DeviceMode `json:"mode"`
@@ -18,7 +18,7 @@ type DeviceDiscoverySpec struct {
 	Current bool       `json:"current,omitempty"`
 }
 
-// DeviceDiscovery is the Schema for the device discovery API
+// DeviceDiscovery is the Schema for the device discovery API.
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type DeviceDiscovery struct {
@@ -49,7 +49,7 @@ func (in *DeviceDiscovery) DeepCopyIntoResource(res resource.Resource) error {
 	return nil
 }
 
-// DeviceDiscoveryList contains a list of Cache
+// DeviceDiscoveryList defines a list of discovered devices.
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type DeviceDiscoveryList struct {

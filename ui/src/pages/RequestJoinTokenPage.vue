@@ -48,7 +48,7 @@ import { useRoute } from 'vue-router';
 import { useDeviceStore } from 'src/stores/resources';
 import { computed } from '@vue/reactivity';
 import apiclient from 'src/k8sclient';
-import { com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_DeviceToken as DeviceToken } from 'src/gen';
+import { com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_DeviceToken as DeviceToken } from 'src/gen';
 import { useQuasar } from 'quasar';
 
 export default defineComponent({
@@ -66,7 +66,7 @@ export default defineComponent({
     const quasar = useQuasar();
     const kc = new apiclient.KubeConfig();
     const client = kc.newClient<DeviceToken>(
-      '/apis/kubemate.mgoltzsche.github.com/v1',
+      '/apis/kubemate.mgoltzsche.github.com/v1alpha1',
       'devicetokens'
     );
     const agent = () => {

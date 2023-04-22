@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
+	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1"
 	"github.com/mgoltzsche/kubemate/pkg/controller"
 	"github.com/mgoltzsche/kubemate/pkg/discovery"
 	generatedopenapi "github.com/mgoltzsche/kubemate/pkg/generated/openapi"
@@ -253,7 +253,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		ParameterCodec:       paramCodecs,
 		NegotiatedSerializer: codecs,
 		VersionedResourcesStorageMap: map[string]map[string]registryrest.Storage{
-			"v1": map[string]registryrest.Storage{
+			"v1alpha1": map[string]registryrest.Storage{
 				"networkinterfaces": ifaceREST,
 				"certificates":      certREST,
 				"devices":           deviceREST,

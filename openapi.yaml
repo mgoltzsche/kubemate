@@ -110,8 +110,8 @@ definitions:
     required:
     - sourceRef
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.Certificate:
-    description: Certificate is the Schema for the certificate API
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.Certificate:
+    description: Certificate is the Schema for the certificate API.
     properties:
       apiVersion:
         description: 'APIVersion defines the versioned schema of this representation
@@ -127,19 +127,19 @@ definitions:
         $ref: '#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta'
         default: {}
       spec:
-        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.CertificateSpec'
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.CertificateSpec'
         default: {}
     required:
     - metadata
     - spec
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.CertificateSpec:
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.CertificateSpec:
     description: CertificateSpec defines a certificate.
     properties:
       caCert:
         type: string
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.Device:
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.Device:
     description: Device is the Schema for the devices API
     properties:
       apiVersion:
@@ -156,18 +156,18 @@ definitions:
         $ref: '#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta'
         default: {}
       spec:
-        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceSpec'
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.DeviceSpec'
         default: {}
       status:
-        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceStatus'
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.DeviceStatus'
         default: {}
     required:
     - metadata
     - spec
     - status
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceDiscovery:
-    description: DeviceDiscovery is the Schema for the device discovery API
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.DeviceDiscovery:
+    description: DeviceDiscovery is the Schema for the device discovery API.
     properties:
       apiVersion:
         description: 'APIVersion defines the versioned schema of this representation
@@ -183,14 +183,14 @@ definitions:
         $ref: '#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta'
         default: {}
       spec:
-        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceDiscoverySpec'
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.DeviceDiscoverySpec'
         default: {}
     required:
     - metadata
     - spec
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceDiscoverySpec:
-    description: DeviceDiscoverySpec defines the desired state of the Device.
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.DeviceDiscoverySpec:
+    description: DeviceDiscoverySpec provides information about the discovered device.
     properties:
       address:
         default: ""
@@ -213,7 +213,7 @@ definitions:
     - mode
     - address
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceSpec:
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.DeviceSpec:
     description: DeviceSpec defines the desired state of the Device.
     properties:
       mode:
@@ -231,8 +231,8 @@ definitions:
     required:
     - mode
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceStatus:
-    description: DeviceStatus defines the observed state of Cache
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.DeviceStatus:
+    description: DeviceStatus defines the observed state of the Device.
     properties:
       address:
         type: string
@@ -240,7 +240,7 @@ definitions:
         default: false
         type: boolean
       dnsServer:
-        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.ProcessStatus'
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.ProcessStatus'
         default: {}
         description: IPs []string `json:"ips,omitempty"`
       generation:
@@ -271,8 +271,9 @@ definitions:
     - current
     - dnsServer
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceToken:
-    description: DeviceToken is the Schema for the devices API
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.DeviceToken:
+    description: DeviceToken is the schema for cluster join tokens within the devices
+      API.
     properties:
       apiVersion:
         description: 'APIVersion defines the versioned schema of this representation
@@ -280,7 +281,7 @@ definitions:
           value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
         type: string
       data:
-        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceTokenData'
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.DeviceTokenData'
         default: {}
       kind:
         description: 'Kind is a string value representing the REST resource this object
@@ -291,14 +292,14 @@ definitions:
         $ref: '#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta'
         default: {}
       status:
-        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceTokenStatus'
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.DeviceTokenStatus'
         default: {}
     required:
     - metadata
     - data
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceTokenData:
-    description: DeviceTokenData defines the desired state of Cache
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.DeviceTokenData:
+    description: DeviceTokenData specifies the device token.
     properties:
       token:
         default: ""
@@ -306,13 +307,13 @@ definitions:
     required:
     - token
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.DeviceTokenStatus:
-    description: DeviceTokenStatus defines the desired state of Cache
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.DeviceTokenStatus:
+    description: DeviceTokenStatus provides the server's join token.
     properties:
       joinToken:
         type: string
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.NetworkInterface:
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.NetworkInterface:
     description: NetworkInterface is the Schema for the network interface API.
     properties:
       apiVersion:
@@ -329,34 +330,34 @@ definitions:
         $ref: '#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta'
         default: {}
       spec:
-        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.NetworkInterfaceSpec'
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.NetworkInterfaceSpec'
         default: {}
       status:
-        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.NetworkInterfaceStatus'
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.NetworkInterfaceStatus'
         default: {}
     required:
     - metadata
     - spec
     - status
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.NetworkInterfaceSpec:
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.NetworkInterfaceSpec:
     description: NetworkInterfaceSpec defines the network interface configuration.
     properties:
       wifi:
-        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiSpec'
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.WifiSpec'
         default: {}
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.NetworkInterfaceStatus:
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.NetworkInterfaceStatus:
     description: NetworkInterfaceStatus defines the observed state of the network
       interface.
     properties:
       error:
         type: string
       link:
-        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.NetworkLinkStatus'
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.NetworkLinkStatus'
         default: {}
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.NetworkLinkStatus:
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.NetworkLinkStatus:
     description: NetworkLinkStatus defines the observed state of the network link.
     properties:
       error:
@@ -383,7 +384,7 @@ definitions:
     required:
     - up
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.ProcessStatus:
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.ProcessStatus:
     description: ProcessStatus defines the status of a process.
     properties:
       restartCount:
@@ -395,7 +396,7 @@ definitions:
     required:
     - running
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiAccessPointSpec:
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.WifiAccessPointSpec:
     description: WifiAccessPointSpec defines the wifi access point configuration.
     properties:
       SSID:
@@ -404,8 +405,8 @@ definitions:
     required:
     - SSID
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiNetwork:
-    description: WifiNetwork is the Schema for the devices API
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.WifiNetwork:
+    description: WifiNetwork is the Schema for the wifi network discovery API.
     properties:
       apiVersion:
         description: 'APIVersion defines the versioned schema of this representation
@@ -413,7 +414,7 @@ definitions:
           value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
         type: string
       data:
-        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiNetworkData'
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.WifiNetworkData'
         default: {}
       kind:
         description: 'Kind is a string value representing the REST resource this object
@@ -427,8 +428,8 @@ definitions:
     - metadata
     - data
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiNetworkData:
-    description: WifiNetworkData defines the desired state of Cache
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.WifiNetworkData:
+    description: WifiNetworkData provides the wifi network details.
     properties:
       ssid:
         default: ""
@@ -436,8 +437,8 @@ definitions:
     required:
     - ssid
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiPassword:
-    description: WifiPassword is the Schema for the wifi key API
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.WifiPassword:
+    description: WifiPassword is the Schema for the wifi key API.
     properties:
       apiVersion:
         description: 'APIVersion defines the versioned schema of this representation
@@ -445,7 +446,7 @@ definitions:
           value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
         type: string
       data:
-        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiPasswordData'
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.WifiPasswordData'
         default: {}
       kind:
         description: 'Kind is a string value representing the REST resource this object
@@ -459,8 +460,8 @@ definitions:
     - metadata
     - data
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiPasswordData:
-    description: WifiPasswordData defines the desired state of Cache
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.WifiPasswordData:
+    description: WifiPasswordData defines the wifi password data.
     properties:
       password:
         default: ""
@@ -468,11 +469,11 @@ definitions:
     required:
     - password
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiSpec:
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.WifiSpec:
     description: WifiSpec defines the wifi configuration for the device.
     properties:
       accessPoint:
-        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiAccessPointSpec'
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.WifiAccessPointSpec'
         default: {}
       countryCode:
         type: string
@@ -489,14 +490,14 @@ definitions:
         - station
         type: string
       station:
-        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiStationSpec'
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.WifiStationSpec'
         default: {}
     required:
     - mode
     - station
     - accessPoint
     type: object
-  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1.WifiStationSpec:
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.WifiStationSpec:
     description: WifiStationSpec defines the wifi client configuration.
     properties:
       SSID:

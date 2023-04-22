@@ -22,35 +22,35 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.AppStatus":                            schema_pkg_apis_apps_v1alpha1_AppStatus(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.CrossNamespaceSourceReference":        schema_pkg_apis_apps_v1alpha1_CrossNamespaceSourceReference(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.KustomizationSpec":                    schema_pkg_apis_apps_v1alpha1_KustomizationSpec(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.Certificate":                             schema_pkg_apis_devices_v1_Certificate(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.CertificateList":                         schema_pkg_apis_devices_v1_CertificateList(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.CertificateSpec":                         schema_pkg_apis_devices_v1_CertificateSpec(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.Device":                                  schema_pkg_apis_devices_v1_Device(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceDiscovery":                         schema_pkg_apis_devices_v1_DeviceDiscovery(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceDiscoveryList":                     schema_pkg_apis_devices_v1_DeviceDiscoveryList(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceDiscoverySpec":                     schema_pkg_apis_devices_v1_DeviceDiscoverySpec(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceList":                              schema_pkg_apis_devices_v1_DeviceList(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceSpec":                              schema_pkg_apis_devices_v1_DeviceSpec(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceStatus":                            schema_pkg_apis_devices_v1_DeviceStatus(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceToken":                             schema_pkg_apis_devices_v1_DeviceToken(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenData":                         schema_pkg_apis_devices_v1_DeviceTokenData(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenList":                         schema_pkg_apis_devices_v1_DeviceTokenList(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenStatus":                       schema_pkg_apis_devices_v1_DeviceTokenStatus(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterface":                        schema_pkg_apis_devices_v1_NetworkInterface(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceList":                    schema_pkg_apis_devices_v1_NetworkInterfaceList(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceSpec":                    schema_pkg_apis_devices_v1_NetworkInterfaceSpec(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceStatus":                  schema_pkg_apis_devices_v1_NetworkInterfaceStatus(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkLinkStatus":                       schema_pkg_apis_devices_v1_NetworkLinkStatus(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.ProcessStatus":                           schema_pkg_apis_devices_v1_ProcessStatus(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiAccessPointSpec":                     schema_pkg_apis_devices_v1_WifiAccessPointSpec(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetwork":                             schema_pkg_apis_devices_v1_WifiNetwork(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetworkData":                         schema_pkg_apis_devices_v1_WifiNetworkData(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetworkList":                         schema_pkg_apis_devices_v1_WifiNetworkList(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPassword":                            schema_pkg_apis_devices_v1_WifiPassword(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPasswordData":                        schema_pkg_apis_devices_v1_WifiPasswordData(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPasswordList":                        schema_pkg_apis_devices_v1_WifiPasswordList(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiSpec":                                schema_pkg_apis_devices_v1_WifiSpec(ref),
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiStationSpec":                         schema_pkg_apis_devices_v1_WifiStationSpec(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.Certificate":                       schema_pkg_apis_devices_v1alpha1_Certificate(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.CertificateList":                   schema_pkg_apis_devices_v1alpha1_CertificateList(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.CertificateSpec":                   schema_pkg_apis_devices_v1alpha1_CertificateSpec(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.Device":                            schema_pkg_apis_devices_v1alpha1_Device(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceDiscovery":                   schema_pkg_apis_devices_v1alpha1_DeviceDiscovery(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceDiscoveryList":               schema_pkg_apis_devices_v1alpha1_DeviceDiscoveryList(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceDiscoverySpec":               schema_pkg_apis_devices_v1alpha1_DeviceDiscoverySpec(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceList":                        schema_pkg_apis_devices_v1alpha1_DeviceList(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceSpec":                        schema_pkg_apis_devices_v1alpha1_DeviceSpec(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceStatus":                      schema_pkg_apis_devices_v1alpha1_DeviceStatus(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceToken":                       schema_pkg_apis_devices_v1alpha1_DeviceToken(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceTokenData":                   schema_pkg_apis_devices_v1alpha1_DeviceTokenData(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceTokenList":                   schema_pkg_apis_devices_v1alpha1_DeviceTokenList(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceTokenStatus":                 schema_pkg_apis_devices_v1alpha1_DeviceTokenStatus(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.NetworkInterface":                  schema_pkg_apis_devices_v1alpha1_NetworkInterface(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.NetworkInterfaceList":              schema_pkg_apis_devices_v1alpha1_NetworkInterfaceList(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.NetworkInterfaceSpec":              schema_pkg_apis_devices_v1alpha1_NetworkInterfaceSpec(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.NetworkInterfaceStatus":            schema_pkg_apis_devices_v1alpha1_NetworkInterfaceStatus(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.NetworkLinkStatus":                 schema_pkg_apis_devices_v1alpha1_NetworkLinkStatus(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.ProcessStatus":                     schema_pkg_apis_devices_v1alpha1_ProcessStatus(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiAccessPointSpec":               schema_pkg_apis_devices_v1alpha1_WifiAccessPointSpec(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiNetwork":                       schema_pkg_apis_devices_v1alpha1_WifiNetwork(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiNetworkData":                   schema_pkg_apis_devices_v1alpha1_WifiNetworkData(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiNetworkList":                   schema_pkg_apis_devices_v1alpha1_WifiNetworkList(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiPassword":                      schema_pkg_apis_devices_v1alpha1_WifiPassword(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiPasswordData":                  schema_pkg_apis_devices_v1alpha1_WifiPasswordData(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiPasswordList":                  schema_pkg_apis_devices_v1alpha1_WifiPasswordList(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiSpec":                          schema_pkg_apis_devices_v1alpha1_WifiSpec(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiStationSpec":                   schema_pkg_apis_devices_v1alpha1_WifiStationSpec(ref),
 		"k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource":                                        schema_k8sio_api_core_v1_AWSElasticBlockStoreVolumeSource(ref),
 		"k8s.io/api/core/v1.Affinity":                                                                schema_k8sio_api_core_v1_Affinity(ref),
 		"k8s.io/api/core/v1.AttachedVolume":                                                          schema_k8sio_api_core_v1_AttachedVolume(ref),
@@ -639,11 +639,11 @@ func schema_pkg_apis_apps_v1alpha1_KustomizationSpec(ref common.ReferenceCallbac
 	}
 }
 
-func schema_pkg_apis_devices_v1_Certificate(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_Certificate(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Certificate is the Schema for the certificate API",
+				Description: "Certificate is the Schema for the certificate API.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -669,7 +669,7 @@ func schema_pkg_apis_devices_v1_Certificate(ref common.ReferenceCallback) common
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.CertificateSpec"),
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.CertificateSpec"),
 						},
 					},
 				},
@@ -677,15 +677,15 @@ func schema_pkg_apis_devices_v1_Certificate(ref common.ReferenceCallback) common
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.CertificateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.CertificateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema_pkg_apis_devices_v1_CertificateList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_CertificateList(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "CertificateList contains a list of Cache",
+				Description: "CertificateList contains a list of Certificate resources.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -715,7 +715,7 @@ func schema_pkg_apis_devices_v1_CertificateList(ref common.ReferenceCallback) co
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.Certificate"),
+										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.Certificate"),
 									},
 								},
 							},
@@ -726,11 +726,11 @@ func schema_pkg_apis_devices_v1_CertificateList(ref common.ReferenceCallback) co
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.Certificate", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.Certificate", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
-func schema_pkg_apis_devices_v1_CertificateSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_CertificateSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -749,7 +749,7 @@ func schema_pkg_apis_devices_v1_CertificateSpec(ref common.ReferenceCallback) co
 	}
 }
 
-func schema_pkg_apis_devices_v1_Device(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_Device(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -779,13 +779,13 @@ func schema_pkg_apis_devices_v1_Device(ref common.ReferenceCallback) common.Open
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceSpec"),
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceStatus"),
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceStatus"),
 						},
 					},
 				},
@@ -793,15 +793,15 @@ func schema_pkg_apis_devices_v1_Device(ref common.ReferenceCallback) common.Open
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceSpec", "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceSpec", "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema_pkg_apis_devices_v1_DeviceDiscovery(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_DeviceDiscovery(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DeviceDiscovery is the Schema for the device discovery API",
+				Description: "DeviceDiscovery is the Schema for the device discovery API.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -827,7 +827,7 @@ func schema_pkg_apis_devices_v1_DeviceDiscovery(ref common.ReferenceCallback) co
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceDiscoverySpec"),
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceDiscoverySpec"),
 						},
 					},
 				},
@@ -835,15 +835,15 @@ func schema_pkg_apis_devices_v1_DeviceDiscovery(ref common.ReferenceCallback) co
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceDiscoverySpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceDiscoverySpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema_pkg_apis_devices_v1_DeviceDiscoveryList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_DeviceDiscoveryList(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DeviceDiscoveryList contains a list of Cache",
+				Description: "DeviceDiscoveryList defines a list of discovered devices.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -873,7 +873,7 @@ func schema_pkg_apis_devices_v1_DeviceDiscoveryList(ref common.ReferenceCallback
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceDiscovery"),
+										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceDiscovery"),
 									},
 								},
 							},
@@ -884,15 +884,15 @@ func schema_pkg_apis_devices_v1_DeviceDiscoveryList(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceDiscovery", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceDiscovery", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
-func schema_pkg_apis_devices_v1_DeviceDiscoverySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_DeviceDiscoverySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DeviceDiscoverySpec defines the desired state of the Device.",
+				Description: "DeviceDiscoverySpec provides information about the discovered device.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"mode": {
@@ -929,11 +929,11 @@ func schema_pkg_apis_devices_v1_DeviceDiscoverySpec(ref common.ReferenceCallback
 	}
 }
 
-func schema_pkg_apis_devices_v1_DeviceList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_DeviceList(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DeviceList contains a list of Cache",
+				Description: "DeviceList contains a list of Device resources.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -963,7 +963,7 @@ func schema_pkg_apis_devices_v1_DeviceList(ref common.ReferenceCallback) common.
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.Device"),
+										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.Device"),
 									},
 								},
 							},
@@ -974,11 +974,11 @@ func schema_pkg_apis_devices_v1_DeviceList(ref common.ReferenceCallback) common.
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.Device", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.Device", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
-func schema_pkg_apis_devices_v1_DeviceSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_DeviceSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1006,11 +1006,11 @@ func schema_pkg_apis_devices_v1_DeviceSpec(ref common.ReferenceCallback) common.
 	}
 }
 
-func schema_pkg_apis_devices_v1_DeviceStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_DeviceStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DeviceStatus defines the observed state of Cache",
+				Description: "DeviceStatus defines the observed state of the Device.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"generation": {
@@ -1055,7 +1055,7 @@ func schema_pkg_apis_devices_v1_DeviceStatus(ref common.ReferenceCallback) commo
 						SchemaProps: spec.SchemaProps{
 							Description: "IPs []string `json:\"ips,omitempty\"`",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.ProcessStatus"),
+							Ref:         ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.ProcessStatus"),
 						},
 					},
 				},
@@ -1063,15 +1063,15 @@ func schema_pkg_apis_devices_v1_DeviceStatus(ref common.ReferenceCallback) commo
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.ProcessStatus"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.ProcessStatus"},
 	}
 }
 
-func schema_pkg_apis_devices_v1_DeviceToken(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_DeviceToken(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DeviceToken is the Schema for the devices API",
+				Description: "DeviceToken is the schema for cluster join tokens within the devices API.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -1097,13 +1097,13 @@ func schema_pkg_apis_devices_v1_DeviceToken(ref common.ReferenceCallback) common
 					"data": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenData"),
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceTokenData"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenStatus"),
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceTokenStatus"),
 						},
 					},
 				},
@@ -1111,15 +1111,15 @@ func schema_pkg_apis_devices_v1_DeviceToken(ref common.ReferenceCallback) common
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenData", "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceTokenStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceTokenData", "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceTokenStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema_pkg_apis_devices_v1_DeviceTokenData(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_DeviceTokenData(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DeviceTokenData defines the desired state of Cache",
+				Description: "DeviceTokenData specifies the device token.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"token": {
@@ -1136,11 +1136,11 @@ func schema_pkg_apis_devices_v1_DeviceTokenData(ref common.ReferenceCallback) co
 	}
 }
 
-func schema_pkg_apis_devices_v1_DeviceTokenList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_DeviceTokenList(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DeviceTokenList contains a list of Cache",
+				Description: "DeviceTokenList contains a list of DeviceToken resources.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -1170,7 +1170,7 @@ func schema_pkg_apis_devices_v1_DeviceTokenList(ref common.ReferenceCallback) co
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceToken"),
+										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceToken"),
 									},
 								},
 							},
@@ -1181,15 +1181,15 @@ func schema_pkg_apis_devices_v1_DeviceTokenList(ref common.ReferenceCallback) co
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceToken", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceToken", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
-func schema_pkg_apis_devices_v1_DeviceTokenStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_DeviceTokenStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DeviceTokenStatus defines the desired state of Cache",
+				Description: "DeviceTokenStatus provides the server's join token.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"joinToken": {
@@ -1204,7 +1204,7 @@ func schema_pkg_apis_devices_v1_DeviceTokenStatus(ref common.ReferenceCallback) 
 	}
 }
 
-func schema_pkg_apis_devices_v1_NetworkInterface(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_NetworkInterface(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1234,13 +1234,13 @@ func schema_pkg_apis_devices_v1_NetworkInterface(ref common.ReferenceCallback) c
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceSpec"),
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.NetworkInterfaceSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceStatus"),
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.NetworkInterfaceStatus"),
 						},
 					},
 				},
@@ -1248,11 +1248,11 @@ func schema_pkg_apis_devices_v1_NetworkInterface(ref common.ReferenceCallback) c
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceSpec", "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterfaceStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.NetworkInterfaceSpec", "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.NetworkInterfaceStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema_pkg_apis_devices_v1_NetworkInterfaceList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_NetworkInterfaceList(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1286,7 +1286,7 @@ func schema_pkg_apis_devices_v1_NetworkInterfaceList(ref common.ReferenceCallbac
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterface"),
+										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.NetworkInterface"),
 									},
 								},
 							},
@@ -1297,11 +1297,11 @@ func schema_pkg_apis_devices_v1_NetworkInterfaceList(ref common.ReferenceCallbac
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterface", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.NetworkInterface", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
-func schema_pkg_apis_devices_v1_NetworkInterfaceSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_NetworkInterfaceSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1311,18 +1311,18 @@ func schema_pkg_apis_devices_v1_NetworkInterfaceSpec(ref common.ReferenceCallbac
 					"wifi": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiSpec"),
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiSpec"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiSpec"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiSpec"},
 	}
 }
 
-func schema_pkg_apis_devices_v1_NetworkInterfaceStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_NetworkInterfaceStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1332,7 +1332,7 @@ func schema_pkg_apis_devices_v1_NetworkInterfaceStatus(ref common.ReferenceCallb
 					"link": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkLinkStatus"),
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.NetworkLinkStatus"),
 						},
 					},
 					"error": {
@@ -1345,11 +1345,11 @@ func schema_pkg_apis_devices_v1_NetworkInterfaceStatus(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkLinkStatus"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.NetworkLinkStatus"},
 	}
 }
 
-func schema_pkg_apis_devices_v1_NetworkLinkStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_NetworkLinkStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1401,7 +1401,7 @@ func schema_pkg_apis_devices_v1_NetworkLinkStatus(ref common.ReferenceCallback) 
 	}
 }
 
-func schema_pkg_apis_devices_v1_ProcessStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_ProcessStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1428,7 +1428,7 @@ func schema_pkg_apis_devices_v1_ProcessStatus(ref common.ReferenceCallback) comm
 	}
 }
 
-func schema_pkg_apis_devices_v1_WifiAccessPointSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_WifiAccessPointSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1449,11 +1449,11 @@ func schema_pkg_apis_devices_v1_WifiAccessPointSpec(ref common.ReferenceCallback
 	}
 }
 
-func schema_pkg_apis_devices_v1_WifiNetwork(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_WifiNetwork(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "WifiNetwork is the Schema for the devices API",
+				Description: "WifiNetwork is the Schema for the wifi network discovery API.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -1479,7 +1479,7 @@ func schema_pkg_apis_devices_v1_WifiNetwork(ref common.ReferenceCallback) common
 					"data": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetworkData"),
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiNetworkData"),
 						},
 					},
 				},
@@ -1487,15 +1487,15 @@ func schema_pkg_apis_devices_v1_WifiNetwork(ref common.ReferenceCallback) common
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetworkData", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiNetworkData", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema_pkg_apis_devices_v1_WifiNetworkData(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_WifiNetworkData(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "WifiNetworkData defines the desired state of Cache",
+				Description: "WifiNetworkData provides the wifi network details.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"ssid": {
@@ -1512,11 +1512,11 @@ func schema_pkg_apis_devices_v1_WifiNetworkData(ref common.ReferenceCallback) co
 	}
 }
 
-func schema_pkg_apis_devices_v1_WifiNetworkList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_WifiNetworkList(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "WifiNetworkList contains a list of Cache",
+				Description: "WifiNetworkList contains a list of WifiNetwork resources.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -1546,7 +1546,7 @@ func schema_pkg_apis_devices_v1_WifiNetworkList(ref common.ReferenceCallback) co
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetwork"),
+										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiNetwork"),
 									},
 								},
 							},
@@ -1557,15 +1557,15 @@ func schema_pkg_apis_devices_v1_WifiNetworkList(ref common.ReferenceCallback) co
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetwork", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiNetwork", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
-func schema_pkg_apis_devices_v1_WifiPassword(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_WifiPassword(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "WifiPassword is the Schema for the wifi key API",
+				Description: "WifiPassword is the Schema for the wifi key API.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -1591,7 +1591,7 @@ func schema_pkg_apis_devices_v1_WifiPassword(ref common.ReferenceCallback) commo
 					"data": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPasswordData"),
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiPasswordData"),
 						},
 					},
 				},
@@ -1599,15 +1599,15 @@ func schema_pkg_apis_devices_v1_WifiPassword(ref common.ReferenceCallback) commo
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPasswordData", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiPasswordData", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema_pkg_apis_devices_v1_WifiPasswordData(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_WifiPasswordData(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "WifiPasswordData defines the desired state of Cache",
+				Description: "WifiPasswordData defines the wifi password data.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"password": {
@@ -1624,11 +1624,11 @@ func schema_pkg_apis_devices_v1_WifiPasswordData(ref common.ReferenceCallback) c
 	}
 }
 
-func schema_pkg_apis_devices_v1_WifiPasswordList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_WifiPasswordList(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "WifiPasswordList contains a list of Cache",
+				Description: "WifiPasswordList contains a list of WifiPassword resources.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -1658,7 +1658,7 @@ func schema_pkg_apis_devices_v1_WifiPasswordList(ref common.ReferenceCallback) c
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPassword"),
+										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiPassword"),
 									},
 								},
 							},
@@ -1669,11 +1669,11 @@ func schema_pkg_apis_devices_v1_WifiPasswordList(ref common.ReferenceCallback) c
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPassword", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiPassword", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
-func schema_pkg_apis_devices_v1_WifiSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_WifiSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1697,13 +1697,13 @@ func schema_pkg_apis_devices_v1_WifiSpec(ref common.ReferenceCallback) common.Op
 					"station": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiStationSpec"),
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiStationSpec"),
 						},
 					},
 					"accessPoint": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiAccessPointSpec"),
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiAccessPointSpec"),
 						},
 					},
 				},
@@ -1711,11 +1711,11 @@ func schema_pkg_apis_devices_v1_WifiSpec(ref common.ReferenceCallback) common.Op
 			},
 		},
 		Dependencies: []string{
-			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiAccessPointSpec", "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiStationSpec"},
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiAccessPointSpec", "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiStationSpec"},
 	}
 }
 
-func schema_pkg_apis_devices_v1_WifiStationSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_devices_v1alpha1_WifiStationSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
