@@ -396,6 +396,40 @@ definitions:
     required:
     - running
     type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.UserAccount:
+    description: UserAccount is the schema for UserAccount resources.
+    properties:
+      apiVersion:
+        description: 'APIVersion defines the versioned schema of this representation
+          of an object. Servers should convert recognized schemas to the latest internal
+          value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+        type: string
+      data:
+        $ref: '#/definitions/com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.UserAccountData'
+        default: {}
+      kind:
+        description: 'Kind is a string value representing the REST resource this object
+          represents. Servers may infer this from the endpoint the client submits
+          requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+        type: string
+      metadata:
+        $ref: '#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta'
+        default: {}
+    required:
+    - metadata
+    - data
+    type: object
+  com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.UserAccountData:
+    description: UserAccountData specifies the user account.
+    properties:
+      password:
+        description: Password holds the bcrypt-encoded password.
+        type: string
+      passwordString:
+        description: PasswordString allows to submit a new password in plain text
+          to make the server bcrypt-encode it.
+        type: string
+    type: object
   com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.WifiAccessPointSpec:
     description: WifiAccessPointSpec defines the wifi access point configuration.
     properties:

@@ -42,6 +42,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.NetworkInterfaceStatus":            schema_pkg_apis_devices_v1alpha1_NetworkInterfaceStatus(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.NetworkLinkStatus":                 schema_pkg_apis_devices_v1alpha1_NetworkLinkStatus(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.ProcessStatus":                     schema_pkg_apis_devices_v1alpha1_ProcessStatus(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.UserAccount":                       schema_pkg_apis_devices_v1alpha1_UserAccount(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.UserAccountData":                   schema_pkg_apis_devices_v1alpha1_UserAccountData(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.UserAccountList":                   schema_pkg_apis_devices_v1alpha1_UserAccountList(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiAccessPointSpec":               schema_pkg_apis_devices_v1alpha1_WifiAccessPointSpec(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiNetwork":                       schema_pkg_apis_devices_v1alpha1_WifiNetwork(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiNetworkData":                   schema_pkg_apis_devices_v1alpha1_WifiNetworkData(ref),
@@ -1425,6 +1428,124 @@ func schema_pkg_apis_devices_v1alpha1_ProcessStatus(ref common.ReferenceCallback
 				Required: []string{"running"},
 			},
 		},
+	}
+}
+
+func schema_pkg_apis_devices_v1alpha1_UserAccount(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "UserAccount is the schema for UserAccount resources.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"data": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.UserAccountData"),
+						},
+					},
+				},
+				Required: []string{"metadata", "data"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.UserAccountData", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_devices_v1alpha1_UserAccountData(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "UserAccountData specifies the user account.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"passwordString": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PasswordString allows to submit a new password in plain text to make the server bcrypt-encode it.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"password": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Password holds the bcrypt-encoded password.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_devices_v1alpha1_UserAccountList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "UserAccountList contains a list of UserAccount resources.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.UserAccount"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.UserAccount", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 

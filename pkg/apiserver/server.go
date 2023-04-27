@@ -198,6 +198,10 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	}
 	caCert, _ := serverConfig.SecureServing.Cert.CurrentCertKeyContent()
 	certREST := rest.NewCertificateREST(scheme, caCert)
+	userAccountREST, err := rest.NewUserAccountREST(filepath.Join(o.DataDir, "useraccounts"), scheme)
+	if err != nil {
+		return nil, err
+	}
 	ifaceREST := rest.NewNetworkInterfaceREST(ifaceStore)
 	discoveryStore := storage.InMemory(scheme)
 	discovery := discovery.NewDeviceDiscovery(o.DeviceName, o.HTTPSPort, o.AdvertiseIfaces, discoveryStore, logger)
@@ -256,6 +260,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 			"v1alpha1": map[string]registryrest.Storage{
 				"networkinterfaces": ifaceREST,
 				"certificates":      certREST,
+				"useraccounts":      userAccountREST,
 				"devices":           deviceREST,
 				"devicediscovery":   discoveryREST,
 				"devicetokens":      deviceTokenREST,

@@ -53,6 +53,7 @@ func writeOpenAPIFile(file string) error {
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiNetwork",
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiPassword",
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.Certificate",
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.UserAccount",
 		"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.CustomResourceDefinition",
 		"k8s.io/api/networking/v1.Ingress",
 	}
