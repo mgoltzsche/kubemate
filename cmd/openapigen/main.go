@@ -1,21 +1,33 @@
-package apiserver
+package main
 
 import (
 	"fmt"
 	"io/ioutil"
-	"path/filepath"
+	"os"
 	"strings"
-	"testing"
 
 	"github.com/go-openapi/jsonreference"
 	generatedopenapi "github.com/mgoltzsche/kubemate/pkg/generated/openapi"
-	"github.com/stretchr/testify/require"
 	"k8s.io/kube-openapi/pkg/common"
 	"k8s.io/kube-openapi/pkg/validation/spec"
 	"sigs.k8s.io/yaml"
 )
 
-func TestGenerateOpenAPI(t *testing.T) {
+func main() {
+	if len(os.Args) != 2 {
+		fmt.Fprintln(os.Stderr, "expects exactly 1 argument: the OpenAPI destination file path")
+		os.Exit(1)
+	}
+	if err := writeOpenAPIFile(os.Args[1]); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func writeOpenAPIFile(file string) error {
+	if file == "" {
+		return fmt.Errorf("provided OpenAPI destination file path is empty")
+	}
 	defs := generatedopenapi.GetOpenAPIDefinitions(ref)
 	swagger := spec.Swagger{
 		SwaggerProps: spec.SwaggerProps{
@@ -46,12 +58,15 @@ func TestGenerateOpenAPI(t *testing.T) {
 	}
 	for _, typeName := range typeNames {
 		err := addType(defs, typeName, &swagger)
-		require.NoError(t, err)
+		if err != nil {
+			return err
+		}
 	}
 	b, err := yaml.Marshal(&swagger)
-	require.NoError(t, err)
-	err = ioutil.WriteFile(filepath.Join("..", "..", "openapi.yaml"), b, 0644)
-	require.NoError(t, err)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(file, b, 0644)
 }
 
 func addType(typeDefs map[string]common.OpenAPIDefinition, typeName string, swagger *spec.Swagger) error {

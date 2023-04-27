@@ -76,12 +76,16 @@ configure-qemu: ## Enable multiarch support on the host (configuring binfmt).
 	$(DOCKER) run --rm --privileged multiarch/qemu-user-static:7.0.0-7 --reset -p yes
 
 .PHONY: generate
-generate: $(CONTROLLER_GEN) $(KUBE_OPENAPI_GEN) ## Generate code.
+generate: $(CONTROLLER_GEN) openapigen $(KUBE_OPENAPI_GEN) ## Generate code.
 	#PATH="$(TOOLS_DIR):$$PATH" go generate ./pkg/server
 	$(CONTROLLER_GEN) object paths=./pkg/apis/... paths=./pkg/resource/fake
 	$(CONTROLLER_GEN) crd paths="./pkg/apis/apps/..." output:crd:artifacts:config=config/crd
 	$(KUBE_OPENAPI_GEN) --output-base=./pkg/generated --output-package=openapi -O zz_generated.openapi -h ./boilerplate/boilerplate.go.txt \
 		--input-dirs=github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1,github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/api/core/v1,k8s.io/apimachinery/pkg/runtime,k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1,k8s.io/api/networking/v1
+	./build/tools/openapigen openapi.yaml
+
+openapigen:
+	go build -o ./build/tools/openapigen ./cmd/openapigen
 
 .PHONY: manifests
 manifests: $(KUSTOMIZE) ## Generate static Kubernetes manifests.
