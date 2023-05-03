@@ -60,4 +60,4 @@ ENV PATH="$PATH:/bin/aux:/opt/cni/bin" \
 	KUBEMATE_WEB_DIR=/usr/share/kubemate/web \
 	KUBEMATE_WRITE_HOST_RESOLVCONF=false
 ENTRYPOINT ["/bin/kubemate"]
-CMD ["server"]
+CMD ["connect"]
