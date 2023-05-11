@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
+	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1"
 	appsv1 "github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"

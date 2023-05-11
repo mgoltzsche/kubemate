@@ -3,7 +3,7 @@ kind: Namespace
 metadata:
   name: kubemate
 ---
-apiVersion: kustomize.toolkit.fluxcd.io/v1beta2
+apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
   name: kubemate-apps
@@ -18,7 +18,7 @@ spec:
   timeout: 60s
   wait: false
 ---
-apiVersion: source.toolkit.fluxcd.io/v1beta2
+apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
   name: kubemate-apps
