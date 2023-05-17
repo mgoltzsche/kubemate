@@ -51,12 +51,6 @@ spec:
                 description: KustomizationSpec specifies the kustomization that should
                   be installed.
                 properties:
-                  namespace:
-                    description: Namespace specifies the default Kubernetes Namespace
-                      that śhould be used by the kustomization.
-                    maxLength: 63
-                    minLength: 1
-                    type: string
                   path:
                     description: Path points to the kustomization directory within
                       the sourceRef.
@@ -85,28 +79,28 @@ spec:
                     - kind
                     - name
                     type: object
-                  targetNamespace:
-                    description: TargetNamespace specifies the Kubernetes Namespace
-                      the kustomization should be installed to.
-                    maxLength: 63
-                    minLength: 1
-                    type: string
                   timeout:
+                    description: Timeout specifies the deployment timeout.
                     type: string
                 required:
                 - sourceRef
                 type: object
+              paramSecretName:
+                description: ParamDefinitions []ParamDefinition  `json:"paramDefinitions,omitempty"`
+                type: string
             type: object
           status:
             description: AppStatus defines the observed state of the App.
             properties:
+              configSchemaName:
+                type: string
+              configSecretName:
+                type: string
               lastAppliedRevision:
                 type: string
               lastAttemptedRevision:
                 type: string
               message:
-                type: string
-              namespace:
                 type: string
               observedGeneration:
                 format: int64

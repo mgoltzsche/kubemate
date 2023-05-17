@@ -46,6 +46,7 @@ func writeOpenAPIFile(file string) error {
 	}
 	typeNames := []string{
 		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.App",
+		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.AppConfigSchema",
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.NetworkInterface",
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.Device",
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceDiscovery",
@@ -56,6 +57,7 @@ func writeOpenAPIFile(file string) error {
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.UserAccount",
 		"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.CustomResourceDefinition",
 		"k8s.io/api/networking/v1.Ingress",
+		"k8s.io/api/core/v1.Secret",
 	}
 	for _, typeName := range typeNames {
 		err := addType(defs, typeName, &swagger)

@@ -17,11 +17,15 @@ import (
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
 		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.App":                                  schema_pkg_apis_apps_v1alpha1_App(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.AppConfigSchema":                      schema_pkg_apis_apps_v1alpha1_AppConfigSchema(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.AppConfigSchemaList":                  schema_pkg_apis_apps_v1alpha1_AppConfigSchemaList(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.AppConfigSchemaSpec":                  schema_pkg_apis_apps_v1alpha1_AppConfigSchemaSpec(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.AppList":                              schema_pkg_apis_apps_v1alpha1_AppList(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.AppSpec":                              schema_pkg_apis_apps_v1alpha1_AppSpec(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.AppStatus":                            schema_pkg_apis_apps_v1alpha1_AppStatus(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.CrossNamespaceSourceReference":        schema_pkg_apis_apps_v1alpha1_CrossNamespaceSourceReference(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.KustomizationSpec":                    schema_pkg_apis_apps_v1alpha1_KustomizationSpec(ref),
+		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.ParameterDefinition":                  schema_pkg_apis_apps_v1alpha1_ParameterDefinition(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.Certificate":                       schema_pkg_apis_devices_v1alpha1_Certificate(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.CertificateList":                   schema_pkg_apis_devices_v1alpha1_CertificateList(ref),
 		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.CertificateSpec":                   schema_pkg_apis_devices_v1alpha1_CertificateSpec(ref),
@@ -424,6 +428,125 @@ func schema_pkg_apis_apps_v1alpha1_App(ref common.ReferenceCallback) common.Open
 	}
 }
 
+func schema_pkg_apis_apps_v1alpha1_AppConfigSchema(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AppConfigSchema is the Schema for the apps API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.AppConfigSchemaSpec"),
+						},
+					},
+				},
+				Required: []string{"spec"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.AppConfigSchemaSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_apps_v1alpha1_AppConfigSchemaList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AppConfigSchemaList contains a list of App",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.AppConfigSchema"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.AppConfigSchema", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_apps_v1alpha1_AppConfigSchemaSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AppConfigSchemaSpec defines the configuration schema for an App.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"params": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.ParameterDefinition"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.ParameterDefinition"},
+	}
+}
+
 func schema_pkg_apis_apps_v1alpha1_AppList(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -486,6 +609,13 @@ func schema_pkg_apis_apps_v1alpha1_AppSpec(ref common.ReferenceCallback) common.
 							Format: "",
 						},
 					},
+					"paramSecretName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ParamDefinitions []ParamDefinition  `json:\"paramDefinitions,omitempty\"`",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"kustomization": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.KustomizationSpec"),
@@ -512,18 +642,12 @@ func schema_pkg_apis_apps_v1alpha1_AppStatus(ref common.ReferenceCallback) commo
 							Format: "int64",
 						},
 					},
-					"namespace": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
 					"state": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Possible enum values:\n - `\"Deinstalling\"`\n - `\"Error\"`\n - `\"Installed\"`\n - `\"Installing\"`\n - `\"NotInstalled\"`\n - `\"Upgrading\"`",
+							Description: "Possible enum values:\n - `\"ConfigRequired\"`\n - `\"Deinstalling\"`\n - `\"Error\"`\n - `\"Installed\"`\n - `\"Installing\"`\n - `\"NotInstalled\"`\n - `\"Upgrading\"`",
 							Type:        []string{"string"},
 							Format:      "",
-							Enum:        []interface{}{"Deinstalling", "Error", "Installed", "Installing", "NotInstalled", "Upgrading"}},
+							Enum:        []interface{}{"ConfigRequired", "Deinstalling", "Error", "Installed", "Installing", "NotInstalled", "Upgrading"}},
 					},
 					"message": {
 						SchemaProps: spec.SchemaProps{
@@ -538,6 +662,18 @@ func schema_pkg_apis_apps_v1alpha1_AppStatus(ref common.ReferenceCallback) commo
 						},
 					},
 					"lastAttemptedRevision": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"configSchemaName": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"configSecretName": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",
@@ -614,23 +750,10 @@ func schema_pkg_apis_apps_v1alpha1_KustomizationSpec(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
-					"targetNamespace": {
-						SchemaProps: spec.SchemaProps{
-							Description: "TargetNamespace specifies the Kubernetes Namespace the kustomization should be installed to.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"namespace": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Namespace specifies the default Kubernetes Namespace that śhould be used by the kustomization.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"timeout": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+							Description: "Timeout specifies the deployment timeout.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
 						},
 					},
 				},
@@ -639,6 +762,66 @@ func schema_pkg_apis_apps_v1alpha1_KustomizationSpec(ref common.ReferenceCallbac
 		},
 		Dependencies: []string{
 			"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.CrossNamespaceSourceReference", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
+	}
+}
+
+func schema_pkg_apis_apps_v1alpha1_ParameterDefinition(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ParameterDefinition defines an application parameter.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Possible enum values:\n - `\"boolean\"`\n - `\"enum\"`\n - `\"number\"`\n - `\"password\"`\n - `\"string\"`\n - `\"text\"`",
+							Type:        []string{"string"},
+							Format:      "",
+							Enum:        []interface{}{"boolean", "enum", "number", "password", "string", "text"}},
+					},
+					"title": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"description": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"category": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"enum": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
 	}
 }
 

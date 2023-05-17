@@ -1,11 +1,14 @@
 import { io_k8s_api_networking_v1_Ingress as Ingress } from 'src/gen';
 
 const navTitleAnnotation = 'kubemate.mgoltzsche.github.com/nav-title';
+const appNameLabel = 'kustomize.toolkit.fluxcd.io/name';
 
-export function appLinks(ingresses: Ingress[]) {
+export function appLinks(ingresses: Ingress[], app?: string) {
   return ingresses
     .filter(
       (ing: Ingress) =>
+        (!app ||
+          (ing.metadata?.labels && ing.metadata.labels[appNameLabel] == app)) &&
         ing.metadata?.annotations &&
         ing.metadata?.annotations[navTitleAnnotation]
     )

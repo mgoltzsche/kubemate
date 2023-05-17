@@ -27,11 +27,11 @@ import { useIngressStore } from 'src/stores/resources';
 import { computed, defineComponent, reactive, toRefs } from 'vue';
 import { appLinks } from 'src/stores/queries';
 
-function useAppLinks() {
+function useAppLinks(app?: string) {
   const store = useIngressStore();
   store.sync();
   const state = reactive({
-    appLinks: computed(() => appLinks(store.resources)),
+    appLinks: computed(() => appLinks(store.resources, app)),
   });
   return {
     ...toRefs(state),
@@ -40,8 +40,16 @@ function useAppLinks() {
 
 export default defineComponent({
   name: 'AppLauncher',
-  setup() {
-    return { ...useAppLinks() };
+  props: {
+    app: {
+      type: String,
+      required: false,
+    },
+  },
+  setup(props) {
+    return {
+      ...useAppLinks(props.app),
+    };
   },
 });
 </script>

@@ -65,6 +65,12 @@ const routes: RouteRecordRaw[] = [
             name: 'app',
             path: ':name',
             component: () => import('pages/AppPage.vue'),
+            children: [],
+          },
+          {
+            name: 'settings',
+            path: ':name/settings',
+            component: () => import('pages/AppSettingsPage.vue'),
           },
         ],
       },
