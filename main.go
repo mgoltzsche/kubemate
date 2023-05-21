@@ -17,6 +17,7 @@ import (
 	"github.com/k3s-io/k3s/pkg/cli/kubectl"
 	"github.com/k3s-io/k3s/pkg/cli/secretsencrypt"
 	"github.com/k3s-io/k3s/pkg/cli/server"
+	"github.com/k3s-io/k3s/pkg/cli/token"
 	"github.com/k3s-io/k3s/pkg/configfilearg"
 	"github.com/k3s-io/k3s/pkg/containerd"
 	ctr2 "github.com/k3s-io/k3s/pkg/ctr"
@@ -27,9 +28,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-// Copied from https://github.com/k3s-io/k3s/blob/v1.23.6%2Bk3s1/cmd/server/main.go and added `connect` command.
-
-var Version = "dev"
+// Copied from https://github.com/k3s-io/k3s/blob/v1.26.3%2Bk3s1/cmd/server/main.go and added `connect` command.
 
 func init() {
 	reexec.Register("containerd", containerd.Main)
@@ -54,6 +53,12 @@ func main() {
 		cmds.NewKubectlCommand(kubectl.Run),
 		cmds.NewCRICTL(crictl.Run),
 		cmds.NewCtrCommand(ctr.Run),
+		cmds.NewTokenCommands(
+			token.Create,
+			token.Delete,
+			token.Generate,
+			token.List,
+		),
 		cmds.NewEtcdSnapshotCommands(
 			etcdsnapshot.Run,
 			etcdsnapshot.Delete,
@@ -71,7 +76,9 @@ func main() {
 		),
 		cmds.NewCertCommand(
 			cmds.NewCertSubcommands(
-				cert.Run),
+				cert.Rotate,
+				cert.RotateCA,
+			),
 		),
 		cmds.NewCompletionCommand(completion.Run),
 	}

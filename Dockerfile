@@ -9,7 +9,7 @@ ARG VERSION=dev
 ENV CGO_CFLAGS=-DSQLITE_ENABLE_DBSTAT_VTAB=1
 RUN go build -o kubemate -ldflags "-X main.Version=$VERSION -s -w -extldflags \"-static\"" .
 
-FROM rancher/k3s:v1.26.0-k3s1 AS k3s
+FROM rancher/k3s:v1.26.3-k3s1 AS k3s
 COPY --from=build /work/kubemate /bin/kubemate
 
 FROM alpine:3.17
