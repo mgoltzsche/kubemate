@@ -137,6 +137,7 @@ build {
     # Disable default wpa_supplicant (to let kubemate manage the wifi)
     inline = [
       "systemctl mask wpa_supplicant.service",
+      "sed -Ei 's/^#(option\s+ntp_servers)/\1/' /etc/dhcpcd.conf",
       "echo 'denyinterfaces wlan0' >> /etc/dhcpcd.conf",
     ]
   }

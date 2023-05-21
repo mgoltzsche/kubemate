@@ -45,6 +45,7 @@ RUN set -ex; \
 	mkdir -p /etc/kubemate; \
 	echo 'adminsecret,admin,admin,"admin,ui"' > /etc/kubemate/tokens
 COPY --from=build /work/kubemate /bin/kubemate
+COPY dhcpcd.conf /etc/dhcpcd.conf
 COPY ./config/generated/ /usr/share/kubemate/manifests/
 COPY ./ui/dist/spa /usr/share/kubemate/web
 VOLUME /var/lib/kubelet
