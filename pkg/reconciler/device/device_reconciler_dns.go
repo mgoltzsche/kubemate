@@ -62,6 +62,7 @@ func (r *deviceDnsServerReconciler) Reconcile(ctx context.Context, d *deviceapi.
 	dnsServerEnabled := d.Spec.Mode == deviceapi.DeviceModeServer || isAP
 	if !dnsServerEnabled {
 		r.dnsmasq.Stop()
+		return nil
 	}
 	captivePortalURL := d.Status.Address
 	confPath, err := generateDnsmasqConfig(isAP, iface, r.deviceName, captivePortalURL, ip, "11.0.0.10", "11.0.0.50")
