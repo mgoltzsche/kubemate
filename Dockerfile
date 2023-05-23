@@ -13,7 +13,7 @@ FROM rancher/k3s:v1.26.3-k3s1 AS k3s
 COPY --from=build /work/kubemate /bin/kubemate
 
 FROM alpine:3.17
-RUN apk add --update --no-cache iptables ip6tables socat openssl ca-certificates apparmor iw wpa_supplicant dhcpcd hostapd dnsmasq
+RUN apk add --update --no-cache iptables ip6tables ipset socat openssl ca-certificates apparmor iw wpa_supplicant dhcpcd hostapd dnsmasq
 ARG VERSION="dev"
 RUN set -eu; \
 	ln -sf xtables-nft-multi /sbin/iptables; \
