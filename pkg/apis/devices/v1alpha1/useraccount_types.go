@@ -41,6 +41,10 @@ func (in *UserAccount) NewList() runtime.Object {
 	return &UserAccountList{}
 }
 
+func (in *UserAccount) GetSingularName() string {
+	return "UserAccount"
+}
+
 func (in *UserAccount) GetGroupVersionResource() schema.GroupVersionResource {
 	return GroupVersion.WithResource("useraccounts")
 }

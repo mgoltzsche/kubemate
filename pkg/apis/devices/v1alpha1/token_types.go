@@ -41,6 +41,10 @@ func (in *DeviceToken) NewList() runtime.Object {
 	return &DeviceTokenList{}
 }
 
+func (in *DeviceToken) GetSingularName() string {
+	return "DeviceToken"
+}
+
 func (in *DeviceToken) GetGroupVersionResource() schema.GroupVersionResource {
 	return GroupVersion.WithResource("devicetokens")
 }

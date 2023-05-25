@@ -10,6 +10,7 @@ type Resource interface {
 	New() Resource
 	NewList() runtime.Object
 	GetGroupVersionResource() schema.GroupVersionResource
+	GetSingularName() string
 	DeepCopyIntoResource(Resource) error
 	GetResourceVersion() string
 	SetResourceVersion(string)

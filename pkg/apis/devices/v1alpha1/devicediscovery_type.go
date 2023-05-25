@@ -36,6 +36,10 @@ func (in *DeviceDiscovery) NewList() runtime.Object {
 	return &DeviceDiscoveryList{}
 }
 
+func (in *DeviceDiscovery) GetSingularName() string {
+	return "DeviceDiscovery"
+}
+
 func (in *DeviceDiscovery) GetGroupVersionResource() schema.GroupVersionResource {
 	return GroupVersion.WithResource("devicediscovery")
 }

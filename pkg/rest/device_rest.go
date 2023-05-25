@@ -65,6 +65,10 @@ func (r *DeviceREST) NamespaceScoped() bool {
 	return false
 }
 
+func (r *DeviceREST) GetSingularName() string {
+	return r.rest.resource.GetSingularName()
+}
+
 func (r *DeviceREST) List(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error) {
 	return r.rest.List(ctx, options)
 }

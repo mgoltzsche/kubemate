@@ -22,7 +22,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
@@ -57,17 +56,14 @@ func (r *AppReconciler) AddToScheme(s *runtime.Scheme) error {
 func (r *AppReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.scheme = mgr.GetScheme()
 	r.Client = mgr.GetClient()
+	req4ownerApp := handler.EnqueueRequestForOwner(r.scheme, mgr.GetRESTMapper(), &appsv1.App{})
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&appsv1.App{}).
 		//Owns(&kustomizev1.Kustomization{}).
 		//Owns(&corev1.Secret{}).
-		Watches(&source.Kind{Type: &kustomizev1.Kustomization{}}, &handler.EnqueueRequestForOwner{
-			OwnerType: &appsv1.App{},
-		}).
-		Watches(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
-			OwnerType: &appsv1.App{},
-		}).
-		Watches(&source.Kind{Type: &corev1.Secret{}}, handler.EnqueueRequestsFromMapFunc(func(o client.Object) []ctrl.Request {
+		Watches(&kustomizev1.Kustomization{}, req4ownerApp).
+		Watches(&corev1.Secret{}, req4ownerApp).
+		Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(func(_ context.Context, o client.Object) []ctrl.Request {
 			if name := o.GetName(); strings.HasSuffix(name, "-userconfig") {
 				return []ctrl.Request{{
 					NamespacedName: types.NamespacedName{
@@ -78,7 +74,7 @@ func (r *AppReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}
 			return nil
 		})).
-		Watches(&source.Kind{Type: &appsv1.AppConfigSchema{}}, handler.EnqueueRequestsFromMapFunc(func(o client.Object) []ctrl.Request {
+		Watches(&appsv1.AppConfigSchema{}, handler.EnqueueRequestsFromMapFunc(func(_ context.Context, o client.Object) []ctrl.Request {
 			if l := o.GetLabels(); l != nil {
 				if name := l[labelKustomizationName]; name != "" {
 					return []ctrl.Request{{

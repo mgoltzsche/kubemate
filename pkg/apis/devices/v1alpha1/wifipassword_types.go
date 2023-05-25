@@ -39,6 +39,10 @@ func (in *WifiPassword) NewList() runtime.Object {
 	return &WifiPasswordList{}
 }
 
+func (in *WifiPassword) GetSingularName() string {
+	return "WifiPassword"
+}
+
 func (in *WifiPassword) GetGroupVersionResource() schema.GroupVersionResource {
 	return GroupVersion.WithResource("wifipasswords")
 }

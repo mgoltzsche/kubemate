@@ -33,6 +33,10 @@ func (in *Certificate) NewList() runtime.Object {
 	return &CertificateList{}
 }
 
+func (in *Certificate) GetSingularName() string {
+	return "Certificate"
+}
+
 func (in *Certificate) GetGroupVersionResource() schema.GroupVersionResource {
 	return GroupVersion.WithResource("certificates")
 }

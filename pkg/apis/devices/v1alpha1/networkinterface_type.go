@@ -89,6 +89,10 @@ func (in *NetworkInterface) NewList() runtime.Object {
 	return &NetworkInterfaceList{}
 }
 
+func (in *NetworkInterface) GetSingularName() string {
+	return "NetworkInterface"
+}
+
 func (in *NetworkInterface) GetGroupVersionResource() schema.GroupVersionResource {
 	return GroupVersion.WithResource("networkinterfaces")
 }

@@ -1,4 +1,4 @@
-FROM golang:1.19-alpine3.17 AS build
+FROM golang:1.20-alpine3.18 AS build
 RUN apk add --update --no-cache musl-dev gcc binutils-gold
 COPY go.mod go.sum /work/
 WORKDIR /work
@@ -9,10 +9,10 @@ ARG VERSION=dev
 ENV CGO_CFLAGS=-DSQLITE_ENABLE_DBSTAT_VTAB=1
 RUN go build -o kubemate -ldflags "-X main.Version=$VERSION -s -w -extldflags \"-static\"" .
 
-FROM rancher/k3s:v1.26.3-k3s1 AS k3s
+FROM rancher/k3s:v1.27.1-k3s1 AS k3s
 COPY --from=build /work/kubemate /bin/kubemate
 
-FROM alpine:3.17
+FROM alpine:3.18
 RUN apk add --update --no-cache iptables ip6tables ipset socat openssl ca-certificates apparmor iw wpa_supplicant dhcpcd hostapd dnsmasq
 ARG VERSION="dev"
 RUN set -eu; \

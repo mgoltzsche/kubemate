@@ -53,7 +53,7 @@ func (r *NetworkInterfaceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&deviceapi.NetworkInterface{}).
-		// TODO: Watches(&source.Kind{Type: &deviceapi.WifiPassword{}}, handler.EnqueueRequestsFromMapFunc(r.deviceReconcileRequest)).
+		// TODO: Watches(&deviceapi.WifiPassword{}, handler.EnqueueRequestsFromMapFunc(r.deviceReconcileRequest)).
 		Complete(r)
 }
 

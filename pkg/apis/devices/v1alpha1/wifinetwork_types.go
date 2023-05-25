@@ -34,6 +34,10 @@ func (in *WifiNetwork) NewList() runtime.Object {
 	return &WifiNetworkList{}
 }
 
+func (in *WifiNetwork) GetSingularName() string {
+	return "WifiNetwork"
+}
+
 func (in *WifiNetwork) GetGroupVersionResource() schema.GroupVersionResource {
 	return GroupVersion.WithResource("wifinetworks")
 }

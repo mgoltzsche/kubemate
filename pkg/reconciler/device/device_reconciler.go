@@ -28,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // DeviceReconciler reconciles a Device object.
@@ -104,13 +103,13 @@ func (r *DeviceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Client = mgr.GetClient()
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&deviceapi.Device{}).
-		Watches(&source.Kind{Type: &deviceapi.NetworkInterface{}}, handler.EnqueueRequestsFromMapFunc(r.deviceReconcileRequest)).
-		Watches(&source.Kind{Type: &deviceapi.DeviceToken{}}, handler.EnqueueRequestsFromMapFunc(r.deviceReconcileRequest)).
-		Watches(&source.Kind{Type: &deviceapi.WifiPassword{}}, handler.EnqueueRequestsFromMapFunc(r.deviceReconcileRequest)).
+		Watches(&deviceapi.NetworkInterface{}, handler.EnqueueRequestsFromMapFunc(r.deviceReconcileRequest)).
+		Watches(&deviceapi.DeviceToken{}, handler.EnqueueRequestsFromMapFunc(r.deviceReconcileRequest)).
+		Watches(&deviceapi.WifiPassword{}, handler.EnqueueRequestsFromMapFunc(r.deviceReconcileRequest)).
 		Complete(r)
 }
 
-func (r *DeviceReconciler) deviceReconcileRequest(o client.Object) []ctrl.Request {
+func (r *DeviceReconciler) deviceReconcileRequest(_ context.Context, o client.Object) []ctrl.Request {
 	return []ctrl.Request{{NamespacedName: types.NamespacedName{Name: r.DeviceName}}}
 }
 
@@ -311,7 +310,7 @@ func buildK3sServerArgs(d *deviceapi.Device, nodeIP net.IP, dataDir string, dock
 		fmt.Sprintf("--node-external-ip=%s", nodeIP.String()),
 		"--disable-cloud-controller",
 		"--disable-helm-controller",
-		"--disable=servicelb,traefik,metrics-server",
+		"--disable=servicelb,traefik",
 		fmt.Sprintf("--kube-apiserver-arg=--token-auth-file=%s", "/etc/kubemate/tokens"),
 		fmt.Sprintf("--data-dir=%s", dataDir),
 	}
