@@ -122,6 +122,19 @@ build {
     source      = "./packer/systemd/kubemate.service"
   }
 
+  provisioner "file" {
+    # Add script to kill docker pods
+    destination = "/usr/local/sbin/kill-docker-pods.sh"
+    source      = "./kill-docker-pods.sh"
+  }
+
+  provisioner "file" {
+    # Add script to stop kubemate and delete its persistent state.
+    # This script must be run before updates.
+    destination = "/usr/local/sbin/kubemate-clear.sh"
+    source      = "./kubemate-clear.sh"
+  }
+
   provisioner "shell" {
     # Grant the default user administrative Kubernetes access
     inline = [

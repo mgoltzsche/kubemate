@@ -48,6 +48,18 @@ To make kubemate work well with the docker installation on your host, you have t
 
 To make sure pod networking is working properly, use nf_tables instead of iptables legacy on your host.
 
+#### Upgrades
+
+To apply a major version upgrade, uninstall/clear the entire state of the existing installation before launching the new version.
+
+#### Clear docker pods
+
+To kill and remove all docker containers that originate from Kubernetes as well as their volumes, run [`kill-docker-pods.sh`](./kill-docker-pods.sh).
+
+#### Delete the state
+
+Stop kubemate, delete all docker containers, delete the persistent state: [`kubemate-clear.sh`](./kubemate-clear.sh).
+
 ### Prepare a Raspberry Pi OS image
 
 To build a complete SD card image to run kubemate on a Raspberry Pi on top of the Raspberry Pi OS, run

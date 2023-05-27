@@ -82,6 +82,12 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if o.DeviceName == "" {
 		return nil, fmt.Errorf("no device name specified")
 	}
+	for _, dir := range []string{"rancher"} {
+		err := os.MkdirAll(filepath.Join(o.DataDir, dir), 0755)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if len(o.AdvertiseIfaces) == 0 {
 		ifaces, err := detectIfaces()
 		if err != nil {

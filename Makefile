@@ -98,26 +98,26 @@ manifests: $(KUSTOMIZE) ## Generate static Kubernetes manifests.
 .PHONY: clean
 clean: ## Purge local storage and docker containers created by kubemate.
 	[ "`id -u`" -eq  0 ]
-	docker rm -f `docker ps -qa` || true
+	docker rm -f `docker ps -qa --filter label=io.kubernetes.container.name` || true
 	rm -rf ./data
-	docker volume rm `docker volume ls -q` || true
+	docker volume rm `docker volume ls -q --filter label=com.docker.volume.anonymous` || true
 	rm -rf ./build
 
 .PHONY: run
 run: container ## Run a kubemate container locally within the host network.
 	chmod 2775 .
-	mkdir -p ./data/pod-log /var/lib/kubelet /var/lib/kubemate
+	docker run --rm -v /:/host alpine:3.18 mkdir -p /host/var/log/pods /host/var/lib/kubelet /host/var/lib/cni /host/var/lib/kubemate
 	docker rm -f kubemate 2>/dev/null || true
 	docker run --name kubemate --rm -it --network host --pid host --privileged \
 		--tmpfs /run --tmpfs /var/run --tmpfs /tmp \
 		--mount type=bind,src=/var/lib/kubemate,dst=/var/lib/kubemate,bind-propagation=rshared \
-		-v `pwd`/data/rancher:/etc/rancher \
 		-v /:/host \
 		--mount type=bind,src=/etc/machine-id,dst=/etc/machine-id \
 		--mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
 		--mount type=bind,src=/var/lib/docker,dst=/var/lib/docker,bind-propagation=rshared \
 		--mount type=bind,src=/var/lib/kubelet,dst=/var/lib/kubelet,bind-propagation=rshared \
-		--mount type=bind,src=`pwd`/data/pod-log,dst=/var/log/pods,bind-propagation=rshared \
+		--mount type=bind,src=/var/lib/cni,dst=/var/lib/cni \
+		--mount type=bind,src=/var/log/pods,dst=/var/log/pods,bind-propagation=rshared \
 		--mount type=bind,src=/lib/modules,dst=/lib/modules,readonly \
 		--mount type=bind,src=/sys,dst=/sys \
 		-v `pwd`:/output \

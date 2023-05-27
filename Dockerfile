@@ -42,6 +42,7 @@ RUN set -ex; \
 	ln -s kubemate /bin/crictl; \
 	mkdir /var/lib/dhcpd; \
 	ln -s /var/lib/kubemate/dhcp/dhcpd.leases /var/lib/dhcpd/dhcpd.leases; \
+	ln -s /var/lib/kubemate/rancher /etc/rancher; \
 	mkdir -p /etc/kubemate; \
 	echo 'adminsecret,admin,admin,"admin,ui"' > /etc/kubemate/tokens
 COPY --from=build /work/kubemate /bin/kubemate
