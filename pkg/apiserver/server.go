@@ -3,7 +3,6 @@ package apiserver
 import (
 	"fmt"
 	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -191,8 +190,8 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	serverConfig.Authorization.Authorizer = NewDeviceAuthorizer()
 	k3sDataDir := filepath.Join(o.DataDir, "k3s")
 	k3sProxyEnabled := false
-	delegate := newReverseProxy("127.0.0.1:6443", filepath.Join(k3sDataDir, "server", "tls"), &k3sProxyEnabled)
-	genericServer, err := serverConfig.Complete().New("kubemate", delegate)
+	apiProxy := newAPIServerProxy("127.0.0.1:6443", filepath.Join(k3sDataDir, "server", "tls"), &k3sProxyEnabled)
+	genericServer, err := serverConfig.Complete().New("kubemate", apiProxy.DelegationTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +251,9 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	installDeviceDiscovery(genericServer, discovery)
 	ingressRouter := ingress.NewIngressController("kubemate", logrus.WithField("comp", "ingress-controller"))
 	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known", "/version"}
-	var handler http.Handler = NewWebUIHandler(o.WebDir, apiPaths, genericServer.Handler.FullHandlerChain, ingressRouter)
+	handler := genericServer.Handler.FullHandlerChain
+	handler = apiProxy.APIGroupListCompletionFilter(handler)
+	handler = NewWebUIHandler(o.WebDir, apiPaths, handler, ingressRouter)
 	handler = middleware.ForceHTTPS(handler)
 	// TODO: don't redirect ingress hosts
 	handler = middleware.ForceHTTPSHost(externalAddr, handler)
