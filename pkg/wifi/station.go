@@ -33,7 +33,7 @@ func (w *Wifi) StartStation(ssid, password string) error {
 	if err != nil {
 		return err
 	}
-	_, err = w.dhcpcd.Start(runner.Cmd("dhcpcd", "-B", w.WifiIface))
+	_, err = w.dhcpcd.Start(runner.Cmd("dhcpcd", "-B", "--metric=204", w.WifiIface))
 	if err != nil {
 		return err
 	}
