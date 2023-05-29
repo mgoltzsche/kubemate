@@ -1,4 +1,4 @@
-package v1
+package v1alpha1
 
 import (
 	"fmt"
@@ -87,6 +87,10 @@ func (in *NetworkInterface) New() resource.Resource {
 
 func (in *NetworkInterface) NewList() runtime.Object {
 	return &NetworkInterfaceList{}
+}
+
+func (in *NetworkInterface) GetSingularName() string {
+	return "NetworkInterface"
 }
 
 func (in *NetworkInterface) GetGroupVersionResource() schema.GroupVersionResource {

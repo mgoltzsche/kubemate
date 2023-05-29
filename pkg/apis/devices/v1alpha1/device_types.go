@@ -1,4 +1,4 @@
-package v1
+package v1alpha1
 
 import (
 	"fmt"
@@ -28,15 +28,15 @@ const (
 	DeviceModeAgent        DeviceMode  = "agent"
 )
 
-// +k8s:openapi-gen=true
 // DeviceSpec defines the desired state of the Device.
+// +k8s:openapi-gen=true
 type DeviceSpec struct {
 	Mode   DeviceMode `json:"mode"`
 	Server string     `json:"server,omitempty"`
 }
 
+// DeviceStatus defines the observed state of the Device.
 // +k8s:openapi-gen=true
-// DeviceStatus defines the observed state of Cache
 type DeviceStatus struct {
 	Generation  int64       `json:"generation,omitempty"`
 	Current     bool        `json:"current"`
@@ -46,6 +46,16 @@ type DeviceStatus struct {
 	JoinAddress string      `json:"joinAddress,omitempty"`
 	// TODO: add ips (currently this makes the code generation fail):
 	//IPs []string `json:"ips,omitempty"`
+	DNSServer ProcessStatus `json:"dnsServer"`
+}
+
+// ProcessStatus defines the status of a process.
+// +k8s:openapi-gen=true
+type ProcessStatus struct {
+	Running      bool `json:"running"`
+	RestartCount int  `json:"restartCount,omitempty"`
+	// TODO: add this - currently this makes the code generation produce uncompilable code
+	//LastTransition metav1.Time `json:"lastTransition,omitempty"`
 }
 
 // Device is the Schema for the devices API
@@ -67,6 +77,10 @@ func (in *Device) NewList() runtime.Object {
 	return &DeviceList{}
 }
 
+func (in *Device) GetSingularName() string {
+	return "Device"
+}
+
 func (in *Device) GetGroupVersionResource() schema.GroupVersionResource {
 	return GroupVersion.WithResource("devices")
 }
@@ -84,7 +98,7 @@ func (in *Device) DeepCopyIntoResource(res resource.Resource) error {
 	return nil
 }
 
-// DeviceList contains a list of Cache
+// DeviceList contains a list of Device resources.
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type DeviceList struct {

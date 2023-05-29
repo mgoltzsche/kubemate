@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/mdns"
-	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
+	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/equality"

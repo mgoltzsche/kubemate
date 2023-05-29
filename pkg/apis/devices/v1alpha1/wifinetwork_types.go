@@ -1,4 +1,4 @@
-package v1
+package v1alpha1
 
 import (
 	"fmt"
@@ -9,15 +9,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+// WifiNetworkData provides the wifi network details.
 // +k8s:openapi-gen=true
-// WifiNetworkData defines the desired state of Cache
 type WifiNetworkData struct {
 	SSID string `json:"ssid"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// WifiNetwork is the Schema for the devices API
+// WifiNetwork is the Schema for the wifi network discovery API.
 // +k8s:openapi-gen=true
 type WifiNetwork struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -34,6 +34,10 @@ func (in *WifiNetwork) NewList() runtime.Object {
 	return &WifiNetworkList{}
 }
 
+func (in *WifiNetwork) GetSingularName() string {
+	return "WifiNetwork"
+}
+
 func (in *WifiNetwork) GetGroupVersionResource() schema.GroupVersionResource {
 	return GroupVersion.WithResource("wifinetworks")
 }
@@ -47,7 +51,7 @@ func (in *WifiNetwork) DeepCopyIntoResource(res resource.Resource) error {
 	return nil
 }
 
-// WifiNetworkList contains a list of Cache
+// WifiNetworkList contains a list of WifiNetwork resources.
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type WifiNetworkList struct {

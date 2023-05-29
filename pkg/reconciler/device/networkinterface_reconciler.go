@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
+	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1"
 	"github.com/mgoltzsche/kubemate/pkg/networkifaces"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"github.com/mgoltzsche/kubemate/pkg/utils"
@@ -53,12 +53,15 @@ func (r *NetworkInterfaceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&deviceapi.NetworkInterface{}).
-		// TODO: Watches(&source.Kind{Type: &deviceapi.WifiPassword{}}, handler.EnqueueRequestsFromMapFunc(r.deviceReconcileRequest)).
+		// TODO: Watches(&deviceapi.WifiPassword{}, handler.EnqueueRequestsFromMapFunc(r.deviceReconcileRequest)).
 		Complete(r)
 }
 
 func (r *NetworkInterfaceReconciler) Close() error {
-	return r.linkSync.Stop()
+	if r.linkSync != nil {
+		return r.linkSync.Stop()
+	}
+	return nil
 }
 
 func (r *NetworkInterfaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
@@ -131,6 +134,7 @@ func (r *NetworkInterfaceReconciler) ensureIPAddress(iface *deviceapi.NetworkInt
 func (r *NetworkInterfaceReconciler) reconcileWifiNetworkInterface(iface *deviceapi.NetworkInterface, logger logr.Logger) error {
 	switch iface.Spec.Wifi.Mode {
 	case deviceapi.WifiModeAccessPoint:
+		r.Wifi.StopStation()
 		err := r.Wifi.StartWifiInterface()
 		if err != nil {
 			return err

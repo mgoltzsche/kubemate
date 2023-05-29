@@ -1,4 +1,4 @@
-package v1
+package v1alpha1
 
 import (
 	"fmt"
@@ -9,21 +9,21 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+// DeviceTokenData specifies the device token.
 // +k8s:openapi-gen=true
-// DeviceTokenData defines the desired state of Cache
 type DeviceTokenData struct {
 	Token string `json:"token"`
 }
 
+// DeviceTokenStatus provides the server's join token.
 // +k8s:openapi-gen=true
-// DeviceTokenStatus defines the desired state of Cache
 type DeviceTokenStatus struct {
 	JoinToken string `json:"joinToken,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// DeviceToken is the Schema for the devices API
+// DeviceToken is the schema for cluster join tokens within the devices API.
 // +k8s:openapi-gen=true
 type DeviceToken struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -41,6 +41,10 @@ func (in *DeviceToken) NewList() runtime.Object {
 	return &DeviceTokenList{}
 }
 
+func (in *DeviceToken) GetSingularName() string {
+	return "DeviceToken"
+}
+
 func (in *DeviceToken) GetGroupVersionResource() schema.GroupVersionResource {
 	return GroupVersion.WithResource("devicetokens")
 }
@@ -54,7 +58,7 @@ func (in *DeviceToken) DeepCopyIntoResource(res resource.Resource) error {
 	return nil
 }
 
-// DeviceTokenList contains a list of Cache
+// DeviceTokenList contains a list of DeviceToken resources.
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type DeviceTokenList struct {

@@ -27,7 +27,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 )
 
@@ -84,7 +83,7 @@ func (s *IngressController) start(ctx context.Context, cancel, prevCancel contex
 	if err != nil {
 		return fmt.Errorf("new ingress api client config: %w", err)
 	}
-	cl, c, err := newCachedClient(config)
+	cl, err := newCachedClient(config)
 	if err != nil {
 		return fmt.Errorf("new ingress api client: %w", err)
 	}
@@ -93,10 +92,11 @@ func (s *IngressController) start(ctx context.Context, cancel, prevCancel contex
 		ingressClass: s.ingressClass,
 		auth:         s.auth,
 		ctx:          ctx,
-		client:       cl,
+		client:       cl.GetClient(),
 		logger:       s.logger,
 		Cancel:       cancel,
 	}
+	c := cl.GetCache()
 	ch := make(chan struct{}, 10)
 	for _, o := range []client.Object{&netv1.Ingress{}, &corev1.Service{}, &corev1.Endpoints{}} {
 		var inf cache.Informer
@@ -385,49 +385,26 @@ func (w *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return h.Hijack()
 }
 
-func newCachedClient(config *rest.Config) (client.Client, cache.Cache, error) {
+func newCachedClient(config *rest.Config) (cluster.Cluster, error) {
 	scheme := runtime.NewScheme()
 	err := netv1.AddToScheme(scheme)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	corev1.AddToScheme(scheme)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	mapper, err := apiutil.NewDynamicRESTMapper(config)
-	if err != nil {
-		return nil, nil, err
-	}
-	resync := time.Duration(5 * time.Minute)
-	c, err := cache.New(config, cache.Options{
-		Scheme:    scheme,
-		Mapper:    mapper,
-		Resync:    &resync,
-		Namespace: "",
-		SelectorsByObject: map[client.Object]cache.ObjectSelector{
-			&netv1.Ingress{}: cache.ObjectSelector{},
-		},
-		DefaultTransform: func(o interface{}) (interface{}, error) { return o, nil },
+	return cluster.New(config, func(o *cluster.Options) {
+		o.Scheme = scheme
 	})
-	if err != nil {
-		return nil, nil, err
-	}
-	cl, err := cluster.DefaultNewClient(c, config, client.Options{
-		Scheme: scheme,
-		Mapper: mapper,
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-	return cl, c, nil
 }
 
 type informer struct {
 	update func()
 }
 
-func (i *informer) OnAdd(obj interface{}) {
+func (i *informer) OnAdd(obj interface{}, isInitialList bool) {
 	i.update()
 }
 

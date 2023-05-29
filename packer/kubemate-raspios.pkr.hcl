@@ -97,15 +97,6 @@ build {
   }
 
   provisioner "shell" {
-    # Use iptables-legacy instead of iptables-nft.
-    # This must be aligned with the iptables version k3s is using.
-    # See https://github.com/k3s-io/k3s/issues/703#issuecomment-522355829
-    inline = [
-      "update-alternatives --set iptables /usr/sbin/iptables-legacy",
-    ]
-  }
-
-  provisioner "shell" {
     # Write kubemate version file.
     inline = [
       "mkdir /etc/kubemate",
@@ -131,6 +122,19 @@ build {
     source      = "./packer/systemd/kubemate.service"
   }
 
+  provisioner "file" {
+    # Add script to kill docker pods
+    destination = "/usr/local/sbin/kill-docker-pods.sh"
+    source      = "./kill-docker-pods.sh"
+  }
+
+  provisioner "file" {
+    # Add script to stop kubemate and delete its persistent state.
+    # This script must be run before updates.
+    destination = "/usr/local/sbin/kubemate-clear.sh"
+    source      = "./kubemate-clear.sh"
+  }
+
   provisioner "shell" {
     # Grant the default user administrative Kubernetes access
     inline = [
@@ -146,6 +150,7 @@ build {
     # Disable default wpa_supplicant (to let kubemate manage the wifi)
     inline = [
       "systemctl mask wpa_supplicant.service",
+      "sed -Ei 's/^#(option\s+ntp_servers)/\1/' /etc/dhcpcd.conf",
       "echo 'denyinterfaces wlan0' >> /etc/dhcpcd.conf",
     ]
   }

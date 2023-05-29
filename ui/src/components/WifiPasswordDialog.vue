@@ -43,11 +43,11 @@
 import { defineComponent, ref } from 'vue';
 import apiclient from 'src/k8sclient';
 import { catchError, info } from 'src/notify';
-import { com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_WifiPassword as WifiPassword } from 'src/gen';
+import { com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_WifiPassword as WifiPassword } from 'src/gen';
 
 const kc = new apiclient.KubeConfig();
 const wifiPasswordClient = kc.newClient<WifiPassword>(
-  '/apis/kubemate.mgoltzsche.github.com/v1',
+  '/apis/kubemate.mgoltzsche.github.com/v1alpha1',
   'wifipasswords'
 );
 const password = ref<WifiConnectPassword>({

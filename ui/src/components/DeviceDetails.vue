@@ -90,10 +90,10 @@ import { computed, defineComponent, reactive, Ref, toRefs, ref } from 'vue';
 import { useDeviceStore, useDeviceDiscoveryStore } from 'src/stores/resources';
 import apiclient from 'src/k8sclient';
 import {
-  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_Device as Device,
-  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_DeviceDiscovery as DeviceDiscovery,
-  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_DeviceSpec as DeviceSpec,
-  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_DeviceToken as DeviceToken,
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_Device as Device,
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_DeviceDiscovery as DeviceDiscovery,
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_DeviceSpec as DeviceSpec,
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_DeviceToken as DeviceToken,
 } from 'src/gen';
 import { useQuasar } from 'quasar';
 
@@ -106,7 +106,7 @@ function serverJoinTokenRequestURL(server: DeviceDiscovery) {
 
 const kc = new apiclient.KubeConfig();
 const client = kc.newClient<DeviceToken>(
-  '/apis/kubemate.mgoltzsche.github.com/v1',
+  '/apis/kubemate.mgoltzsche.github.com/v1alpha1',
   'devicetokens'
 );
 

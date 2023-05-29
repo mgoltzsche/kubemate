@@ -64,8 +64,8 @@ kubectl logs -f snapcast-client-zpt9d snapclient -n kubemate</pre
 <script lang="ts">
 import apiclient from 'src/k8sclient';
 import {
-  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_Certificate as Certificate,
-  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_Device as Device,
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_Certificate as Certificate,
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_Device as Device,
 } from 'src/gen';
 import { defineComponent, ref } from 'vue';
 import { error, info } from 'src/notify';
@@ -74,7 +74,7 @@ import { useDeviceStore } from 'src/stores/resources';
 
 const kc = new apiclient.KubeConfig();
 const certClient = kc.newClient<Certificate>(
-  '/apis/kubemate.mgoltzsche.github.com/v1',
+  '/apis/kubemate.mgoltzsche.github.com/v1alpha1',
   'certificates'
 );
 const caCert = ref<Certificate | undefined>();

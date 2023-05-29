@@ -38,9 +38,9 @@ const (
 var WifiInterfaceNamePrefixes = []string{"wlan", "wlp"}
 
 type Wifi struct {
-	dhcpd               *runner.Runner
 	ap                  *runner.Runner
 	station             *runner.Runner
+	dhcpcd              *runner.Runner
 	wifiIfaceStarted    bool
 	mode                WifiMode
 	logger              *logrus.Entry
@@ -48,6 +48,8 @@ type Wifi struct {
 	WifiIface           string
 	DHCPDLeaseFile      string
 	DHCPCDLeaseFile     string
+	DNSKeyFile          string
+	CaptivePortalURL    string
 	CountryCode         string
 	WriteHostResolvConf bool
 	networks            []WifiNetwork
@@ -63,42 +65,30 @@ func New(logger *logrus.Entry, dataDir string, onProcessTermination runner.Statu
 	logger = logger.WithField("comp", "wifi")
 	ap := runner.New(logger.WithField("proc", "hostapd"))
 	ap.Reporter = onProcessTermination
-	dhcpd := runner.New(logger.WithField("proc", "dhcpd"))
-	dhcpd.Reporter = onProcessTermination
 	station := runner.New(logger.WithField("proc", "wpa_supplicant"))
 	station.Reporter = onProcessTermination
+	dhcpcd := runner.New(logger.WithField("proc", "dhcpcd"))
+	dhcpcd.Reporter = onProcessTermination
 	return &Wifi{
-		ap:              ap,
-		dhcpd:           dhcpd,
-		station:         station,
-		logger:          logger,
-		CountryCode:     "DE",
-		EthIface:        detectIface(logger, []string{"eth", "enp"}),
-		WifiIface:       detectIface(logger, WifiInterfaceNamePrefixes),
-		DHCPDLeaseFile:  filepath.Join(dataDir, "dhcp", "dhcpd.leases"),
-		DHCPCDLeaseFile: filepath.Join(dataDir, "dhcp", "dhcpcd.leases"),
+		ap:               ap,
+		station:          station,
+		dhcpcd:           dhcpcd,
+		logger:           logger,
+		CountryCode:      "DE",
+		EthIface:         detectIface(logger, []string{"eth", "enp"}),
+		WifiIface:        detectIface(logger, WifiInterfaceNamePrefixes),
+		DHCPDLeaseFile:   filepath.Join(dataDir, "dhcp", "dhcpd.leases"),
+		DHCPCDLeaseFile:  filepath.Join(dataDir, "dhcp", "dhcpcd.leases"),
+		DNSKeyFile:       "/etc/bind/rndc.key",
+		CaptivePortalURL: "localhost",
 	}
 }
 
 func (w *Wifi) Close() (err error) {
 	w.StopAccessPoint()
-	err1 := w.ap.Stop()
-	err2 := w.dhcpd.Stop()
-	err3 := w.StopStation()
-	err4 := w.StopWifiInterface()
-	if err1 != nil {
-		err = err1
-	}
-	if err2 != nil {
-		err = err2
-	}
-	if err3 != nil {
-		err = err3
-	}
-	if err4 != nil {
-		err = err4
-	}
-	return err
+	w.ap.Stop()
+	w.StopStation()
+	return w.StopWifiInterface()
 }
 
 func (w *Wifi) Mode() WifiMode {

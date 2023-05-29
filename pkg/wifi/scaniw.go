@@ -1,13 +1,12 @@
 package wifi
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/mgoltzsche/kubemate/pkg/cliutils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -18,7 +17,7 @@ const iwIndent = "	"
 func scanWifiNetworksIw(iface string, logger *logrus.Entry) ([]WifiNetwork, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 9*time.Second)
 	defer cancel()
-	out, err := runCmdOut(ctx, "iw", "dev", iface, "scan", "ap-force")
+	out, err := cliutils.Run(ctx, "iw", "dev", iface, "scan", "ap-force")
 	if err != nil {
 		return nil, fmt.Errorf("wifi network scan: %w", err)
 	}
@@ -70,16 +69,4 @@ func parseIwNetworkScanResult(iwOutput string, logger *logrus.Entry) []WifiNetwo
 		}
 	}
 	return filtered
-}
-
-func runCmdOut(ctx context.Context, cmd string, args ...string) (string, error) {
-	c := exec.CommandContext(ctx, cmd, args...)
-	var stdout, stderr bytes.Buffer
-	c.Stdout = &stdout
-	c.Stderr = &stderr
-	err := c.Run()
-	if err != nil {
-		return "", fmt.Errorf("%s: %w: %s", cmd, err, strings.TrimSpace(stderr.String()))
-	}
-	return stdout.String(), nil
 }

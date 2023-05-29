@@ -7,7 +7,7 @@ Requires=docker.socket
 
 [Service]
 Type=exec
-ExecStartPre=-/bin/mkdir -p /var/log/pods /var/lib/kubelet
+ExecStartPre=/bin/mkdir -p /var/log/pods /var/lib/kubelet /var/lib/cni /var/lib/kubemate
 ExecStartPre=-/bin/docker rm -f kubemate
 ExecStart=/bin/sh -ac 'set -eu; \
 		VERSION="`cat /etc/kubemate/version`"; \
@@ -23,8 +23,8 @@ ExecStart=/bin/sh -ac 'set -eu; \
 		--mount type=bind,src=/var/log/pods,dst=/var/log/pods,bind-propagation=rshared \
 		--mount type=bind,src=/lib/modules,dst=/lib/modules,readonly \
 		--mount type=bind,src=/sys,dst=/sys \
-		-v /data/kubemate:/var/lib/kubemate \
-		-v /data/rancher:/etc/rancher \
+		--mount type=bind,src=/var/lib/kubemate,dst=/var/lib/kubemate,bind-propagation=rshared \
+		--mount type=bind,src=/var/lib/cni,dst=/var/lib/cni \
 		-v /etc/kubemate:/output \
 		"mgoltzsche/kubemate:$VERSION" \
 		connect --docker --https-port=443 --http-port=80 --write-host-resolvconf'

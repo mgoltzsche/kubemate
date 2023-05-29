@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
+	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1"
 	"github.com/mgoltzsche/kubemate/pkg/auth/authserver"
 	"github.com/mgoltzsche/kubemate/pkg/controller"
 	"github.com/mgoltzsche/kubemate/pkg/discovery"
@@ -50,6 +50,7 @@ type ServerOptions struct {
 	DeviceName          string
 	HTTPSAddress        string
 	HTTPSPort           int
+	HTTPAddress         string
 	HTTPPort            int
 	AdvertiseIfaces     []string
 	WebDir              string
@@ -69,7 +70,9 @@ func NewServerOptions() ServerOptions {
 	return ServerOptions{
 		DeviceName:   hostname,
 		HTTPSAddress: "0.0.0.0",
-		HTTPSPort:    8443,
+		HTTPSPort:    443,
+		HTTPAddress:  "0.0.0.0",
+		HTTPPort:     80,
 		WebDir:       "/usr/share/kubemate/web",
 		ManifestDir:  "/usr/share/kubemate/manifests",
 		DataDir:      "/var/lib/kubemate",
@@ -80,6 +83,12 @@ func NewServerOptions() ServerOptions {
 func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	if o.DeviceName == "" {
 		return nil, fmt.Errorf("no device name specified")
+	}
+	for _, dir := range []string{"rancher"} {
+		err := os.MkdirAll(filepath.Join(o.DataDir, dir), 0755)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if len(o.AdvertiseIfaces) == 0 {
 		ifaces, err := detectIfaces()
@@ -101,14 +110,16 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	tlsOpts.BindAddress = net.ParseIP(o.HTTPSAddress)
 	tlsOpts.BindPort = o.HTTPSPort
 	tlsOpts.ServerCert.CertDirectory = filepath.Join(o.DataDir, "certificates")
+	var externalAddr string
 	if o.HTTPSPort == 443 {
-		serverConfig.ExternalAddress = fmt.Sprintf("%s", o.DeviceName)
+		externalAddr = fmt.Sprintf("%s", o.DeviceName)
 	} else {
-		serverConfig.ExternalAddress = fmt.Sprintf("%s:%d", o.DeviceName, o.HTTPSPort)
+		externalAddr = fmt.Sprintf("%s:%d", o.DeviceName, o.HTTPSPort)
 	}
+	serverConfig.ExternalAddress = externalAddr
 	tlsCertIPs := []net.IP{net.ParseIP("127.0.0.1")}
 	// TODO: use hostname as external address
-	err := tlsOpts.MaybeDefaultWithSelfSignedCerts(serverConfig.ExternalAddress, []string{o.DeviceName}, tlsCertIPs)
+	err := tlsOpts.MaybeDefaultWithSelfSignedCerts(externalAddr, []string{o.DeviceName}, tlsCertIPs)
 	if err != nil {
 		return nil, err
 	}
@@ -182,8 +193,8 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	serverConfig.Authorization.Authorizer = NewDeviceAuthorizer()
 	k3sDataDir := filepath.Join(o.DataDir, "k3s")
 	k3sProxyEnabled := false
-	delegate := newReverseProxy("127.0.0.1:6443", filepath.Join(k3sDataDir, "server", "tls"), &k3sProxyEnabled)
-	genericServer, err := serverConfig.Complete().New("kubemate", delegate)
+	apiProxy := newAPIServerProxy("127.0.0.1:6443", filepath.Join(k3sDataDir, "server", "tls"), &k3sProxyEnabled)
+	genericServer, err := serverConfig.Complete().New("kubemate", apiProxy.DelegationTarget())
 	if err != nil {
 		return nil, err
 	}
@@ -195,6 +206,10 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	}
 	caCert, _ := serverConfig.SecureServing.Cert.CurrentCertKeyContent()
 	certREST := rest.NewCertificateREST(scheme, caCert)
+	userAccountREST, err := rest.NewUserAccountREST(filepath.Join(o.DataDir, "useraccounts"), scheme)
+	if err != nil {
+		return nil, err
+	}
 	ifaceREST := rest.NewNetworkInterfaceREST(ifaceStore)
 	discoveryStore := storage.InMemory(scheme)
 	discovery := discovery.NewDeviceDiscovery(o.DeviceName, o.HTTPSPort, o.AdvertiseIfaces, discoveryStore, logger)
@@ -228,6 +243,8 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		}
 	})
 	wifi.WriteHostResolvConf = o.WriteHostResolvConf
+	wifi.DNSKeyFile = filepath.Join(o.DataDir, "k3s", "dns", "zone.key")
+	wifi.CaptivePortalURL = fmt.Sprintf("https://%s", externalAddr)
 	wifiNetworkREST := rest.NewWifiNetworkREST(wifi, scheme)
 	wifiPasswordDir := filepath.Join(o.DataDir, "wifipasswords")
 	wifiPasswordREST, err := rest.NewWifiPasswordREST(wifiPasswordDir, scheme)
@@ -235,6 +252,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		return nil, err
 	}
 	installDeviceDiscovery(genericServer, discovery)
+
 	oidcIssuer := fmt.Sprintf("https://%s", serverConfig.ExternalAddress)
 	/*handler, err := oidc.NewIdentityProvider(context.TODO(), oidcIssuer, genericServer.Handler.FullHandlerChain)
 	if err != nil {
@@ -249,7 +267,6 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	router := http.NewServeMux()
 	idp := authserver.NewIdentityProvider()
 	idp.RegisterHTTPRoutes(router, logger)
-	router.Handle("/", genericServer.Handler.FullHandlerChain)
 
 	// The same thing (valid oauth2 client) but for using the client credentials grant
 	var appClientConf = clientcredentials.Config{
@@ -260,19 +277,26 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	}
 
 	ingressRouter := ingress.NewIngressController("kubemate", appClientConf, logrus.WithField("comp", "ingress-controller"))
-	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/version", "/.well-known", "/idp/", "/login", "/logged-out"}
-	handler := NewWebUIHandler(o.WebDir, apiPaths, router, ingressRouter)
+	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known", "/version"}
+	handler := genericServer.Handler.FullHandlerChain
+	handler = apiProxy.APIGroupListCompletionFilter(handler)
+	handler = NewWebUIHandler(o.WebDir, apiPaths, handler, ingressRouter)
+	handler = middleware.ForceHTTPS(handler)
+	// TODO: don't redirect ingress hosts
+	handler = middleware.ForceHTTPSHost(externalAddr, handler)
 	handler = middleware.WithAccessLog(handler, logger)
-	genericServer.Handler.FullHandlerChain = handler
+	router.Handle("/", handler)
+	genericServer.Handler.FullHandlerChain = router
 	apiGroup := &genericapiserver.APIGroupInfo{
 		PrioritizedVersions:  scheme.PrioritizedVersionsForGroup(deviceapi.GroupVersion.Group),
 		Scheme:               scheme,
 		ParameterCodec:       paramCodecs,
 		NegotiatedSerializer: codecs,
 		VersionedResourcesStorageMap: map[string]map[string]registryrest.Storage{
-			"v1": map[string]registryrest.Storage{
+			"v1alpha1": map[string]registryrest.Storage{
 				"networkinterfaces": ifaceREST,
 				"certificates":      certREST,
+				"useraccounts":      userAccountREST,
 				"devices":           deviceREST,
 				"devicediscovery":   discoveryREST,
 				"devicetokens":      deviceTokenREST,
@@ -296,7 +320,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		},
 		&devicectrl.DeviceReconciler{
 			DeviceName:        o.DeviceName,
-			DeviceAddress:     genericServer.ExternalAddress,
+			DeviceAddress:     externalAddr,
 			DeviceDiscovery:   discovery,
 			DataDir:           k3sDataDir,
 			ManifestDir:       o.ManifestDir,

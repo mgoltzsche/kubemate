@@ -1,2 +1,3 @@
 resources:
+- apps.kubemate.mgoltzsche.github.com_appconfigschemas.yaml
 - apps.kubemate.mgoltzsche.github.com_apps.yaml

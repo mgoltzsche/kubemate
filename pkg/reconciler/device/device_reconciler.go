@@ -2,15 +2,17 @@ package device
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
-	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
+	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1"
 	"github.com/mgoltzsche/kubemate/pkg/controller"
 	"github.com/mgoltzsche/kubemate/pkg/discovery"
 	"github.com/mgoltzsche/kubemate/pkg/ingress"
@@ -18,7 +20,7 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/runner"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -26,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // DeviceReconciler reconciles a Device object.
@@ -49,6 +50,7 @@ type DeviceReconciler struct {
 	scheme      *runtime.Scheme
 	k3s         *runner.Runner
 	controllers *controller.ControllerManager
+	dnsServer   *deviceDnsServerReconciler
 }
 
 func (r *DeviceReconciler) AddToScheme(s *runtime.Scheme) error {
@@ -61,16 +63,19 @@ func (r *DeviceReconciler) AddToScheme(s *runtime.Scheme) error {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DeviceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	dnsDir := filepath.Join(r.DataDir, "dns")
+	r.dnsServer = newDeviceDnsServerReconciler(dnsDir, r.DeviceName, r.Devices, r.NetworkInterfaces, r.Logger)
 	// TODO: use mgr.GetLogger() logr.Logger that controller-runtime is providing to the Reconcile method as well
 	r.controllers = controller.NewControllerManager(ctrl.GetConfig, logrus.WithField("comp", "controller-manager"))
 	r.controllers.RegisterReconciler(&app.AppReconciler{})
 	r.k3s = runner.New(r.Logger.WithField("proc", "k3s"))
+	r.k3s.TerminationSignal = syscall.SIGQUIT
 	r.k3s.Reporter = func(cmd runner.Command) {
 		// Update device resource's status
 		if cmd.Status.State == runner.ProcessStateFailed {
-			logrus.Warnf("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
+			r.Logger.WithField("pid", cmd.Status.Pid).Warnf("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
 		} else {
-			logrus.Infof("k3s %s: %s", cmd.Status.State, cmd.Status.Message)
+			r.Logger.WithField("pid", cmd.Status.Pid).Infof("k3s %s", cmd.Status.State)
 		}
 		d := &deviceapi.Device{}
 		err := r.Devices.Update(r.DeviceName, d, func() error {
@@ -85,7 +90,7 @@ func (r *DeviceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			return nil
 		})
 		if err != nil {
-			logrus.WithError(err).Error("failed to update device status")
+			r.Logger.WithError(err).Error("failed to update device status")
 		}
 	}
 	// Add CRDs to k3s' manifest directory
@@ -98,13 +103,13 @@ func (r *DeviceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Client = mgr.GetClient()
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&deviceapi.Device{}).
-		Watches(&source.Kind{Type: &deviceapi.NetworkInterface{}}, handler.EnqueueRequestsFromMapFunc(r.deviceReconcileRequest)).
-		Watches(&source.Kind{Type: &deviceapi.DeviceToken{}}, handler.EnqueueRequestsFromMapFunc(r.deviceReconcileRequest)).
-		Watches(&source.Kind{Type: &deviceapi.WifiPassword{}}, handler.EnqueueRequestsFromMapFunc(r.deviceReconcileRequest)).
+		Watches(&deviceapi.NetworkInterface{}, handler.EnqueueRequestsFromMapFunc(r.deviceReconcileRequest)).
+		Watches(&deviceapi.DeviceToken{}, handler.EnqueueRequestsFromMapFunc(r.deviceReconcileRequest)).
+		Watches(&deviceapi.WifiPassword{}, handler.EnqueueRequestsFromMapFunc(r.deviceReconcileRequest)).
 		Complete(r)
 }
 
-func (r *DeviceReconciler) deviceReconcileRequest(o client.Object) []ctrl.Request {
+func (r *DeviceReconciler) deviceReconcileRequest(_ context.Context, o client.Object) []ctrl.Request {
 	return []ctrl.Request{{NamespacedName: types.NamespacedName{Name: r.DeviceName}}}
 }
 
@@ -115,7 +120,7 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	d := deviceapi.Device{}
 	err = r.Client.Get(ctx, req.NamespacedName, &d)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
 		return requeue(err)
@@ -132,6 +137,11 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	if err != nil {
 		logger.Error(err, "no ip address available")
 		return ctrl.Result{}, nil
+	}
+	// TODO: apply network configuration here instead of managing each networkinterface within a separate resource?!
+	err = r.dnsServer.Reconcile(ctx, &d)
+	if err != nil {
+		return requeue(err)
 	}
 	var args []string
 	fn := func() error {
@@ -274,6 +284,11 @@ func (r *DeviceReconciler) reconcileServerToken() error {
 
 func requeue(err error) (r ctrl.Result, e error) {
 	r.RequeueAfter = time.Second
+	var cooldown *runner.CooldownError
+	if errors.As(err, &cooldown) {
+		r.RequeueAfter = cooldown.Duration + time.Millisecond
+		err = nil
+	}
 	return r, err
 }
 
@@ -295,7 +310,7 @@ func buildK3sServerArgs(d *deviceapi.Device, nodeIP net.IP, dataDir string, dock
 		fmt.Sprintf("--node-external-ip=%s", nodeIP.String()),
 		"--disable-cloud-controller",
 		"--disable-helm-controller",
-		"--disable=servicelb,traefik,metrics-server",
+		"--disable=servicelb,traefik",
 		fmt.Sprintf("--kube-apiserver-arg=--token-auth-file=%s", "/etc/kubemate/tokens"),
 		fmt.Sprintf("--data-dir=%s", dataDir),
 	}

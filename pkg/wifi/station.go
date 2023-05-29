@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -20,31 +21,23 @@ func (w *Wifi) StartStation(ssid, password string) error {
 		return err
 	}
 	if confChanged || w.mode != WifiModeStation {
+		w.backupResolvConf()
 		err = w.restartWifiInterface()
 		if err != nil {
 			return err
 		}
-		err = w.station.Stop()
-		if err != nil {
-			return err
-		}
+		w.station.Stop()
 		w.mode = WifiModeStation
 	}
-	err = w.station.Start(runner.Cmd("wpa_supplicant", "-i", w.WifiIface, "-c", confFile))
+	_, err = w.station.Start(runner.Cmd("wpa_supplicant", "-i", w.WifiIface, "-c", confFile))
 	if err != nil {
 		return err
 	}
-	err = w.runDHCPCD()
+	_, err = w.dhcpcd.Start(runner.Cmd("dhcpcd", "-B", "--metric=204", w.WifiIface))
 	if err != nil {
 		return err
 	}
-	if w.WriteHostResolvConf {
-		err = copyFile("/etc/resolv.conf", "/host/etc/resolv.conf")
-		if err != nil {
-			return fmt.Errorf("copy resolv.conf to host file system: %w", err)
-		}
-	}
-	return nil
+	return w.writeHostResolvConf()
 }
 
 func copyFile(src, dst string) error {
@@ -59,8 +52,50 @@ func copyFile(src, dst string) error {
 	return nil
 }
 
-func (w *Wifi) StopStation() error {
-	return w.station.Stop()
+func (w *Wifi) StopStation() {
+	w.station.Stop()
+	w.dhcpcd.Stop()
+	w.restoreResolvConf()
+	err := w.writeHostResolvConf()
+	if err != nil {
+		w.logger.Error(err)
+	}
+}
+
+func (w *Wifi) writeHostResolvConf() error {
+	if w.WriteHostResolvConf {
+		err := copyFile("/etc/resolv.conf", "/host/etc/resolv.conf")
+		if err != nil {
+			return fmt.Errorf("copy resolv.conf to host file system: %w", err)
+		}
+	}
+	return nil
+}
+
+func (w *Wifi) backupResolvConf() {
+	backupFile := resolvConfBackupFile()
+	if _, err := os.Stat(backupFile); os.IsNotExist(err) { // resolv.conf backup does not exist
+		w.logger.Debugf("backing up /etc/resolv.conf to %s", backupFile)
+		err := copyFile("/etc/resolv.conf", backupFile)
+		if err != nil {
+			w.logger.Errorf("wifi station: backup resolv.conf: %s", err)
+		}
+	}
+}
+
+func (w *Wifi) restoreResolvConf() {
+	backupFile := resolvConfBackupFile()
+	if _, err := os.Stat(backupFile); err == nil { // resolv.conf backup exists
+		w.logger.Debugf("restoring /etc/resolv.conf from %s", backupFile)
+		err := copyFile(backupFile, "/etc/resolv.conf")
+		if err != nil {
+			w.logger.Errorf("wifi station: restore resolv.conf: %s", err)
+		}
+	}
+}
+
+func resolvConfBackupFile() string {
+	return filepath.Join(os.TempDir(), "kubemate-resolv-conf-backup")
 }
 
 func (w *Wifi) generateWpaSupplicantConf(ssid, password string) (string, bool, error) {
@@ -91,29 +126,4 @@ func (w *Wifi) generateWpaSupplicantConf(ssid, password string) (string, bool, e
 country=%s
 %s`
 	return writeConf("wpa_supplicant", configTpl, w.CountryCode, network)
-}
-
-func (w *Wifi) runDHCPCD() error {
-	err := createLeaseFileIfNotExist(w.DHCPCDLeaseFile)
-	if err != nil {
-		return err
-	}
-	logger := w.logger.WithField("proc", "dhcpcd")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	c := exec.CommandContext(ctx, "dhcpcd", w.WifiIface)
-	var out bytes.Buffer
-	c.Stdout = &out
-	c.Stderr = &out
-	err = c.Run()
-	if err != nil {
-		return fmt.Errorf("dhcpcd: %w: %s", err, strings.TrimSpace(out.String()))
-	}
-	for _, line := range strings.Split(out.String(), "\n") {
-		if line != "" {
-			logger.Debug(line)
-		}
-	}
-	// TODO: run after ethernet cable has been unplugged, to advertize hostname for the wifi IP: dhcpcd -n wlan0
-	return err
 }

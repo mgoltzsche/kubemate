@@ -1,5 +1,7 @@
 <template>
-  <div v-if="!app && synchronizing">Loading...</div>
+  <div v-if="!app && synchronizing">
+    <q-skeleton type="rect" />
+  </div>
   <div v-if="!app && !synchronizing">App not found</div>
   <div v-if="app">
     <q-card flat class="my-card">
@@ -37,12 +39,23 @@
         </q-markup-table>
       </q-card-section>
 
+      <q-card-section>
+        <app-launcher :app="appName" />
+      </q-card-section>
+
       <q-card-actions>
         <q-btn
           clickable
           :label="installButtonLabel"
           color="secondary"
           @click="installOrUninstallApp"
+        />
+        <q-btn
+          clickable
+          label="Configure"
+          color="primary"
+          :href="`#/apps/${appName}/settings`"
+          v-if="app.status?.configSchemaName"
         />
       </q-card-actions>
     </q-card>
@@ -53,9 +66,14 @@
 import { computed, defineComponent, reactive, toRefs } from 'vue';
 import { useAppStore } from 'src/stores/resources';
 import { useQuasar } from 'quasar';
+import AppLauncher from 'components/AppLauncher.vue';
+import { catchError } from 'src/notify';
 
 export default defineComponent({
   name: 'AppDetails',
+  components: {
+    AppLauncher,
+  },
   props: {
     appName: {
       type: String,
@@ -69,6 +87,7 @@ export default defineComponent({
 
     const state = reactive({
       synchronizing: store.synchronizing,
+      appName: props.appName,
       app: computed(() =>
         store.resources.find((a) => a.metadata?.name == props.appName)
       ),
@@ -85,14 +104,7 @@ export default defineComponent({
         if (!app) return;
         app.spec.enabled = !app.spec.enabled;
         // TODO: support namespaced resources
-        store.client.update(app).catch((e: any) => {
-          quasar.notify({
-            type: 'negative',
-            message: e.body?.message
-              ? `${e.message}: ${e.body?.message}`
-              : e.message,
-          });
-        });
+        catchError(store.client.update(app));
       },
     });
     return { ...toRefs(state) };

@@ -1,21 +1,33 @@
-package apiserver
+package main
 
 import (
 	"fmt"
 	"io/ioutil"
-	"path/filepath"
+	"os"
 	"strings"
-	"testing"
 
 	"github.com/go-openapi/jsonreference"
 	generatedopenapi "github.com/mgoltzsche/kubemate/pkg/generated/openapi"
-	"github.com/stretchr/testify/require"
 	"k8s.io/kube-openapi/pkg/common"
 	"k8s.io/kube-openapi/pkg/validation/spec"
 	"sigs.k8s.io/yaml"
 )
 
-func TestGenerateOpenAPI(t *testing.T) {
+func main() {
+	if len(os.Args) != 2 {
+		fmt.Fprintln(os.Stderr, "expects exactly 1 argument: the OpenAPI destination file path")
+		os.Exit(1)
+	}
+	if err := writeOpenAPIFile(os.Args[1]); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func writeOpenAPIFile(file string) error {
+	if file == "" {
+		return fmt.Errorf("provided OpenAPI destination file path is empty")
+	}
 	defs := generatedopenapi.GetOpenAPIDefinitions(ref)
 	swagger := spec.Swagger{
 		SwaggerProps: spec.SwaggerProps{
@@ -34,24 +46,30 @@ func TestGenerateOpenAPI(t *testing.T) {
 	}
 	typeNames := []string{
 		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.App",
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.NetworkInterface",
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.Device",
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceDiscovery",
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.DeviceToken",
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiNetwork",
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.WifiPassword",
-		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1.Certificate",
+		"github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1.AppConfigSchema",
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.NetworkInterface",
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.Device",
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceDiscovery",
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.DeviceToken",
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiNetwork",
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.WifiPassword",
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.Certificate",
+		"github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1.UserAccount",
 		"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.CustomResourceDefinition",
 		"k8s.io/api/networking/v1.Ingress",
+		"k8s.io/api/core/v1.Secret",
 	}
 	for _, typeName := range typeNames {
 		err := addType(defs, typeName, &swagger)
-		require.NoError(t, err)
+		if err != nil {
+			return err
+		}
 	}
 	b, err := yaml.Marshal(&swagger)
-	require.NoError(t, err)
-	err = ioutil.WriteFile(filepath.Join("..", "..", "openapi.yaml"), b, 0644)
-	require.NoError(t, err)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(file, b, 0644)
 }
 
 func addType(typeDefs map[string]common.OpenAPIDefinition, typeName string, swagger *spec.Swagger) error {

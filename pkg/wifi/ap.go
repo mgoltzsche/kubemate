@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/mgoltzsche/kubemate/pkg/cliutils"
 	"github.com/mgoltzsche/kubemate/pkg/runner"
 )
 
@@ -19,15 +20,7 @@ func (w *Wifi) StartAccessPoint(ssid, password string) error {
 	if err != nil {
 		return err
 	}
-	dhcpdConf, dhcpdConfChanged, err := w.generateDhcpdConf()
-	if err != nil {
-		return err
-	}
-	err = createLeaseFileIfNotExist(w.DHCPDLeaseFile)
-	if err != nil {
-		return err
-	}
-	if ifacesConfChanged || hostapdConfChanged || dhcpdConfChanged || w.mode != WifiModeAccessPoint {
+	if ifacesConfChanged || hostapdConfChanged || /*dhcpdConfChanged ||*/ w.mode != WifiModeAccessPoint {
 		err = w.restartWifiInterface()
 		if err != nil {
 			return err
@@ -39,11 +32,7 @@ func (w *Wifi) StartAccessPoint(ssid, password string) error {
 		w.mode = WifiModeAccessPoint
 	}
 	w.installAPRoutes()
-	err = w.dhcpd.Start(runner.Cmd("dhcpd", "-4", "-f", "-d", w.WifiIface, "-cf", dhcpdConf, "-lf", w.DHCPDLeaseFile, "--no-pid"))
-	if err != nil {
-		return err
-	}
-	err = w.ap.Start(runner.Cmd("hostapd", hostapdConf))
+	_, err = w.ap.Start(runner.Cmd("hostapd", hostapdConf))
 	if err != nil {
 		return err
 	}
@@ -53,7 +42,6 @@ func (w *Wifi) StartAccessPoint(ssid, password string) error {
 func (w *Wifi) StopAccessPoint() {
 	w.uninstallAPRoutes()
 	w.ap.Stop()
-	w.dhcpd.Stop()
 	if w.mode == WifiModeAccessPoint {
 		err := w.restartWifiInterface()
 		if err != nil {
@@ -84,40 +72,26 @@ iface %[2]s inet dhcp
 	return false, nil
 }
 
-func (w *Wifi) generateDhcpdConf() (string, bool, error) {
-	return writeConf("dhcpd", `authoritative;
-subnet 11.0.0.0 netmask 255.255.255.0 {
-        range 11.0.0.10 11.0.0.20;
-        option broadcast-address 11.0.0.255;
-        option routers 11.0.0.1;
-        default-lease-time 600;
-        max-lease-time 7200;
-        option domain-name "local";
-        option domain-name-servers 1.1.1.1;
-}
-`)
-}
-
 func (w *Wifi) generateHostapdConf(ssid, password string) (string, bool, error) {
 	// See https://wiki.gentoo.org/wiki/Hostapd
-	return writeConf("hostapd", `interface=%s
+	return cliutils.WriteTempConfigFile("hostapd", `interface={iface}
 driver=nl80211
 hw_mode=g
 channel=6
 ieee80211d=1
 ignore_broadcast_ssid=0
-country_code=%s
+country_code={countryCode}
 ieee80211d=1
 
-ssid=%s
+ssid={ssid}
 wpa=2
-wpa_passphrase=%s
+wpa_passphrase={password}
 wpa_key_mgmt=WPA-PSK
 wpa_pairwise=TKIP
 rsn_pairwise=CCMP
 auth_algs=1
 macaddr_acl=0
-`, w.WifiIface, w.CountryCode, ssid, password)
+`, "{iface}", w.WifiIface, "{countryCode}", w.CountryCode, "{ssid}", ssid, "{password}", password)
 }
 
 func (w *Wifi) installAPRoutes() {

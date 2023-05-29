@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
+	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
 	"github.com/mgoltzsche/kubemate/pkg/wifi"
 	"github.com/sirupsen/logrus"

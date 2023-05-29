@@ -1,4 +1,4 @@
-package v1
+package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -8,7 +8,7 @@ import (
 
 var (
 	// GroupVersion is group version used to register these objects.
-	GroupVersion = schema.GroupVersion{Group: "kubemate.mgoltzsche.github.com", Version: "v1"}
+	GroupVersion = schema.GroupVersion{Group: "kubemate.mgoltzsche.github.com", Version: "v1alpha1"}
 )
 
 func AddToScheme(s *runtime.Scheme) error {
@@ -20,6 +20,7 @@ func AddToScheme(s *runtime.Scheme) error {
 	s.AddKnownTypeWithName(GroupVersion.WithKind("WifiNetwork"), &WifiNetwork{})
 	s.AddKnownTypeWithName(GroupVersion.WithKind("WifiPassword"), &WifiPassword{})
 	s.AddKnownTypeWithName(GroupVersion.WithKind("Certificate"), &Certificate{})
+	s.AddKnownTypeWithName(GroupVersion.WithKind("UserAccount"), &UserAccount{})
 	s.AddKnownTypes(GroupVersion,
 		&NetworkInterfaceList{},
 		&DeviceList{},
@@ -28,6 +29,7 @@ func AddToScheme(s *runtime.Scheme) error {
 		&WifiNetworkList{},
 		&WifiPasswordList{},
 		&CertificateList{},
+		&UserAccountList{},
 	)
 	return nil
 }

@@ -104,8 +104,8 @@ import { computed, defineComponent, reactive, Ref, toRefs, ref } from 'vue';
 import apiclient from 'src/k8sclient';
 import { catchError } from 'src/notify';
 import {
-  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_WifiSpec as WifiSpec,
-  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1_WifiNetwork as WifiNetwork,
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_WifiSpec as WifiSpec,
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_WifiNetwork as WifiNetwork,
 } from 'src/gen';
 import sync from 'src/stores/sync';
 import { CancelablePromise } from 'src/k8sclient/CancelablePromise';
@@ -119,7 +119,7 @@ interface WifiConnectPassword {
 
 const kc = new apiclient.KubeConfig();
 const wifiNetworkClient = kc.newClient<WifiNetwork>(
-  '/apis/kubemate.mgoltzsche.github.com/v1',
+  '/apis/kubemate.mgoltzsche.github.com/v1alpha1',
   'wifinetworks'
 );
 

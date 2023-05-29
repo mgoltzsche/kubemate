@@ -16,11 +16,12 @@ import (
 )
 
 var (
-	_ registryrest.Lister          = &REST{}
-	_ registryrest.Getter          = &REST{}
-	_ registryrest.Creater         = &REST{}
-	_ registryrest.Updater         = &REST{}
-	_ registryrest.GracefulDeleter = &REST{}
+	_ registryrest.SingularNameProvider = &REST{}
+	_ registryrest.Lister               = &REST{}
+	_ registryrest.Getter               = &REST{}
+	_ registryrest.Creater              = &REST{}
+	_ registryrest.Updater              = &REST{}
+	_ registryrest.GracefulDeleter      = &REST{}
 )
 
 type REST struct {
@@ -52,6 +53,10 @@ func (r *REST) New() runtime.Object {
 
 func (r *REST) NewList() runtime.Object {
 	return r.resource.NewList()
+}
+
+func (r *REST) GetSingularName() string {
+	return r.resource.GetSingularName()
 }
 
 func (r *REST) NamespaceScoped() bool {

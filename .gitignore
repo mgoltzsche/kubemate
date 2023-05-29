@@ -3,3 +3,4 @@ data
 kubemate
 kubeconfig.yaml
 output-raspios
+cmd/openapigen/openapigen

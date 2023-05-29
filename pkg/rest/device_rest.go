@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1"
+	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1"
 	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"github.com/mgoltzsche/kubemate/pkg/runner"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
@@ -63,6 +63,10 @@ func (r *DeviceREST) NewList() runtime.Object {
 
 func (r *DeviceREST) NamespaceScoped() bool {
 	return false
+}
+
+func (r *DeviceREST) GetSingularName() string {
+	return r.rest.resource.GetSingularName()
 }
 
 func (r *DeviceREST) List(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error) {

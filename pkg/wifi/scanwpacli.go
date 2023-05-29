@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/mgoltzsche/kubemate/pkg/cliutils"
 )
 
 var wifiScanResultLineRegex = regexp.MustCompile(`^([^\s]+)\t([0-9]+)\t([0-9-]+)\t([^\s]+)\t(.+)$`)
@@ -19,7 +21,7 @@ func scanWifiNetworksWPACLI(iface string) ([]WifiNetwork, error) {
 	}*/
 	ctx, cancel := context.WithTimeout(context.Background(), 9*time.Second)
 	defer cancel()
-	out, err := runCmdOut(ctx, "wpa_cli", "-i", iface, "scan_results")
+	out, err := cliutils.Run(ctx, "wpa_cli", "-i", iface, "scan_results")
 	if err != nil {
 		return nil, err
 	}

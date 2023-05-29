@@ -11,7 +11,7 @@ OAPI_CODEGEN_VERSION = v1.9.0
 OAPI_CODEGEN = $(TOOLS_DIR)/oapi-codegen
 
 CONTROLLER_GEN = $(TOOLS_DIR)/controller-gen
-CONTROLLER_GEN_VERSION = v0.9.2
+CONTROLLER_GEN_VERSION = v0.12.0
 
 KUBE_OPENAPI_GEN = $(TOOLS_DIR)/openapi-gen
 KUBE_OPENAPI_GEN_VERSION = 5e7f5fdc6da62df0ce329920a63eda22f95b9614
@@ -76,12 +76,16 @@ configure-qemu: ## Enable multiarch support on the host (configuring binfmt).
 	$(DOCKER) run --rm --privileged multiarch/qemu-user-static:7.0.0-7 --reset -p yes
 
 .PHONY: generate
-generate: $(CONTROLLER_GEN) $(KUBE_OPENAPI_GEN) ## Generate code.
+generate: $(CONTROLLER_GEN) openapigen $(KUBE_OPENAPI_GEN) ## Generate code.
 	#PATH="$(TOOLS_DIR):$$PATH" go generate ./pkg/server
 	$(CONTROLLER_GEN) object paths=./pkg/apis/... paths=./pkg/resource/fake
 	$(CONTROLLER_GEN) crd paths="./pkg/apis/apps/..." output:crd:artifacts:config=config/crd
 	$(KUBE_OPENAPI_GEN) --output-base=./pkg/generated --output-package=openapi -O zz_generated.openapi -h ./boilerplate/boilerplate.go.txt \
-		--input-dirs=github.com/mgoltzsche/kubemate/pkg/apis/devices/v1,github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/api/core/v1,k8s.io/apimachinery/pkg/runtime,k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1,k8s.io/api/networking/v1
+		--input-dirs=github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1,github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/api/core/v1,k8s.io/apimachinery/pkg/runtime,k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1,k8s.io/api/networking/v1
+	./build/tools/openapigen openapi.yaml
+
+openapigen:
+	go build -o ./build/tools/openapigen ./cmd/openapigen
 
 .PHONY: manifests
 manifests: $(KUSTOMIZE) ## Generate static Kubernetes manifests.
@@ -94,26 +98,26 @@ manifests: $(KUSTOMIZE) ## Generate static Kubernetes manifests.
 .PHONY: clean
 clean: ## Purge local storage and docker containers created by kubemate.
 	[ "`id -u`" -eq  0 ]
-	docker rm -f `docker ps -qa` || true
+	docker rm -f `docker ps -qa --filter label=io.kubernetes.container.name` || true
 	rm -rf ./data
-	docker volume rm `docker volume ls -q` || true
+	docker volume rm `docker volume ls -q --filter label=com.docker.volume.anonymous` || true
 	rm -rf ./build
 
 .PHONY: run
 run: container ## Run a kubemate container locally within the host network.
 	chmod 2775 .
-	mkdir -p ./data/pod-log
+	docker run --rm -v /:/host alpine:3.18 mkdir -p /host/var/log/pods /host/var/lib/kubelet /host/var/lib/cni /host/var/lib/kubemate
 	docker rm -f kubemate 2>/dev/null || true
 	docker run --name kubemate --rm -it --network host --pid host --privileged \
 		--tmpfs /run --tmpfs /var/run --tmpfs /tmp \
-		-v `pwd`/data/kubemate:/var/lib/kubemate \
-		-v `pwd`/data/rancher:/etc/rancher \
+		--mount type=bind,src=/var/lib/kubemate,dst=/var/lib/kubemate,bind-propagation=rshared \
 		-v /:/host \
 		--mount type=bind,src=/etc/machine-id,dst=/etc/machine-id \
 		--mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
 		--mount type=bind,src=/var/lib/docker,dst=/var/lib/docker,bind-propagation=rshared \
 		--mount type=bind,src=/var/lib/kubelet,dst=/var/lib/kubelet,bind-propagation=rshared \
-		--mount type=bind,src=`pwd`/data/pod-log,dst=/var/log/pods,bind-propagation=rshared \
+		--mount type=bind,src=/var/lib/cni,dst=/var/lib/cni \
+		--mount type=bind,src=/var/log/pods,dst=/var/log/pods,bind-propagation=rshared \
 		--mount type=bind,src=/lib/modules,dst=/lib/modules,readonly \
 		--mount type=bind,src=/sys,dst=/sys \
 		-v `pwd`:/output \

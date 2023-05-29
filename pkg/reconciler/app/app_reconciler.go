@@ -2,11 +2,16 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 
-	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
+	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1"
 	appsv1 "github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1"
+	"github.com/mgoltzsche/kubemate/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,12 +22,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
-	annotationAppOwner = "kubemate.mgoltzsche.github.com/app"
-	finalizerKubemate  = "kubemate.mgoltzsche.github.com"
+	finalizerKubemate           = "kubemate.mgoltzsche.github.com"
+	labelKustomizationName      = "kustomize.toolkit.fluxcd.io/name"
+	labelKustomizationNamespace = "kustomize.toolkit.fluxcd.io/namespace"
 )
 
 // AppReconciler reconciles an App object.
@@ -40,6 +45,10 @@ func (r *AppReconciler) AddToScheme(s *runtime.Scheme) error {
 	if err != nil {
 		return err
 	}
+	err = corev1.AddToScheme(s)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -47,19 +56,33 @@ func (r *AppReconciler) AddToScheme(s *runtime.Scheme) error {
 func (r *AppReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.scheme = mgr.GetScheme()
 	r.Client = mgr.GetClient()
+	req4ownerApp := handler.EnqueueRequestForOwner(r.scheme, mgr.GetRESTMapper(), &appsv1.App{})
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&appsv1.App{}).
 		//Owns(&kustomizev1.Kustomization{}).
-		Watches(&source.Kind{Type: &kustomizev1.Kustomization{}}, handler.EnqueueRequestsFromMapFunc(func(o client.Object) []ctrl.Request {
-			if a := o.GetAnnotations(); a != nil {
-				if owner := a[annotationAppOwner]; owner != "" {
-					name := strings.SplitN(owner, "/", 2)
-					if len(name) == 2 {
-						return []ctrl.Request{{NamespacedName: types.NamespacedName{
-							Namespace: name[0],
-							Name:      name[1],
-						}}}
-					}
+		//Owns(&corev1.Secret{}).
+		Watches(&kustomizev1.Kustomization{}, req4ownerApp).
+		Watches(&corev1.Secret{}, req4ownerApp).
+		Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(func(_ context.Context, o client.Object) []ctrl.Request {
+			if name := o.GetName(); strings.HasSuffix(name, "-userconfig") {
+				return []ctrl.Request{{
+					NamespacedName: types.NamespacedName{
+						Name:      name[:len(name)-11],
+						Namespace: o.GetNamespace(),
+					},
+				}}
+			}
+			return nil
+		})).
+		Watches(&appsv1.AppConfigSchema{}, handler.EnqueueRequestsFromMapFunc(func(_ context.Context, o client.Object) []ctrl.Request {
+			if l := o.GetLabels(); l != nil {
+				if name := l[labelKustomizationName]; name != "" {
+					return []ctrl.Request{{
+						NamespacedName: types.NamespacedName{
+							Name:      name,
+							Namespace: l[labelKustomizationNamespace],
+						},
+					}}
 				}
 			}
 			return nil
@@ -90,37 +113,27 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		err = r.Client.Update(ctx, a)
 		return ctrl.Result{}, err
 	}
-	// Delete kustomization when App resource gets deleted
+	// Delete Kustomization when App resource gets deleted
 	if a.DeletionTimestamp != nil {
-		if a.Status.Namespace != "" {
-			done, err := r.deleteKustomization(ctx, types.NamespacedName{
-				Name:      a.Name,
-				Namespace: a.Status.Namespace,
-			})
-			if err != nil || !done {
-				return ctrl.Result{}, err
-			}
+		deleted, err := r.deleteKustomization(ctx, req.NamespacedName)
+		if err != nil || !deleted {
+			return ctrl.Result{}, err
 		}
 		controllerutil.RemoveFinalizer(a, finalizerKubemate)
 		err = r.Client.Update(ctx, a)
 		return ctrl.Result{}, err
 	}
-	// Delete previous Kustomization if namespace changed
-	if a.Status.Namespace != "" && a.Status.Namespace != a.Namespace() {
-		done, err := r.deleteKustomization(ctx, types.NamespacedName{
-			Name:      a.Name,
-			Namespace: a.Status.Namespace,
-		})
-		if err != nil || !done {
-			return ctrl.Result{}, err
-		}
+	// Reconcile Secret, copy Secret with content-addressable name if found
+	s, err := r.reconcileSecret(ctx, a)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 	// Reconcile Kustomization (create/update/delete)
 	k, err := r.reconcileKustomization(ctx, a)
 	// Update App status
 	oldStatus := a.Status
 	defer func() {
-		if a.Status.State != oldStatus.State || a.Status.Message != oldStatus.Message || a.Status.Namespace != oldStatus.Namespace {
+		if a.Status.State != oldStatus.State || a.Status.Message != oldStatus.Message || oldStatus.ConfigSchemaName != a.Status.ConfigSchemaName {
 			a.Status.ObservedGeneration = a.Generation
 			if k != nil {
 				a.Status.LastAppliedRevision = k.Status.LastAppliedRevision
@@ -136,32 +149,103 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 		return ctrl.Result{}, err
 	}
+	// Load app configuration
+	cs, err := r.configSchema(ctx, a)
+	if err != nil {
+		a.Status.State = appsv1.AppStateError
+		a.Status.Message = err.Error()
+		return ctrl.Result{}, nil
+	}
+	var configSchemaName string
+	if cs != nil {
+		configSchemaName = cs.Name
+	}
+	a.Status.ConfigSchemaName = configSchemaName
+
+	// Update installation status
+	a.Status.Message = ""
 	c := getCondition(k.Status.Conditions, "Ready")
-	if a.Spec.Enabled == nil || !*a.Spec.Enabled {
+	if a.Spec.Enabled == nil || !*a.Spec.Enabled { // disabled
 		if k.Generation > 0 {
 			a.Status.State = appsv1.AppStateDeinstalling
 		} else {
 			a.Status.State = appsv1.AppStateNotInstalled
 		}
-		a.Status.Message = ""
-	} else {
-		if k.Status.ObservedGeneration == k.Generation {
+	} else { // enabled
+		defaultConfig, err := r.defaultConfigSecret(ctx, a)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		if c.ObservedGeneration == k.Generation {
 			if c.Status == metav1.ConditionTrue {
 				a.Status.State = appsv1.AppStateInstalled
+			} else if c.Status == metav1.ConditionFalse {
+				a.Status.State = appsv1.AppStateError
+				a.Status.Message = fmt.Sprintf("%s: %s", c.Reason, c.Message)
 			} else {
 				if k.Status.LastAppliedRevision == k.Status.LastAttemptedRevision {
 					a.Status.State = appsv1.AppStateInstalling
 				} else {
 					a.Status.State = appsv1.AppStateUpgrading
 				}
-				a.Status.Message = fmt.Sprintf("%s: %s", c.Reason, c.Message)
+				msg := ""
+				if cs != nil {
+					// TODO: check if mandatory field specified or reflect that within status otherwise.
+					validateConfiguration(cs, s, defaultConfig, a)
+					msg = a.Status.Message
+					if msg != "" {
+						msg = fmt.Sprintf("%s. ", msg)
+					}
+				}
+				a.Status.Message = fmt.Sprintf("%s: %s%s", c.Reason, msg, c.Message)
+				return ctrl.Result{}, nil
 			}
 		} else {
 			a.Status.State = appsv1.AppStateInstalling
-			a.Status.Message = ""
+		}
+		if cs != nil {
+			validateConfiguration(cs, s, defaultConfig, a)
 		}
 	}
 	return ctrl.Result{}, nil
+}
+
+func (r *AppReconciler) defaultConfigSecret(ctx context.Context, a *appsv1.App) (*corev1.Secret, error) {
+	key := types.NamespacedName{
+		Name:      defaultConfigSecretName(a),
+		Namespace: a.Namespace,
+	}
+	defaults := &corev1.Secret{}
+	err := r.Client.Get(ctx, key, defaults)
+	if err != nil && !errors.IsNotFound(err) {
+		return nil, err
+	}
+	return defaults, nil
+}
+
+func defaultConfigSecretName(a *appsv1.App) string {
+	return fmt.Sprintf("%s-defaultconfig", a.Name)
+}
+
+func validateConfiguration(cs *appsv1.AppConfigSchema, custom, defaults *corev1.Secret, a *appsv1.App) {
+	for i, p := range cs.Spec.Params {
+		if p.Name == "" {
+			a.Status.State = appsv1.AppStateError
+			a.Status.Message = fmt.Sprintf("invalid parameter definition: no name specified for app parameter definition %d", i)
+			return
+		}
+		notUserDefined := custom == nil || custom.Data == nil || custom.Data[p.Name] == nil
+		notDefault := defaults == nil || defaults.Data == nil || defaults.Data[p.Name] == nil
+		if notDefault && notUserDefined {
+			a.Status.State = appsv1.AppStateConfigRequired
+			title := p.Title
+			if title == "" {
+				title = p.Name
+			}
+			a.Status.Message = fmt.Sprintf("%s must be specified", title)
+			return
+		}
+	}
 }
 
 func getCondition(conditions []metav1.Condition, name string) metav1.Condition {
@@ -173,13 +257,68 @@ func getCondition(conditions []metav1.Condition, name string) metav1.Condition {
 	return metav1.Condition{}
 }
 
+func (r *AppReconciler) configSchema(ctx context.Context, a *appsv1.App) (*appsv1.AppConfigSchema, error) {
+	cs := &appsv1.AppConfigSchema{}
+	err := r.Client.Get(ctx, client.ObjectKeyFromObject(a), cs)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("load app config schema: %w", err)
+	}
+	return cs, nil
+}
+
+func (r *AppReconciler) reconcileSecret(ctx context.Context, a *appsv1.App) (*corev1.Secret, error) {
+	key := types.NamespacedName{
+		Name:      fmt.Sprintf("%s-userconfig", a.Name),
+		Namespace: a.Namespace,
+	}
+	src := &corev1.Secret{}
+	err := r.Client.Get(ctx, key, src)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			a.Status.ConfigSecretName = defaultConfigSecretName(a)
+			return nil, nil
+		}
+		return nil, err
+	}
+	dst := &corev1.Secret{}
+	key.Name = utils.TruncateName(fmt.Sprintf("%s-%s", key.Name, hash(src.Data)), 63)
+	dst.Name = key.Name
+	dst.Namespace = key.Namespace
+	err = r.Client.Get(ctx, key, dst)
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return nil, err
+		}
+		// Create new Secret with content-addressable name if not exists
+		dst.Data = src.Data
+		err := controllerutil.SetOwnerReference(a, dst, r.scheme)
+		if err != nil {
+			return nil, err
+		}
+		err = r.Client.Create(ctx, dst)
+		if err != nil {
+			return nil, err
+		}
+		a.Status.ConfigSecretName = key.Name
+		return src, nil
+	}
+	a.Status.ConfigSecretName = key.Name
+	return src, nil
+}
+
+func hash(o map[string][]byte) string {
+	b, _ := json.Marshal(o)
+	h := sha256.New()
+	_, _ = h.Write(b)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
 func (r *AppReconciler) reconcileKustomization(ctx context.Context, a *appsv1.App) (*kustomizev1.Kustomization, error) {
 	// Try to fetch Kustomization
-	ns := a.Namespace()
-	key := types.NamespacedName{
-		Name:      a.Name,
-		Namespace: ns,
-	}
+	key := types.NamespacedName{Name: a.Name, Namespace: a.Namespace}
 	k := &kustomizev1.Kustomization{}
 	found := true
 	err := r.Client.Get(ctx, key, k)
@@ -202,21 +341,23 @@ func (r *AppReconciler) reconcileKustomization(ctx context.Context, a *appsv1.Ap
 				Name:      sourceRef.Name,
 				Namespace: sourceRef.Namespace,
 			},
-			Path:            a.Spec.Kustomization.Path,
-			TargetNamespace: a.Spec.Kustomization.TargetNamespace,
-			Timeout:         a.Spec.Kustomization.Timeout,
-			Prune:           true,
-			Wait:            true,
+			Path:    a.Spec.Kustomization.Path,
+			Timeout: a.Spec.Kustomization.Timeout,
+			Prune:   true,
+			Wait:    true,
+			PostBuild: &kustomizev1.PostBuild{
+				Substitute: map[string]string{
+					"APP_NAME":               a.Name,
+					"APP_CONFIG_SECRET_NAME": a.Status.ConfigSecretName,
+				},
+			},
 		}
 		if k.Annotations == nil {
 			k.Annotations = map[string]string{}
 		}
-		k.Annotations[annotationAppOwner] = fmt.Sprintf("%s/%s", a.ObjectMeta.Namespace, a.Name)
-		if k.Namespace == a.ObjectMeta.Namespace {
-			err := controllerutil.SetOwnerReference(a, k, r.scheme)
-			if err != nil {
-				return k, err
-			}
+		err := controllerutil.SetOwnerReference(a, k, r.scheme)
+		if err != nil {
+			return k, err
 		}
 		if found {
 			// Update Kustomization resource if changed
@@ -226,13 +367,6 @@ func (r *AppReconciler) reconcileKustomization(ctx context.Context, a *appsv1.Ap
 			}
 		} else {
 			// Create new Kustomization resource
-			if a.Status.Namespace != k.Namespace {
-				a.Status.Namespace = k.Namespace
-				err = r.Client.Status().Update(ctx, k)
-				if err != nil {
-					return k, err
-				}
-			}
 			err = r.Client.Create(ctx, k)
 			return k, err
 		}

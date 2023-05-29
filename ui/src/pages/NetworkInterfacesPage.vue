@@ -18,7 +18,7 @@ export default defineComponent({
   setup() {
     const state = {
       className: computed(() =>
-        useRoute().params.device ? 'col-xs-0 col-sm' : 'col-xs-12 col-sm'
+        useRoute().params.name ? 'col-xs-0 col-sm gt-xs' : 'col-xs-12 col-sm'
       ),
     };
 

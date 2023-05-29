@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -36,15 +38,24 @@ func Cmd(cmd string, args ...string) CommandSpec {
 }
 
 type Proc struct {
-	proc    *os.Process
-	cmd     CommandSpec
-	running sync.WaitGroup
-	err     error
-	logger  *logrus.Entry
+	proc                   *os.Process
+	pgid                   int
+	cmd                    CommandSpec
+	running                bool
+	wg                     sync.WaitGroup
+	terminationSignal      syscall.Signal
+	terminationGracePeriod time.Duration
+	err                    error
+	logger                 *logrus.Entry
 }
 
-func StartProcess(logger *logrus.Entry, cmd CommandSpec) (*Proc, error) {
+// StartProcess starts a process.
+func StartProcess(logger *logrus.Entry, terminationSignal syscall.Signal, terminationGracePeriod time.Duration, cmd CommandSpec) (*Proc, error) {
+	if terminationSignal == syscall.SIGINT {
+		return nil, fmt.Errorf("process %s: termination signal SIGINT is not supported to terminate a process group", cmd.Command)
+	}
 	c := exec.Command(cmd.Command, cmd.Args...)
+	c.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	c.Env = os.Environ()
 	stdout, err := c.StdoutPipe()
 	if err != nil {
@@ -65,8 +76,8 @@ func StartProcess(logger *logrus.Entry, cmd CommandSpec) (*Proc, error) {
 	go streamLines(stdout, logger, func(line string) {
 		if !parseAndLogProcessLogLine(line, logger) {
 			lower := strings.ToLower(line)
-			if strings.Contains(lower, "fail") || strings.Contains(lower, "error") || strings.Contains(lower, "invalid") {
-				logger.Warn(line)
+			if strings.Contains(lower, "fail") || strings.Contains(lower, "error") || strings.Contains(lower, "warn") || strings.Contains(lower, "invalid") {
+				logger.Error(line)
 			} else {
 				logger.Info(line)
 			}
@@ -77,36 +88,76 @@ func StartProcess(logger *logrus.Entry, cmd CommandSpec) (*Proc, error) {
 			logger.Warn(line)
 		}
 	})
-	p := &Proc{
-		proc:   c.Process,
-		cmd:    cmd,
-		logger: logger,
+	pgid, err := syscall.Getpgid(c.Process.Pid)
+	if err != nil {
+		_ = stdout.Close()
+		_ = stderr.Close()
+		return nil, fmt.Errorf("get %s process group: %w", cmd.Command, err)
 	}
-	p.running.Add(1)
+	p := &Proc{
+		proc:                   c.Process,
+		pgid:                   pgid,
+		cmd:                    cmd,
+		running:                true,
+		terminationSignal:      terminationSignal,
+		terminationGracePeriod: terminationGracePeriod,
+		logger:                 logger.WithField("pid", c.Process.Pid),
+	}
+	p.wg.Add(1)
 	go func() {
-		defer p.running.Done()
+		defer p.wg.Done()
 		err := c.Wait()
-		log := logger
+		_ = syscall.Kill(-p.pgid, syscall.SIGKILL)
+		log := p.logger
 		if err != nil {
 			log = log.WithError(err)
 		}
 		log.Debugf("%s process exited", p.cmd.Command)
+		p.running = false
 		p.err = err
 	}()
 	return p, nil
 }
 
+// Pid returns the process ID.
+func (p *Proc) Pid() int {
+	return p.proc.Pid
+}
+
+// Running returns true if the process is still running.
+func (p *Proc) Running() bool {
+	return p.running
+}
+
+// Wait waits for the process to terminate.
 func (p *Proc) Wait() error {
-	p.running.Wait()
+	p.wg.Wait()
 	return p.err
 }
 
-func (p *Proc) Stop() error {
-	p.logger.Debug("stopping process")
-	err := p.proc.Signal(os.Interrupt)
+// Signal sends the given signal to the process.
+func (p *Proc) Signal(sig syscall.Signal) error {
+	p.logger.Debugf("sending signal %d to %s process", sig, p.cmd.Command)
+	return p.proc.Signal(sig)
+}
+
+// Stop stops the process.
+func (p *Proc) Stop() {
+	p.logger.Debugf("stopping %s process (signal %d)", p.cmd.Command, p.terminationSignal)
+	err := p.proc.Signal(p.terminationSignal)
 	if err != nil && err != os.ErrProcessDone {
-		return fmt.Errorf("stop %s process: %w", p.cmd.Command, err)
+		p.logger.Warnf("failed to send signal %d to %s process: %s", p.terminationSignal, p.cmd.Command, err)
 	}
-	p.Wait()
-	return nil
+	ch := make(chan struct{})
+	go func() {
+		_ = p.Wait()
+		ch <- struct{}{}
+	}()
+	select {
+	case <-ch:
+	case <-time.After(p.terminationGracePeriod):
+		p.logger.Errorf("killing %s process since graceful termination timed out", p.cmd.Command)
+		_ = syscall.Kill(-p.pgid, syscall.SIGKILL)
+		_ = p.Wait()
+	}
 }

@@ -7,12 +7,13 @@ import (
 )
 
 const (
-	AppStateNotInstalled AppState = "NotInstalled"
-	AppStateInstalling   AppState = "Installing"
-	AppStateUpgrading    AppState = "Upgrading"
-	AppStateInstalled    AppState = "Installed"
-	AppStateDeinstalling AppState = "Deinstalling"
-	AppStateError        AppState = "Error"
+	AppStateNotInstalled   AppState = "NotInstalled"
+	AppStateInstalling     AppState = "Installing"
+	AppStateUpgrading      AppState = "Upgrading"
+	AppStateInstalled      AppState = "Installed"
+	AppStateDeinstalling   AppState = "Deinstalling"
+	AppStateError          AppState = "Error"
+	AppStateConfigRequired AppState = "ConfigRequired"
 )
 
 // +enum
@@ -21,8 +22,10 @@ type AppState string
 // AppSpec defines the desired state of the App.
 // +k8s:openapi-gen=true
 type AppSpec struct {
-	Enabled       *bool              `json:"enabled,omitempty"`
-	Kustomization *KustomizationSpec `json:"kustomization,omitempty"`
+	Enabled *bool `json:"enabled,omitempty"`
+	//ParamDefinitions []ParamDefinition  `json:"paramDefinitions,omitempty"`
+	ParamSecretName string             `json:"paramSecretName,omitempty"`
+	Kustomization   *KustomizationSpec `json:"kustomization,omitempty"`
 }
 
 // KustomizationSpec specifies the kustomization that should be installed.
@@ -33,16 +36,7 @@ type KustomizationSpec struct {
 	SourceRef CrossNamespaceSourceReference `json:"sourceRef"`
 	// Path points to the kustomization directory within the sourceRef.
 	Path string `json:"path,omitempty"`
-	// TargetNamespace specifies the Kubernetes Namespace the kustomization should be installed to.
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Optional
-	TargetNamespace string `json:"targetNamespace,omitempty"`
-	// Namespace specifies the default Kubernetes Namespace that śhould be used by the kustomization.
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Optional
-	Namespace string `json:"namespace,omitempty"`
+	// Timeout specifies the deployment timeout.
 	// +kubebuilder:validation:Optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 }
@@ -72,11 +66,12 @@ type CrossNamespaceSourceReference struct {
 // +k8s:openapi-gen=true
 type AppStatus struct {
 	ObservedGeneration    int64    `json:"observedGeneration,omitempty"`
-	Namespace             string   `json:"namespace,omitempty"`
 	State                 AppState `json:"state,omitempty"`
 	Message               string   `json:"message,omitempty"`
 	LastAppliedRevision   string   `json:"lastAppliedRevision,omitempty"`
 	LastAttemptedRevision string   `json:"lastAttemptedRevision,omitempty"`
+	ConfigSchemaName      string   `json:"configSchemaName,omitempty"`
+	ConfigSecretName      string   `json:"configSecretName,omitempty"`
 }
 
 // App is the Schema for the apps API
@@ -93,13 +88,6 @@ type App struct {
 
 	Spec   AppSpec   `json:"spec"`
 	Status AppStatus `json:"status,omitempty"`
-}
-
-func (a *App) Namespace() string {
-	if a.Spec.Kustomization != nil && a.Spec.Kustomization.Namespace != "" {
-		return a.Spec.Kustomization.Namespace
-	}
-	return a.ObjectMeta.Namespace
 }
 
 func (s *CrossNamespaceSourceReference) String() string {
