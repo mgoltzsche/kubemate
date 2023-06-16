@@ -13,6 +13,7 @@ import (
 	"time"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1"
+	"github.com/mgoltzsche/kubemate/pkg/clientconf"
 	"github.com/mgoltzsche/kubemate/pkg/controller"
 	"github.com/mgoltzsche/kubemate/pkg/discovery"
 	"github.com/mgoltzsche/kubemate/pkg/ingress"
@@ -24,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -45,12 +47,14 @@ type DeviceReconciler struct {
 	NetworkInterfaces storage.Interface
 	DeviceDiscovery   *discovery.DeviceDiscovery
 	IngressController *ingress.IngressController
+	Shutdown          func() error
 	Logger            *logrus.Entry
 	client.Client
-	scheme      *runtime.Scheme
-	k3s         *runner.Runner
-	controllers *controller.ControllerManager
-	dnsServer   *deviceDnsServerReconciler
+	scheme         *runtime.Scheme
+	k3s            *runner.Runner
+	controllers    *controller.ControllerManager
+	nodeController *controller.ControllerManager
+	dnsServer      *deviceDnsServerReconciler
 }
 
 func (r *DeviceReconciler) AddToScheme(s *runtime.Scheme) error {
@@ -61,13 +65,26 @@ func (r *DeviceReconciler) AddToScheme(s *runtime.Scheme) error {
 	return nil
 }
 
+func (r *DeviceReconciler) nodeClientConfig() (*rest.Config, error) {
+	return clientconf.New(r.DataDir, deviceapi.DeviceModeAgent)
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *DeviceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	nodeReconciler := &NodeReconciler{
+		DeviceName:  r.DeviceName,
+		DeviceStore: r.Devices,
+		K3sDir:      r.DataDir,
+		Shutdown:    r.Shutdown,
+	}
 	dnsDir := filepath.Join(r.DataDir, "dns")
 	r.dnsServer = newDeviceDnsServerReconciler(dnsDir, r.DeviceName, r.Devices, r.NetworkInterfaces, r.Logger)
 	// TODO: use mgr.GetLogger() logr.Logger that controller-runtime is providing to the Reconcile method as well
 	r.controllers = controller.NewControllerManager(ctrl.GetConfig, logrus.WithField("comp", "controller-manager"))
 	r.controllers.RegisterReconciler(&app.AppReconciler{})
+	r.controllers.RegisterReconciler(nodeReconciler)
+	r.nodeController = controller.NewControllerManager(r.nodeClientConfig, logrus.WithField("comp", "node-controller-manager"))
+	r.nodeController.RegisterReconciler(nodeReconciler)
 	r.k3s = runner.New(r.Logger.WithField("proc", "k3s"))
 	r.k3s.TerminationSignal = syscall.SIGQUIT
 	r.k3s.Reporter = func(cmd runner.Command) {
@@ -199,7 +216,6 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	}
 	if d.Generation == d.Status.Generation {
 		// TODO: advertize only when status changed
-		// TODO: update discovery resource
 		err = r.DeviceDiscovery.Advertise(&deviceapi.DeviceDiscovery{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: d.Name,
@@ -229,11 +245,17 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 			}
 		}
 		if d.Spec.Mode == deviceapi.DeviceModeServer && d.Status.State != deviceapi.DeviceStateTerminating {
+			r.nodeController.Stop()
 			r.controllers.Start()
 			r.IngressController.Start()
 		} else {
 			r.controllers.Stop()
 			r.IngressController.Stop()
+			if d.Status.State == deviceapi.DeviceStateTerminating {
+				r.nodeController.Stop()
+			} else {
+				r.nodeController.Start()
+			}
 		}
 	}
 	logger.V(1).Info("device reconciliation complete")

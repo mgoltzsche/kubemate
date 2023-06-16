@@ -22,6 +22,7 @@ var (
 	_ registryrest.Creater              = &REST{}
 	_ registryrest.Updater              = &REST{}
 	_ registryrest.GracefulDeleter      = &REST{}
+	_ registryrest.Watcher              = &REST{}
 )
 
 type REST struct {

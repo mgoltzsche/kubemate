@@ -27,6 +27,7 @@ var appName = "kubemate"
 var Connect = ConnectConfig{
 	ServerOptions: apiserver.NewServerOptions(),
 }
+var shutdownFile string
 var ConnectFlags = []cli.Flag{
 	cli.StringFlag{
 		Name:        "http-address",
@@ -102,6 +103,12 @@ var ConnectFlags = []cli.Flag{
 		Destination: &Connect.WriteHostResolvConf,
 	},
 	cli.StringFlag{
+		Name:        "shutdown-file",
+		Usage:       "(agent/runtime) write a file when a shutdown is initiated via the API",
+		EnvVar:      "KUBEMATE_SHUTDOWN_FILE",
+		Destination: &shutdownFile,
+	},
+	cli.StringFlag{
 		Name:        "log-level",
 		Usage:       "(agent/runtime) log level",
 		EnvVar:      "KUBEMATE_LOG_LEVEL",
@@ -125,6 +132,18 @@ func RunConnectServer(app *cli.Context) error {
 }
 
 func run(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	Connect.ServerOptions.Shutdown = func() error {
+		if shutdownFile != "" {
+			err := writeShutdownFile()
+			if err != nil {
+				return err
+			}
+		}
+		cancel()
+		return nil
+	}
 	genericServer, err := apiserver.NewServer(Connect.ServerOptions)
 	if err != nil {
 		return err
@@ -152,7 +171,7 @@ func run(ctx context.Context) error {
 				cancel()
 			}()
 			err := srv.ListenAndServe()
-			if err != nil {
+			if err != nil && err != http.ErrServerClosed {
 				return fmt.Errorf("http server: %w", err)
 			}
 			return nil
@@ -165,7 +184,19 @@ func run(ctx context.Context) error {
 			return nil
 		},
 	}
-	return parallelize(ctx, daemons...)
+	err = parallelize(ctx, daemons...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func writeShutdownFile() error {
+	err := os.WriteFile(shutdownFile, []byte{}, 0644)
+	if err != nil {
+		return fmt.Errorf("write shutdown file: %w", err)
+	}
+	return nil
 }
 
 func newContext() context.Context {

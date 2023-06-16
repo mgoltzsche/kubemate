@@ -56,6 +56,7 @@ type ServerOptions struct {
 	KubeletArgs         []string
 	Docker              bool
 	WriteHostResolvConf bool
+	Shutdown            func() error
 }
 
 // NewServerOptions creates server options with defaults.
@@ -269,6 +270,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 				"certificates":      certREST,
 				"useraccounts":      userAccountREST,
 				"devices":           deviceREST,
+				"devices/shutdown":  rest.NewDeviceShutdownREST(o.DeviceName, deviceREST.Store(), k3sDataDir),
 				"devicediscovery":   discoveryREST,
 				"devicetokens":      deviceTokenREST,
 				"wifipasswords":     wifiPasswordREST,
@@ -303,6 +305,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 			NetworkInterfaces: ifaceStore,
 			IngressController: ingressRouter,
 			K3sProxyEnabled:   &k3sProxyEnabled,
+			Shutdown:          o.Shutdown,
 			Logger:            logger,
 		})
 	return genericServer, nil

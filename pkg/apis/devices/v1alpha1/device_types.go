@@ -9,6 +9,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+const (
+	NodeDrainAnnotation = "kubemate.mgoltzsche.github.com/drain"
+)
+
 // DeviceState specifies the state of a device.
 // +enum
 type DeviceState string
