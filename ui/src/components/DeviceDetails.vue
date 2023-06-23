@@ -79,9 +79,43 @@
             </q-tab-panel>
           </q-tab-panels>
         </div>
-        <q-btn color="primary" label="Apply" @click="apply" />
       </q-card-section>
+      <q-card-actions>
+        <q-btn color="primary" label="Apply" @click="apply" />
+        <q-btn
+          color="negative"
+          label="Shutdown"
+          icon="power_settings_new"
+          @click="requestShutdown"
+        />
+      </q-card-actions>
     </q-card>
+    <q-dialog v-model="confirmShutdown" persistent>
+      <q-card>
+        <q-card-section class="row items-center">
+          <q-avatar
+            icon="power_settings_new"
+            color="primary"
+            text-color="white"
+          />
+          <span class="q-ml-sm"
+            >Do you really want to shutdown the device
+            {{ device.metadata.name }}?</span
+          >
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" color="primary" v-close-popup />
+          <q-btn
+            flat
+            label="Shutdown"
+            color="primary"
+            v-close-popup
+            @click="shutdown"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
@@ -96,6 +130,7 @@ import {
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_DeviceToken as DeviceToken,
 } from 'src/gen';
 import { useQuasar } from 'quasar';
+import { catchError, info } from 'src/notify';
 
 function serverJoinTokenRequestURL(server: DeviceDiscovery) {
   const addrRegex = new RegExp('https://([^/]+)');
@@ -125,6 +160,7 @@ export default defineComponent({
       value: DeviceDiscovery;
       label: string;
     }>;
+    const confirmShutdown = ref(false);
     deviceStore.sync(() => {
       const d = deviceStore.resources.find(
         (d) => d.metadata.name == props.deviceName
@@ -261,8 +297,25 @@ export default defineComponent({
         )?.status.address;
         if (a) window.location.href = `${a}/#/devices/${props.deviceName}`;
       },
+      requestShutdown: () => {
+        confirmShutdown.value = true;
+      },
+      shutdown: () => {
+        const d = deviceStore.resources.find(
+          (d) => d.metadata.name == props.deviceName
+        );
+        if (!d) return;
+        catchError(
+          deviceStore.client.createSubresource(d, 'shutdown', {}).then(() => {
+            info(`Terminating device ${d.metadata.name} ...`);
+          })
+        );
+      },
     });
-    return { ...toRefs(state) };
+    return {
+      confirmShutdown,
+      ...toRefs(state),
+    };
   },
 });
 </script>

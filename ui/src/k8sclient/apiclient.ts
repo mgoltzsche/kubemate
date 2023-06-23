@@ -119,4 +119,25 @@ export class ApiClient<T extends Resource> {
       handler
     );
   }
+  public createSubresource<S>(
+    o: T,
+    subResource: string,
+    s: S
+  ): CancelablePromise<T> {
+    const url = `${this.resourceUrl(o.metadata?.namespace)}/${
+      o.metadata?.name
+    }/${subResource}`;
+    console.log(`client: create subresource ${url}`);
+    return request({
+      method: 'POST',
+      url: url,
+      query: {
+        timeoutSeconds: 10,
+      },
+      headers: {
+        Authorization: 'Bearer ' + this.auth.token,
+      },
+      body: s,
+    });
+  }
 }
