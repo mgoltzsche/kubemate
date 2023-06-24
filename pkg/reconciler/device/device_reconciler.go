@@ -167,26 +167,21 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		case deviceapi.DeviceModeServer:
 			args = buildK3sServerArgs(&d, nodeIP, r.DataDir, r.Docker, r.KubeletArgs, r.DeviceTokens)
 		case deviceapi.DeviceModeAgent:
-			if d.Spec.Server == "" {
+			if d.Spec.ServerAddress == "" {
 				return fmt.Errorf("no server specified to join")
 			}
-			if d.Spec.Server == d.Name {
+			if d.Spec.ServerAddress == d.Status.Address {
 				return fmt.Errorf("cannot join itself")
 			}
-			var server deviceapi.DeviceDiscovery
-			err := r.DeviceDiscovery.Store().Get(d.Spec.Server, &server)
-			if err != nil {
-				return fmt.Errorf("join cluster: %w", err)
+			if d.Spec.JoinTokenName == "" {
+				return fmt.Errorf("cannot join server since no join token name specified")
 			}
-			if server.Spec.Mode != deviceapi.DeviceModeServer {
-				return fmt.Errorf("cannot join device %q since it doesn't run in %s mode but in mode %q", d.Spec.Server, deviceapi.DeviceModeServer, d.Spec.Mode)
-			}
-			joinAddr, err := joinAddress(&server)
+			joinAddr, err := joinAddress(&d)
 			if err != nil {
 				return fmt.Errorf("join cluster: %w", err)
 			}
 			// TODO: provide token as env var
-			args = buildK3sAgentArgs(&server, joinAddr, nodeIP, r.DataDir, r.Docker, r.KubeletArgs, r.DeviceTokens)
+			args = buildK3sAgentArgs(joinAddr, d.Spec.JoinTokenName, nodeIP, r.DataDir, r.Docker, r.KubeletArgs, r.DeviceTokens)
 		}
 		return nil
 	}
@@ -223,7 +218,7 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 			Spec: deviceapi.DeviceDiscoverySpec{
 				Address: d.Status.Address,
 				Mode:    d.Spec.Mode,
-				Server:  d.Spec.Server,
+				Server:  d.Spec.ServerAddress,
 				Current: true,
 			},
 		}, nodeIP)
@@ -314,16 +309,12 @@ func requeue(err error) (r ctrl.Result, e error) {
 	return r, err
 }
 
-func joinAddress(d *deviceapi.DeviceDiscovery) (string, error) {
-	a := ""
-	if d.Spec.Mode == deviceapi.DeviceModeServer {
-		u, err := url.Parse(d.Spec.Address)
-		if err != nil {
-			return "", fmt.Errorf("status.address %q of device %q is not a valid address", d.Spec.Address, d.Name)
-		}
-		a = fmt.Sprintf("https://%s:6443", u.Hostname())
+func joinAddress(d *deviceapi.Device) (string, error) {
+	u, err := url.Parse(d.Spec.ServerAddress)
+	if err != nil {
+		return "", fmt.Errorf("invalid server address %q specified: %w", d.Spec.ServerAddress, err)
 	}
-	return a, nil
+	return fmt.Sprintf("https://%s:6443", u.Hostname()), nil
 }
 
 func buildK3sServerArgs(d *deviceapi.Device, nodeIP net.IP, dataDir string, docker bool, kubeletArgs []string, clusterTokens storage.Interface) []string {
@@ -352,16 +343,16 @@ func buildK3sServerArgs(d *deviceapi.Device, nodeIP net.IP, dataDir string, dock
 	return args
 }
 
-func buildK3sAgentArgs(server *deviceapi.DeviceDiscovery, joinAddress string, nodeIP net.IP, dataDir string, docker bool, kubeletArgs []string, clusterTokens storage.Interface) []string {
+func buildK3sAgentArgs(joinAddress, tokenName string, nodeIP net.IP, dataDir string, docker bool, kubeletArgs []string, clusterTokens storage.Interface) []string {
 	args := []string{
 		"agent",
 		fmt.Sprintf("--node-external-ip=%s", nodeIP.String()),
 		fmt.Sprintf("--data-dir=%s", dataDir),
 	}
 	token := &deviceapi.DeviceToken{}
-	err := clusterTokens.Get(server.Name, token)
+	err := clusterTokens.Get(tokenName, token)
 	if err != nil {
-		logrus.Error(fmt.Errorf("join server %s: %w", server.Name, err))
+		logrus.Error(fmt.Errorf("join server %s: %w", joinAddress, err))
 		return nil
 	}
 	args = append(args,

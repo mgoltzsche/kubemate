@@ -284,6 +284,8 @@ definitions:
   com.github.mgoltzsche.kubemate.pkg.apis.devices.v1alpha1.DeviceSpec:
     description: DeviceSpec defines the desired state of the Device.
     properties:
+      joinTokenName:
+        type: string
       mode:
         default: ""
         description: |-
@@ -294,7 +296,7 @@ definitions:
         - agent
         - server
         type: string
-      server:
+      serverAddress:
         type: string
     required:
     - mode

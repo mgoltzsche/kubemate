@@ -35,8 +35,9 @@ const (
 // DeviceSpec defines the desired state of the Device.
 // +k8s:openapi-gen=true
 type DeviceSpec struct {
-	Mode   DeviceMode `json:"mode"`
-	Server string     `json:"server,omitempty"`
+	Mode          DeviceMode `json:"mode"`
+	ServerAddress string     `json:"serverAddress,omitempty"`
+	JoinTokenName string     `json:"joinTokenName,omitempty"`
 }
 
 // DeviceStatus defines the observed state of the Device.

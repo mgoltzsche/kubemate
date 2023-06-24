@@ -65,6 +65,11 @@
                     >The selected server manages all data and controls this
                     device.</template
                   >
+                  <template v-slot:after>
+                    <q-btn flat round @click="showDeviceAddressDialog = true">
+                      <q-icon name="add" color="primary" />
+                    </q-btn>
+                  </template>
                 </q-select>
               </q-card-section>
               <q-card-actions>
@@ -90,6 +95,7 @@
         />
       </q-card-actions>
     </q-card>
+
     <q-dialog v-model="confirmShutdown" persistent>
       <q-card>
         <q-card-section class="row items-center">
@@ -116,6 +122,8 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <device-address-dialog v-model="showDeviceAddressDialog" />
   </div>
 </template>
 
@@ -126,17 +134,27 @@ import apiclient from 'src/k8sclient';
 import {
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_Device as Device,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_DeviceDiscovery as DeviceDiscovery,
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_DeviceDiscoverySpec as DeviceDiscoverySpec,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_DeviceSpec as DeviceSpec,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_DeviceToken as DeviceToken,
 } from 'src/gen';
+import DeviceAddressDialog from 'src/components/DeviceAddressDialog.vue';
 import { useQuasar } from 'quasar';
 import { catchError, info } from 'src/notify';
 
-function serverJoinTokenRequestURL(server: DeviceDiscovery) {
+function serverJoinTokenRequestURL(serverAddress: string) {
   const addrRegex = new RegExp('https://([^/]+)');
   const m = window.location.href.match(addrRegex);
   const addr = m ? m[1] : '';
-  return `${server.spec.address}/#/setup/request-join-token/${addr}`;
+  return `${serverAddress}/#/setup/request-join-token/${addr}`;
+}
+
+function joinTokenNameForServer(serverAddress: string): string {
+  return `srv-${serverAddress
+    .toLowerCase()
+    .replace(/^https?:\/\/([a-z0-9\._-]+)/, '$1')}`
+    .replace(/[^a-z0-9]+/, '-')
+    .replace(/[^a-z0-9]$/, '');
 }
 
 const kc = new apiclient.KubeConfig();
@@ -147,6 +165,7 @@ const client = kc.newClient<DeviceToken>(
 
 export default defineComponent({
   name: 'DeviceDetails',
+  components: { DeviceAddressDialog },
   props: {
     deviceName: {
       type: String,
@@ -157,7 +176,7 @@ export default defineComponent({
     const deviceStore = useDeviceStore();
     const discoveryStore = useDeviceDiscoveryStore();
     const selectedServer = ref(null as unknown) as Ref<{
-      value: DeviceDiscovery;
+      value: string;
       label: string;
     }>;
     const confirmShutdown = ref(false);
@@ -168,11 +187,11 @@ export default defineComponent({
       if (d) {
         discoveryStore.sync(() => {
           const s = discoveryStore.resources.find(
-            (s) => s.metadata.name == d?.spec.server
+            (s) => s.spec.address == d?.spec.serverAddress
           );
           if (s)
             selectedServer.value = {
-              value: s,
+              value: s.spec.address,
               label: s.metadata.name || '<unknown>',
             };
         });
@@ -182,24 +201,26 @@ export default defineComponent({
 
     async function joinServer(d: Device) {
       if (selectedServer.value == null) return;
-      const serverName = selectedServer.value.value.metadata.name;
-      if (!serverName) return;
+      const serverAddress = selectedServer.value.value;
+      if (!serverAddress) return;
+      const joinTokenName = joinTokenNameForServer(serverAddress);
       d.spec.mode = DeviceSpec.mode.AGENT;
-      d.spec.server = serverName;
+      d.spec.serverAddress = serverAddress;
+      d.spec.joinTokenName = joinTokenName;
       console.log(
-        `switching device ${d.metadata.name} to ${d.spec.mode} mode, joining ${serverName}`
+        `switching device ${d.metadata.name} to ${d.spec.mode} mode, joining ${serverAddress}`
       );
       try {
         await deviceStore.client.update(d);
         try {
-          await client.get(serverName);
+          await client.get(joinTokenName);
           console.log(
-            `join token for server device ${serverName} already exists on agent device ${props.deviceName}`
+            `join token for server ${serverAddress} already exists on agent device ${props.deviceName}`
           );
         } catch (e) {
-          const url = serverJoinTokenRequestURL(selectedServer.value.value);
+          const url = serverJoinTokenRequestURL(serverAddress);
           console.log(
-            `join token for server ${serverName} does not exist - redirecting user to retrieve token to ${url}`
+            `join token for server ${serverAddress} does not exist - redirecting user to token retrieval flow at ${url}`
           );
           window.location.href = url;
         }
@@ -215,7 +236,6 @@ export default defineComponent({
 
     async function hostServer(d: Device) {
       d.spec.mode = DeviceSpec.mode.SERVER;
-      d.spec.server = undefined;
       console.log(`switching device ${d.metadata.name} to ${d.spec.mode} mode`);
       try {
         await deviceStore.client.update(d);
@@ -248,16 +268,19 @@ export default defineComponent({
               d.spec.mode == DeviceSpec.mode.SERVER &&
               d.spec.address
           )
-          .map((d) => ({ label: d.metadata.name, value: d }))
+          .map((d) => ({ label: d.metadata.name, value: d.spec.address }))
       ),
       availableDeviceModes: [
         { label: 'Server', value: DeviceSpec.mode.SERVER },
         { label: 'Agent', value: DeviceSpec.mode.AGENT },
       ],
       deleteJoinToken: async () => {
-        if (selectedServer.value && selectedServer.value.value.metadata.name) {
+        if (selectedServer.value && selectedServer.value.value) {
           try {
-            await client.delete(selectedServer.value.value.metadata.name);
+            const joinTokenName = joinTokenNameForServer(
+              selectedServer.value.value
+            );
+            await client.delete(joinTokenName);
             console.log('deleted join token');
           } catch (e: any) {
             quasar.notify({
@@ -313,6 +336,7 @@ export default defineComponent({
       },
     });
     return {
+      showDeviceAddressDialog: ref(false),
       confirmShutdown,
       ...toRefs(state),
     };

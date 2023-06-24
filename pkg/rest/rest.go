@@ -6,6 +6,7 @@ import (
 
 	"github.com/mgoltzsche/kubemate/pkg/resource"
 	"github.com/mgoltzsche/kubemate/pkg/storage"
+	"github.com/mgoltzsche/kubemate/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -98,6 +99,16 @@ func (r *REST) Create(ctx context.Context, obj runtime.Object, createValidation 
 	m, err := meta.Accessor(obj)
 	if err != nil {
 		return nil, err
+	}
+	if genName := m.GetGenerateName(); genName != "" {
+		name, err := utils.GenerateObjectName(obj, genName)
+		if err != nil {
+			return nil, fmt.Errorf("generate object name: %w", err)
+		}
+		m.SetName(name)
+	}
+	if m.GetName() == "" {
+		return nil, fmt.Errorf("no name specified")
 	}
 	err = r.store.Create(m.GetName(), obj.(resource.Resource))
 	if err != nil {

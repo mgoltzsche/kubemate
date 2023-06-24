@@ -1180,7 +1180,13 @@ func schema_pkg_apis_devices_v1alpha1_DeviceSpec(ref common.ReferenceCallback) c
 							Format:      "",
 							Enum:        []interface{}{"agent", "server"}},
 					},
-					"server": {
+					"serverAddress": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"joinTokenName": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",
@@ -5760,7 +5766,7 @@ func schema_k8sio_api_core_v1_HTTPHeader(ref common.ReferenceCallback) common.Op
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The header field name",
+							Description: "The header field name. This will be canonicalized upon output, so case-variant names will be understood as the same header.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
