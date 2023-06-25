@@ -3,9 +3,9 @@
   <q-dialog v-model="showConfirmDialog" persistent>
     <q-card>
       <q-card-section class="row items-center">
-        Do you want to allow
+        Do you want to allow&nbsp;
         <a :href="`https://${agentAddress}`">{{ agentAddress }}</a>
-        to join the controller {{ controllerName }} as agent?
+        &nbsp;to join the controller {{ controllerName }} as agent?
       </q-card-section>
 
       <q-card-actions>
@@ -48,8 +48,14 @@ import { useRoute } from 'vue-router';
 import { useDeviceStore } from 'src/stores/resources';
 import { computed } from '@vue/reactivity';
 import apiclient from 'src/k8sclient';
-import { com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_DeviceToken as DeviceToken } from 'src/gen';
+import {
+  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_DeviceToken as DeviceToken,
+  io_k8s_api_core_v1_Secret as Secret,
+} from 'src/gen';
 import { useQuasar } from 'quasar';
+
+const kc = new apiclient.KubeConfig();
+const secretsClient = kc.newClient<Secret>('/api/v1', 'secrets');
 
 export default defineComponent({
   components: { LoginDialog },
@@ -96,7 +102,20 @@ export default defineComponent({
             const t = await client.get(thisDevice.metadata.name);
             if (t.status?.joinToken) {
               joinToken.value = encodeURIComponent(t.status.joinToken);
-              showSyncDialog.value = true;
+              try {
+                const agentName = (route.params as any).agent;
+                await secretsClient.delete(
+                  `${agentName}.node-password.k3s`,
+                  'kube-system'
+                );
+              } catch (e) {
+                console.log(
+                  'DEBUG: could not delete pairing secret for agent on the server: ',
+                  e
+                );
+              } finally {
+                showSyncDialog.value = true;
+              }
             }
           }
         } catch (e: any) {

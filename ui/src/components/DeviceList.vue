@@ -21,17 +21,7 @@
           }}</q-item-label>
         </q-item-section>
       </q-item>
-      <q-item clickable v-ripple @click="showDeviceAddressDialog = true">
-        <q-item-section avatar>
-          <div class="column items-center" style="width: 3em">
-            <q-icon name="add" color="primary" size="2em" />
-          </div>
-        </q-item-section>
-        <q-item-section>Specify device URL</q-item-section>
-      </q-item>
     </q-list>
-
-    <device-address-dialog v-model="showDeviceAddressDialog" />
   </div>
 </template>
 
@@ -39,7 +29,6 @@
 import { defineComponent, ref } from 'vue';
 import { useDeviceDiscoveryStore } from 'src/stores/resources';
 import { storeToRefs } from 'pinia';
-import DeviceAddressDialog from 'src/components/DeviceAddressDialog.vue';
 import { com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_DeviceDiscovery as DeviceDiscovery } from 'src/gen';
 
 function deviceLinkTo(d: DeviceDiscovery) {
@@ -54,7 +43,6 @@ function deviceLinkHref(d: DeviceDiscovery) {
 
 export default defineComponent({
   name: 'DeviceDiscoveryList',
-  components: { DeviceAddressDialog },
   setup() {
     const store = useDeviceDiscoveryStore();
     store.sync();
