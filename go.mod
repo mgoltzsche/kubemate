@@ -16,6 +16,7 @@ go 1.20
 
 require (
 	github.com/deepmap/oapi-codegen v1.12.3
+	github.com/docker/docker v23.0.3+incompatible
 	github.com/fluxcd/kustomize-controller/api v1.0.0-rc.3
 	github.com/go-logr/logr v1.2.4
 	github.com/go-openapi/jsonreference v0.20.1
@@ -24,6 +25,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/mdns v1.0.5
 	github.com/k3s-io/k3s v1.27.2-0.20230427203611-bc5b42c27908
+	github.com/kubernetes-sigs/cri-tools v0.0.0-00010101000000-000000000000
 	github.com/labstack/echo/v4 v4.9.1
 	github.com/ory/fosite v0.44.0
 	github.com/pkg/errors v0.9.1
@@ -43,6 +45,7 @@ require (
 	k8s.io/apiserver v0.27.2
 	k8s.io/client-go v11.0.1-0.20190409021438-1a26190bd76a+incompatible
 	k8s.io/kube-openapi v0.0.0-20230501164219-8b0f38b5fd1f
+	k8s.io/kubectl v0.27.2
 	sigs.k8s.io/controller-runtime v0.15.0
 	sigs.k8s.io/yaml v1.3.0
 )
@@ -92,11 +95,14 @@ require (
 	github.com/cloudnativelabs/kube-router/v2 v2.0.0-00010101000000-000000000000 // indirect
 	github.com/container-storage-interface/spec v1.7.0 // indirect
 	github.com/containerd/cgroups v1.1.0 // indirect
+	github.com/containerd/cgroups/v3 v3.0.1 // indirect
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/containerd/containerd v1.6.10 // indirect
 	github.com/containerd/continuity v0.3.0 // indirect
 	github.com/containerd/fifo v1.1.0 // indirect
 	github.com/containerd/fuse-overlayfs-snapshotter v1.0.5 // indirect
+	github.com/containerd/go-cni v1.1.9 // indirect
+	github.com/containerd/go-runc v1.0.0 // indirect
 	github.com/containerd/stargz-snapshotter v0.14.3 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.14.3 // indirect
 	github.com/containerd/ttrpc v1.2.2 // indirect
@@ -117,7 +123,6 @@ require (
 	github.com/dgraph-io/ristretto v0.0.3 // indirect
 	github.com/docker/cli v23.0.3+incompatible // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
-	github.com/docker/docker v23.0.3+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.7.0 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
@@ -181,6 +186,7 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/intel/goresctrl v0.3.0 // indirect
 	github.com/jonboulle/clockwork v0.3.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/josharian/native v0.0.0-20200817173448-b6b71def0850 // indirect
@@ -190,7 +196,6 @@ require (
 	github.com/karrick/godirwalk v1.17.0 // indirect
 	github.com/klauspost/compress v1.16.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.1.0 // indirect
-	github.com/kubernetes-sigs/cri-tools v0.0.0-00010101000000-000000000000 // indirect
 	github.com/labstack/gommon v0.4.0 // indirect
 	github.com/lib/pq v1.10.2 // indirect
 	github.com/libopenstorage/openstorage v1.0.0 // indirect
@@ -219,6 +224,7 @@ require (
 	github.com/moby/sys/mountinfo v0.6.2 // indirect
 	github.com/moby/sys/sequential v0.5.0 // indirect
 	github.com/moby/sys/signal v0.7.0 // indirect
+	github.com/moby/sys/symlink v0.2.0 // indirect
 	github.com/moby/term v0.0.0-20221205130635-1aeaba878587 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
@@ -351,7 +357,6 @@ require (
 	k8s.io/kube-controller-manager v0.0.0 // indirect
 	k8s.io/kube-proxy v0.0.0 // indirect
 	k8s.io/kube-scheduler v0.0.0 // indirect
-	k8s.io/kubectl v0.25.0 // indirect
 	k8s.io/kubelet v0.0.0 // indirect
 	k8s.io/kubernetes v1.27.1 // indirect
 	k8s.io/legacy-cloud-providers v0.0.0 // indirect

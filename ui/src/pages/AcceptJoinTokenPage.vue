@@ -69,12 +69,13 @@ export default defineComponent({
         // TODO: avoid having to login again to the agent device - make local storage work within the iframe.
         const d = devices.resources.find((r) => r.status.current);
         if (!d || !d.metadata.name || !route.params.token) return;
+        const tokenName = d.spec.joinTokenName || '';
         try {
-          await client.delete(route.params.server as string);
+          await client.delete(tokenName);
         } catch (e) {}
         const t: DeviceToken = {
           metadata: {
-            name: route.params.server as string,
+            name: tokenName,
           },
           data: {
             token: decodeURIComponent(route.params.token as string),

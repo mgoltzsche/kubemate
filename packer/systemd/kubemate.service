@@ -9,7 +9,8 @@ Requires=docker.socket
 Type=exec
 ExecStartPre=/bin/mkdir -p /var/log/pods /var/lib/kubelet /var/lib/cni /var/lib/kubemate
 ExecStartPre=-/bin/docker rm -f kubemate
-ExecStart=/bin/sh -ac 'set -eu; \
+ExecStartPre=mkdir -m 700 /tmp/kubemate
+ExecStart=/bin/sh -aeuc ' \
 		VERSION="`cat /etc/kubemate/version`"; \
 		exec /bin/docker run --name kubemate --rm --network host --pid host --privileged \
 		--tmpfs /run \
@@ -26,9 +27,11 @@ ExecStart=/bin/sh -ac 'set -eu; \
 		--mount type=bind,src=/var/lib/kubemate,dst=/var/lib/kubemate,bind-propagation=rshared \
 		--mount type=bind,src=/var/lib/cni,dst=/var/lib/cni \
 		-v /etc/kubemate:/output \
+		-e KUBEMATE_SHUTDOWN_FILE=/host/tmp/kubemate/shutdown \
 		"mgoltzsche/kubemate:$VERSION" \
 		connect --docker --https-port=443 --http-port=80 --write-host-resolvconf'
 ExecReload=/bin/kill -s HUP $MAINPID
+ExecStopPost=/bin/sh -c '[ ! -f /tmp/kubemate/shutdown ] || systemctl halt'
 #TimeoutSec=0
 RestartSec=2
 Restart=always

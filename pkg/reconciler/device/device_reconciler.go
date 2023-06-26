@@ -13,6 +13,7 @@ import (
 	"time"
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1"
+	"github.com/mgoltzsche/kubemate/pkg/clientconf"
 	"github.com/mgoltzsche/kubemate/pkg/controller"
 	"github.com/mgoltzsche/kubemate/pkg/discovery"
 	"github.com/mgoltzsche/kubemate/pkg/ingress"
@@ -24,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -45,12 +47,14 @@ type DeviceReconciler struct {
 	NetworkInterfaces storage.Interface
 	DeviceDiscovery   *discovery.DeviceDiscovery
 	IngressController *ingress.IngressController
+	Shutdown          func() error
 	Logger            *logrus.Entry
 	client.Client
-	scheme      *runtime.Scheme
-	k3s         *runner.Runner
-	controllers *controller.ControllerManager
-	dnsServer   *deviceDnsServerReconciler
+	scheme         *runtime.Scheme
+	k3s            *runner.Runner
+	controllers    *controller.ControllerManager
+	nodeController *controller.ControllerManager
+	dnsServer      *deviceDnsServerReconciler
 }
 
 func (r *DeviceReconciler) AddToScheme(s *runtime.Scheme) error {
@@ -61,13 +65,26 @@ func (r *DeviceReconciler) AddToScheme(s *runtime.Scheme) error {
 	return nil
 }
 
+func (r *DeviceReconciler) nodeClientConfig() (*rest.Config, error) {
+	return clientconf.New(r.DataDir, deviceapi.DeviceModeAgent)
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *DeviceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	nodeReconciler := &NodeReconciler{
+		DeviceName:  r.DeviceName,
+		DeviceStore: r.Devices,
+		K3sDir:      r.DataDir,
+		Shutdown:    r.Shutdown,
+	}
 	dnsDir := filepath.Join(r.DataDir, "dns")
 	r.dnsServer = newDeviceDnsServerReconciler(dnsDir, r.DeviceName, r.Devices, r.NetworkInterfaces, r.Logger)
 	// TODO: use mgr.GetLogger() logr.Logger that controller-runtime is providing to the Reconcile method as well
 	r.controllers = controller.NewControllerManager(ctrl.GetConfig, logrus.WithField("comp", "controller-manager"))
 	r.controllers.RegisterReconciler(&app.AppReconciler{})
+	r.controllers.RegisterReconciler(nodeReconciler)
+	r.nodeController = controller.NewControllerManager(r.nodeClientConfig, logrus.WithField("comp", "node-controller-manager"))
+	r.nodeController.RegisterReconciler(nodeReconciler)
 	r.k3s = runner.New(r.Logger.WithField("proc", "k3s"))
 	r.k3s.TerminationSignal = syscall.SIGQUIT
 	r.k3s.Reporter = func(cmd runner.Command) {
@@ -150,26 +167,21 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		case deviceapi.DeviceModeServer:
 			args = buildK3sServerArgs(&d, nodeIP, r.DataDir, r.Docker, r.KubeletArgs, r.DeviceTokens)
 		case deviceapi.DeviceModeAgent:
-			if d.Spec.Server == "" {
+			if d.Spec.ServerAddress == "" {
 				return fmt.Errorf("no server specified to join")
 			}
-			if d.Spec.Server == d.Name {
+			if d.Spec.ServerAddress == d.Status.Address {
 				return fmt.Errorf("cannot join itself")
 			}
-			var server deviceapi.DeviceDiscovery
-			err := r.DeviceDiscovery.Store().Get(d.Spec.Server, &server)
-			if err != nil {
-				return fmt.Errorf("join cluster: %w", err)
+			if d.Spec.JoinTokenName == "" {
+				return fmt.Errorf("cannot join server since no join token name specified")
 			}
-			if server.Spec.Mode != deviceapi.DeviceModeServer {
-				return fmt.Errorf("cannot join device %q since it doesn't run in %s mode but in mode %q", d.Spec.Server, deviceapi.DeviceModeServer, d.Spec.Mode)
-			}
-			joinAddr, err := joinAddress(&server)
+			joinAddr, err := joinAddress(&d)
 			if err != nil {
 				return fmt.Errorf("join cluster: %w", err)
 			}
 			// TODO: provide token as env var
-			args = buildK3sAgentArgs(&server, joinAddr, nodeIP, r.DataDir, r.Docker, r.KubeletArgs, r.DeviceTokens)
+			args = buildK3sAgentArgs(joinAddr, d.Spec.JoinTokenName, nodeIP, r.DataDir, r.Docker, r.KubeletArgs, r.DeviceTokens)
 		}
 		return nil
 	}
@@ -199,7 +211,6 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	}
 	if d.Generation == d.Status.Generation {
 		// TODO: advertize only when status changed
-		// TODO: update discovery resource
 		err = r.DeviceDiscovery.Advertise(&deviceapi.DeviceDiscovery{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: d.Name,
@@ -207,7 +218,7 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 			Spec: deviceapi.DeviceDiscoverySpec{
 				Address: d.Status.Address,
 				Mode:    d.Spec.Mode,
-				Server:  d.Spec.Server,
+				Server:  d.Spec.ServerAddress,
 				Current: true,
 			},
 		}, nodeIP)
@@ -229,11 +240,17 @@ func (r *DeviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 			}
 		}
 		if d.Spec.Mode == deviceapi.DeviceModeServer && d.Status.State != deviceapi.DeviceStateTerminating {
+			r.nodeController.Stop()
 			r.controllers.Start()
 			r.IngressController.Start()
 		} else {
 			r.controllers.Stop()
 			r.IngressController.Stop()
+			if d.Status.State == deviceapi.DeviceStateTerminating {
+				r.nodeController.Stop()
+			} else {
+				r.nodeController.Start()
+			}
 		}
 	}
 	logger.V(1).Info("device reconciliation complete")
@@ -292,16 +309,12 @@ func requeue(err error) (r ctrl.Result, e error) {
 	return r, err
 }
 
-func joinAddress(d *deviceapi.DeviceDiscovery) (string, error) {
-	a := ""
-	if d.Spec.Mode == deviceapi.DeviceModeServer {
-		u, err := url.Parse(d.Spec.Address)
-		if err != nil {
-			return "", fmt.Errorf("status.address %q of device %q is not a valid address", d.Spec.Address, d.Name)
-		}
-		a = fmt.Sprintf("https://%s:6443", u.Hostname())
+func joinAddress(d *deviceapi.Device) (string, error) {
+	u, err := url.Parse(d.Spec.ServerAddress)
+	if err != nil {
+		return "", fmt.Errorf("invalid server address %q specified: %w", d.Spec.ServerAddress, err)
 	}
-	return a, nil
+	return fmt.Sprintf("https://%s:6443", u.Hostname()), nil
 }
 
 func buildK3sServerArgs(d *deviceapi.Device, nodeIP net.IP, dataDir string, docker bool, kubeletArgs []string, clusterTokens storage.Interface) []string {
@@ -330,16 +343,16 @@ func buildK3sServerArgs(d *deviceapi.Device, nodeIP net.IP, dataDir string, dock
 	return args
 }
 
-func buildK3sAgentArgs(server *deviceapi.DeviceDiscovery, joinAddress string, nodeIP net.IP, dataDir string, docker bool, kubeletArgs []string, clusterTokens storage.Interface) []string {
+func buildK3sAgentArgs(joinAddress, tokenName string, nodeIP net.IP, dataDir string, docker bool, kubeletArgs []string, clusterTokens storage.Interface) []string {
 	args := []string{
 		"agent",
 		fmt.Sprintf("--node-external-ip=%s", nodeIP.String()),
 		fmt.Sprintf("--data-dir=%s", dataDir),
 	}
 	token := &deviceapi.DeviceToken{}
-	err := clusterTokens.Get(server.Name, token)
+	err := clusterTokens.Get(tokenName, token)
 	if err != nil {
-		logrus.Error(fmt.Errorf("join server %s: %w", server.Name, err))
+		logrus.Error(fmt.Errorf("join server %s: %w", joinAddress, err))
 		return nil
 	}
 	args = append(args,

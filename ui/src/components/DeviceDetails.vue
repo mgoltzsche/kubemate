@@ -1,5 +1,5 @@
 <template>
-  <div v-if="!device && synchronizing">Loading...</div>
+  <div v-if="!device && synchronizing"><q-skeleton type="rect" /></div>
   <div v-if="!device && !synchronizing">Device not found</div>
   <div v-if="device">
     <q-card flat class="my-card">
@@ -32,7 +32,7 @@
         <div>
           <div class="q-gutter-sm">
             <q-radio
-              v-model="device.spec.mode"
+              v-model="deviceSpec.mode"
               :val="mode.value"
               :label="mode.label"
               v-for="mode in availableDeviceModes"
@@ -40,38 +40,24 @@
             />
           </div>
           <q-tab-panels
-            v-model="device.spec.mode"
+            v-model="deviceSpec.mode"
             animated
             class="shadow-2 rounded-borders"
           >
             <q-tab-panel name="server">
-              The device should act as a server.
+              The device should control a cluster.
             </q-tab-panel>
             <q-tab-panel name="agent">
-              <div>The device should join a server:</div>
+              <div>The device should join a cluster:</div>
               <q-card-section>
-                <q-select
-                  filled
-                  clearable
-                  bottom-slots
-                  v-model="selectedServer"
-                  :options="availableServers"
-                  :label="
-                    availableServers.length == 0 ? 'No server found' : 'server'
-                  "
-                  :color="availableServers.length == 0 ? 'negative' : 'gray'"
-                >
-                  <template v-slot:hint
-                    >The selected server manages all data and controls this
-                    device.</template
-                  >
-                </q-select>
+                <device-select v-model="deviceSpec.serverAddress" />
               </q-card-section>
               <q-card-actions>
                 <q-btn
                   clickable
-                  :disable="!selectedServer"
-                  label="Delete join token"
+                  :disable="!deviceSpec.serverAddress"
+                  label="Unpair device"
+                  title="Delete the cluster join token"
                   color="secondary"
                   @click="deleteJoinToken"
                 />
@@ -79,29 +65,73 @@
             </q-tab-panel>
           </q-tab-panels>
         </div>
-        <q-btn color="primary" label="Apply" @click="apply" />
       </q-card-section>
+      <q-card-actions>
+        <q-btn color="primary" label="Apply" @click="apply" />
+        <q-btn
+          color="negative"
+          label="Shutdown"
+          icon="power_settings_new"
+          @click="requestShutdown"
+        />
+      </q-card-actions>
     </q-card>
+
+    <q-dialog v-model="confirmShutdown" persistent>
+      <q-card>
+        <q-card-section class="row items-center">
+          <q-avatar
+            icon="power_settings_new"
+            color="primary"
+            text-color="white"
+          />
+          <span class="q-ml-sm"
+            >Do you really want to shutdown the device
+            {{ device.metadata.name }}?</span
+          >
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" color="primary" v-close-popup />
+          <q-btn
+            flat
+            label="Shutdown"
+            color="primary"
+            v-close-popup
+            @click="shutdown"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, reactive, Ref, toRefs, ref } from 'vue';
-import { useDeviceStore, useDeviceDiscoveryStore } from 'src/stores/resources';
+import { computed, defineComponent, reactive, toRefs, ref } from 'vue';
+import { useDeviceStore } from 'src/stores/resources';
 import apiclient from 'src/k8sclient';
 import {
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_Device as Device,
-  com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_DeviceDiscovery as DeviceDiscovery,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_DeviceSpec as DeviceSpec,
   com_github_mgoltzsche_kubemate_pkg_apis_devices_v1alpha1_DeviceToken as DeviceToken,
 } from 'src/gen';
+import DeviceSelect from 'src/components/DeviceSelect.vue';
 import { useQuasar } from 'quasar';
+import { catchError, info } from 'src/notify';
 
-function serverJoinTokenRequestURL(server: DeviceDiscovery) {
+function serverJoinTokenRequestURL(serverAddress: string) {
   const addrRegex = new RegExp('https://([^/]+)');
   const m = window.location.href.match(addrRegex);
   const addr = m ? m[1] : '';
-  return `${server.spec.address}/#/setup/request-join-token/${addr}`;
+  return `${serverAddress}/#/setup/request-join-token/${addr}`;
+}
+
+function joinTokenNameForServer(serverAddress: string): string {
+  return `srv-${serverAddress
+    .toLowerCase()
+    .replace(/^https?:\/\/([a-z0-9\._-]+)/, '$1')}`
+    .replace(/[^a-z0-9]+/, '-')
+    .replace(/[^a-z0-9]$/, '');
 }
 
 const kc = new apiclient.KubeConfig();
@@ -112,6 +142,7 @@ const client = kc.newClient<DeviceToken>(
 
 export default defineComponent({
   name: 'DeviceDetails',
+  components: { DeviceSelect },
   props: {
     deviceName: {
       type: String,
@@ -120,50 +151,39 @@ export default defineComponent({
   },
   setup(props) {
     const deviceStore = useDeviceStore();
-    const discoveryStore = useDeviceDiscoveryStore();
-    const selectedServer = ref(null as unknown) as Ref<{
-      value: DeviceDiscovery;
-      label: string;
-    }>;
+    const deviceSpec = ref<DeviceSpec>({
+      mode: DeviceSpec.mode.SERVER,
+    });
+    const confirmShutdown = ref(false);
     deviceStore.sync(() => {
       const d = deviceStore.resources.find(
         (d) => d.metadata.name == props.deviceName
       );
       if (d) {
-        discoveryStore.sync(() => {
-          const s = discoveryStore.resources.find(
-            (s) => s.metadata.name == d?.spec.server
-          );
-          if (s)
-            selectedServer.value = {
-              value: s,
-              label: s.metadata.name || '<unknown>',
-            };
-        });
+        deviceSpec.value = d.spec;
       }
     });
     const quasar = useQuasar();
 
     async function joinServer(d: Device) {
-      if (selectedServer.value == null) return;
-      const serverName = selectedServer.value.value.metadata.name;
-      if (!serverName) return;
-      d.spec.mode = DeviceSpec.mode.AGENT;
-      d.spec.server = serverName;
+      const serverAddress = d.spec.serverAddress;
+      if (!serverAddress) return;
+      const joinTokenName = joinTokenNameForServer(serverAddress);
+      d.spec.joinTokenName = joinTokenName;
       console.log(
-        `switching device ${d.metadata.name} to ${d.spec.mode} mode, joining ${serverName}`
+        `switching device ${d.metadata.name} to ${d.spec.mode} mode, joining ${serverAddress}`
       );
       try {
         await deviceStore.client.update(d);
         try {
-          await client.get(serverName);
+          await client.get(joinTokenName);
           console.log(
-            `join token for server device ${serverName} already exists on agent device ${props.deviceName}`
+            `join token for server ${serverAddress} already exists on agent device ${props.deviceName}`
           );
         } catch (e) {
-          const url = serverJoinTokenRequestURL(selectedServer.value.value);
+          const url = serverJoinTokenRequestURL(serverAddress);
           console.log(
-            `join token for server ${serverName} does not exist - redirecting user to retrieve token to ${url}`
+            `join token for server ${serverAddress} does not exist - redirecting user to token retrieval flow at ${url}`
           );
           window.location.href = url;
         }
@@ -179,7 +199,6 @@ export default defineComponent({
 
     async function hostServer(d: Device) {
       d.spec.mode = DeviceSpec.mode.SERVER;
-      d.spec.server = undefined;
       console.log(`switching device ${d.metadata.name} to ${d.spec.mode} mode`);
       try {
         await deviceStore.client.update(d);
@@ -194,7 +213,6 @@ export default defineComponent({
     }
 
     const state = reactive({
-      selectedServer: selectedServer,
       synchronizing: deviceStore.synchronizing,
       currentDeviceName: computed(
         () =>
@@ -204,37 +222,24 @@ export default defineComponent({
       device: computed(() =>
         deviceStore.resources.find((d) => d.metadata.name == props.deviceName)
       ),
-      availableServers: computed(() =>
-        discoveryStore.resources
-          .filter(
-            (d) =>
-              d.metadata.name != props.deviceName &&
-              d.spec.mode == DeviceSpec.mode.SERVER &&
-              d.spec.address
-          )
-          .map((d) => ({ label: d.metadata.name, value: d }))
-      ),
       availableDeviceModes: [
         { label: 'Server', value: DeviceSpec.mode.SERVER },
         { label: 'Agent', value: DeviceSpec.mode.AGENT },
       ],
-      deleteJoinToken: async () => {
-        if (selectedServer.value && selectedServer.value.value.metadata.name) {
-          try {
-            await client.delete(selectedServer.value.value.metadata.name);
-            console.log('deleted join token');
-          } catch (e: any) {
-            quasar.notify({
-              type: 'negative',
-              message: e.body?.message
-                ? `${e.message}: ${e.body?.message}`
-                : e.message,
-            });
-          }
-        }
+      deleteJoinToken: () => {
+        const serverAddress = deviceSpec.value.serverAddress;
+        if (!serverAddress) return;
+        const joinTokenName = joinTokenNameForServer(serverAddress);
+        catchError(
+          client.delete(joinTokenName).then(() => {
+            const msg = `Deleted cluster join token for server ${serverAddress}.`;
+            console.log(msg);
+            info(msg);
+          })
+        );
       },
       apply: async () => {
-        const d = deviceStore.resources.find(
+        var d = deviceStore.resources.find(
           (d) => d.metadata.name == props.deviceName
         );
         if (!d) {
@@ -244,6 +249,11 @@ export default defineComponent({
           });
           return;
         }
+        d = {
+          metadata: d.metadata,
+          spec: deviceSpec.value,
+          status: d.status,
+        };
         switch (d.spec.mode) {
           case DeviceSpec.mode.AGENT:
             await joinServer(d);
@@ -261,8 +271,26 @@ export default defineComponent({
         )?.status.address;
         if (a) window.location.href = `${a}/#/devices/${props.deviceName}`;
       },
+      requestShutdown: () => {
+        confirmShutdown.value = true;
+      },
+      shutdown: () => {
+        const d = deviceStore.resources.find(
+          (d) => d.metadata.name == props.deviceName
+        );
+        if (!d) return;
+        catchError(
+          deviceStore.client.createSubresource(d, 'shutdown', {}).then(() => {
+            info(`Terminating device ${d.metadata.name} ...`);
+          })
+        );
+      },
     });
-    return { ...toRefs(state) };
+    return {
+      deviceSpec,
+      confirmShutdown,
+      ...toRefs(state),
+    };
   },
 });
 </script>

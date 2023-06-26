@@ -65,7 +65,6 @@
 <script lang="ts">
 import { computed, defineComponent, reactive, toRefs } from 'vue';
 import { useAppStore } from 'src/stores/resources';
-import { useQuasar } from 'quasar';
 import AppLauncher from 'components/AppLauncher.vue';
 import { catchError } from 'src/notify';
 
@@ -83,7 +82,6 @@ export default defineComponent({
   setup(props) {
     const store = useAppStore();
     store.sync();
-    const quasar = useQuasar();
 
     const state = reactive({
       synchronizing: store.synchronizing,
