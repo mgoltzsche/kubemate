@@ -18,7 +18,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/mgoltzsche/kubemate/pkg/auth/resourceserver"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/oauth2/clientcredentials"
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 )
 
-func NewIngressController(ingressClass string, auth clientcredentials.Config, logger *logrus.Entry) *IngressController {
+func NewIngressController(ingressClass string, auth resourceserver.Config, logger *logrus.Entry) *IngressController {
 	return &IngressController{
 		ingressClass: ingressClass,
 		router:       newEmptyRouter(auth),
@@ -42,7 +41,7 @@ func NewIngressController(ingressClass string, auth clientcredentials.Config, lo
 type IngressController struct {
 	ingressClass string
 	router       *router
-	auth         clientcredentials.Config
+	auth         resourceserver.Config
 	logger       *logrus.Entry
 	mutex        sync.Mutex
 	started      bool
@@ -150,14 +149,14 @@ func (s *IngressController) ServeHTTP(w http.ResponseWriter, req *http.Request) 
 type router struct {
 	http.Handler
 	ingressClass string
-	auth         clientcredentials.Config
+	auth         resourceserver.Config
 	ctx          context.Context
 	client       client.Client
 	logger       *logrus.Entry
 	Cancel       context.CancelFunc
 }
 
-func newEmptyRouter(auth clientcredentials.Config) *router {
+func newEmptyRouter(auth resourceserver.Config) *router {
 	return &router{
 		Handler: mux.NewRouter(),
 		auth:    auth,
@@ -175,7 +174,7 @@ func (r *router) Update() {
 	r.Handler = h
 }
 
-func newRouter(ctx context.Context, c client.Client, ingressClass string, auth clientcredentials.Config, logger *logrus.Entry) (http.Handler, error) {
+func newRouter(ctx context.Context, c client.Client, ingressClass string, auth resourceserver.Config, logger *logrus.Entry) (http.Handler, error) {
 	ingresses := netv1.IngressList{}
 	err := c.List(ctx, &ingresses)
 	if err != nil {
@@ -205,6 +204,11 @@ func newRouter(ctx context.Context, c client.Client, ingressClass string, auth c
 					rootMux.Host(r.Host).Handler(m)
 					hosts[r.Host] = m
 				}
+			}
+			contextPaths := make([]string, len(r.HTTP.Paths))
+			for i, p := range r.HTTP.Paths {
+				// TODO: handle regex paths
+				contextPaths[i] = p.Path
 			}
 			for _, p := range r.HTTP.Paths {
 				if err := validateIngressBackend(&p.Backend); err != nil {
@@ -258,7 +262,10 @@ func newRouter(ctx context.Context, c client.Client, ingressClass string, auth c
 					serviceName:       p.Backend.Service.Name,
 					logger:            logger,
 				}
-				h = resourceserver.ProtectedEndpoint(h, auth)
+				h, err = resourceserver.ProtectedEndpoint(h, auth)
+				if err != nil {
+					return nil, err
+				}
 				pattern := p.Path
 				if p.PathType == nil || *p.PathType == netv1.PathTypePrefix || *p.PathType == netv1.PathTypeImplementationSpecific {
 					pattern = fmt.Sprintf("%s**", p.Path)

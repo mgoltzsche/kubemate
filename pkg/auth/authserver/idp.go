@@ -1,6 +1,7 @@
 package authserver
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"net/http"
@@ -9,7 +10,9 @@ import (
 	"github.com/ory/fosite"
 	"github.com/ory/fosite/compose"
 	"github.com/ory/fosite/handler/openid"
-	"github.com/ory/fosite/storage"
+
+	//"github.com/ory/fosite/storage"
+	"github.com/mgoltzsche/kubemate/pkg/auth/storage"
 	"github.com/ory/fosite/token/jwt"
 	"github.com/sirupsen/logrus"
 )
@@ -37,7 +40,7 @@ type identityProvider struct {
 	oauth2 fosite.OAuth2Provider
 }
 
-func NewIdentityProvider() *identityProvider {
+func NewIdentityProvider(issuer string) *identityProvider {
 	var privateKey = GenerateKey()
 	var secret = GenerateSecret()
 
@@ -48,8 +51,20 @@ func NewIdentityProvider() *identityProvider {
 		// authorization codes. It must be exactly 32 bytes long.
 		GlobalSecret: secret,
 		// ...
+		IDTokenIssuer:   issuer,
+		IDTokenLifespan: time.Minute * 30,
 	}
-	var store = storage.NewExampleStore() // TODO: implement persistent store
+	// TODO: implement persistent store with registered client redirect_urls
+	var store = storage.NewStore()
+	store.SetClient(context.TODO(), &fosite.DefaultClient{
+		ID:             "my-client",
+		Secret:         []byte(`$2a$10$IxMdI6d.LIRZPpSfEwNoeu4rY3FhDREsxFJXikcgdRRAStxUlsuEO`),            // = "foobar"
+		RotatedSecrets: [][]byte{[]byte(`$2y$10$X51gLxUQJ.hGw1epgHTE5u0bt64xM0COU7K9iAp.OFg8p2pUd.1zC `)}, // = "foobaz",
+		RedirectURIs:   []string{"https://max-machine:443/oauth2/callback"},
+		ResponseTypes:  []string{"id_token", "code", "token", "id_token token", "code id_token", "code token", "code id_token token"},
+		GrantTypes:     []string{"implicit", "refresh_token", "authorization_code", "password", "client_credentials"},
+		Scopes:         []string{"fosite", "openid", "photos", "offline"},
+	})
 	var oauth2 = compose.ComposeAllEnabled(config, store, privateKey)
 	return &identityProvider{
 		oauth2: oauth2,

@@ -11,6 +11,7 @@ import (
 
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1"
 	"github.com/mgoltzsche/kubemate/pkg/auth/authserver"
+	"github.com/mgoltzsche/kubemate/pkg/auth/resourceserver"
 	"github.com/mgoltzsche/kubemate/pkg/controller"
 	"github.com/mgoltzsche/kubemate/pkg/discovery"
 	generatedopenapi "github.com/mgoltzsche/kubemate/pkg/generated/openapi"
@@ -24,7 +25,7 @@ import (
 	"github.com/mgoltzsche/kubemate/pkg/tokengen"
 	"github.com/mgoltzsche/kubemate/pkg/wifi"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/oauth2/clientcredentials"
+	"golang.org/x/oauth2"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -265,19 +266,34 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	}
 	var handler http.Handler = idp*/
 
-	router := http.NewServeMux()
-	idp := authserver.NewIdentityProvider()
-	idp.RegisterHTTPRoutes(router, logger)
-
-	// The same thing (valid oauth2 client) but for using the client credentials grant
-	var appClientConf = clientcredentials.Config{
-		ClientID:     "my-client",
-		ClientSecret: "foobar",
-		Scopes:       []string{"fosite"},
-		TokenURL:     fmt.Sprintf("%s/oauth2/token", oidcIssuer),
+	httpsClient, err := resourceserver.HTTPClient(filepath.Join(o.DataDir, "certificates", "apiserver.crt"))
+	if err != nil {
+		return nil, fmt.Errorf("load oauth2 http client: %w", err)
 	}
 
-	ingressRouter := ingress.NewIngressController("kubemate", appClientConf, logrus.WithField("comp", "ingress-controller"))
+	callbackPath := "/oauth2/callback"
+	var oauth2ClientConf = resourceserver.Config{
+		Config: oauth2.Config{
+			ClientID:     "my-client",
+			ClientSecret: "foobar",
+			Scopes:       []string{"fosite"},
+			RedirectURL:  fmt.Sprintf("%s%s", oidcIssuer, callbackPath),
+			Endpoint: oauth2.Endpoint{
+				AuthURL:  fmt.Sprintf("%s/oauth2/auth", oidcIssuer),
+				TokenURL: fmt.Sprintf("%s/oauth2/token", oidcIssuer),
+			},
+		},
+		IDPURL:       oidcIssuer,
+		CallbackPath: callbackPath,
+		Client:       httpsClient,
+	}
+
+	router := http.NewServeMux()
+	idp := authserver.NewIdentityProvider(oidcIssuer)
+	idp.RegisterHTTPRoutes(router, logger)
+	router.Handle(callbackPath, http.HandlerFunc(resourceserver.CallbackHandler(oauth2ClientConf)))
+
+	ingressRouter := ingress.NewIngressController("kubemate", oauth2ClientConf, logrus.WithField("comp", "ingress-controller"))
 	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known", "/version"}
 	handler := genericServer.Handler.FullHandlerChain
 	handler = apiProxy.APIGroupListCompletionFilter(handler)
@@ -285,7 +301,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	handler = middleware.ForceHTTPS(handler)
 	// TODO: don't redirect ingress hosts
 	handler = middleware.ForceHTTPSHost(externalAddr, handler)
-	handler = middleware.WithAccessLog(handler, logger)
+	//handler = middleware.WithAccessLog(handler, logger)
 	router.Handle("/", handler)
 	genericServer.Handler.FullHandlerChain = router
 	apiGroup := &genericapiserver.APIGroupInfo{

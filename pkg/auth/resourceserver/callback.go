@@ -1,6 +1,7 @@
-package oauth2client
+package resourceserver
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -10,11 +11,16 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func CallbackHandler(c oauth2.Config) func(rw http.ResponseWriter, req *http.Request) {
+func CallbackHandler(c Config) func(rw http.ResponseWriter, req *http.Request) {
 	return func(rw http.ResponseWriter, req *http.Request) {
+		if req.URL.Path != c.CallbackPath {
+			rw.WriteHeader(http.StatusNotFound)
+			_, _ = rw.Write([]byte("404 Not Found"))
+			return
+		}
 		codeVerifier := resetPKCE(rw)
 		if req.URL.Query().Get("error") != "" {
-			printCallbackHeader(rw)
+			printCallbackHeader(rw, http.StatusBadRequest)
 			rw.Write([]byte(fmt.Sprintf(`<h1>Error!</h1>
 			Error: %s<br>
 			Error Hint: %s<br>
@@ -27,9 +33,8 @@ func CallbackHandler(c oauth2.Config) func(rw http.ResponseWriter, req *http.Req
 			return
 		}
 
-		client := newBasicClient(c.ClientID, c.ClientSecret)
+		client := newOAuth2Client(c.Client, c.ClientID, c.ClientSecret)
 		if req.URL.Query().Get("revoke") != "" {
-			printCallbackHeader(rw)
 			revokeURL := strings.Replace(c.Endpoint.TokenURL, "token", "revoke", 1)
 			payload := url.Values{
 				"token_type_hint": {"refresh_token"},
@@ -37,10 +42,12 @@ func CallbackHandler(c oauth2.Config) func(rw http.ResponseWriter, req *http.Req
 			}
 			resp, body, err := client.Post(revokeURL, payload)
 			if err != nil {
+				printCallbackHeader(rw, http.StatusInternalServerError)
 				rw.Write([]byte(fmt.Sprintf(`<p>Could not revoke token %s</p>`, err)))
 				return
 			}
 
+			printCallbackHeader(rw, resp.StatusCode)
 			rw.Write([]byte(fmt.Sprintf(`<p>Received status code from the revoke endpoint:<br><code>%d</code></p>`, resp.StatusCode)))
 			if body != "" {
 				rw.Write([]byte(fmt.Sprintf(`<p>Got a response from the revoke endpoint:<br><code>%s</code></p>`, body)))
@@ -53,7 +60,6 @@ func CallbackHandler(c oauth2.Config) func(rw http.ResponseWriter, req *http.Req
 		}
 
 		if req.URL.Query().Get("refresh") != "" {
-			printCallbackHeader(rw)
 			payload := url.Values{
 				"grant_type":    {"refresh_token"},
 				"refresh_token": {req.URL.Query().Get("refresh")},
@@ -61,15 +67,17 @@ func CallbackHandler(c oauth2.Config) func(rw http.ResponseWriter, req *http.Req
 			}
 			_, body, err := client.Post(c.Endpoint.TokenURL, payload)
 			if err != nil {
+				printCallbackHeader(rw, http.StatusInternalServerError)
 				rw.Write([]byte(fmt.Sprintf(`<p>Could not refresh token %s</p>`, err)))
 				return
 			}
+			printCallbackHeader(rw, http.StatusOK)
 			rw.Write([]byte(fmt.Sprintf(`<p>Got a response from the refresh grant:<br><code>%s</code></p>`, body)))
 			return
 		}
 
 		if req.URL.Query().Get("code") == "" {
-			printCallbackHeader(rw)
+			printCallbackHeader(rw, http.StatusOK)
 			rw.Write([]byte(fmt.Sprintln(`<p>Could not find the authorize code. If you've used the implicit grant, check the
 			browser location bar for the
 			access token <small><a href="http://en.wikipedia.org/wiki/Fragment_identifier#Basics">(the server side does not have access to url fragments)</a></small>
@@ -84,9 +92,11 @@ func CallbackHandler(c oauth2.Config) func(rw http.ResponseWriter, req *http.Req
 			opts = append(opts, oauth2.SetAuthURLParam("code_verifier", codeVerifier))
 		}
 
-		token, err := c.Exchange(req.Context(), req.URL.Query().Get("code"), opts...)
+		ctx := req.Context()
+		ctx = context.WithValue(ctx, oauth2.HTTPClient, c.Client)
+		token, err := c.Exchange(ctx, req.URL.Query().Get("code"), opts...)
 		if err != nil {
-			printCallbackHeader(rw)
+			printCallbackHeader(rw, http.StatusInternalServerError)
 			rw.Write([]byte(fmt.Sprintf(`<p>Cannot exchange the authorize code for an access token: %s</p>`, err.Error())))
 			return
 		}
@@ -94,11 +104,24 @@ func CallbackHandler(c oauth2.Config) func(rw http.ResponseWriter, req *http.Req
 		http.SetCookie(rw, &http.Cookie{
 			Name:     "TOKEN",
 			Value:    token.AccessToken,
+			Path:     "/",
 			HttpOnly: true,
 			Expires:  time.Now().Add(20 * time.Minute),
 		})
 
-		printCallbackHeader(rw)
+		printCallbackHeader(rw, http.StatusOK)
+		/*redirectURI := req.URL.Query().Get("app_request_uri")
+		if redirectURI == "" {
+			printCallbackHeader(rw, http.StatusOK)
+		} else {
+			if redirectURI[0] != '/' {
+				printCallbackHeader(rw, http.StatusBadRequest)
+				rw.Write([]byte(`<p><i>app_redirect_uri</i> query parameter must start with a slash.</p>`))
+				return
+			}
+			rw.Header().Set("Location", redirectURI)
+			printCallbackHeader(rw, http.StatusTemporaryRedirect)
+		}*/
 		rw.Write([]byte(fmt.Sprintf(`<p>Cool! You are now a proud token owner.<br>
 		<ul>
 			<li>
@@ -124,7 +147,8 @@ func CallbackHandler(c oauth2.Config) func(rw http.ResponseWriter, req *http.Req
 	}
 }
 
-func printCallbackHeader(w http.ResponseWriter) {
-	w.Write([]byte(`<h1>OAuth2 Callback site</h1><a href="/">Go back</a>`))
+func printCallbackHeader(w http.ResponseWriter, status int) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	w.Write([]byte(`<h1>OAuth2 Callback site</h1><a href="/">Go back</a>`))
 }
