@@ -39,8 +39,11 @@
               <div class="q-pa-md">
                 <div class="q-gutter-md">
                   <div v-for="param in params" v-bind:key="param.name">
-                    <q-input
+                    <multi-line-input
+                      filled
+                      :autogrow="inputType(param.type) == 'textarea'"
                       v-model="secretData[param.name]"
+                      :default-value="defaultData[param.name] || ''"
                       :label="
                         (param.title || param.name) +
                         (defaultData[param.name] ? '' : '*')
@@ -52,25 +55,13 @@
                       "
                       :type="inputType(param.type)"
                       :rules="[
-                        (v) =>
+                        (v: unknown) =>
                           !!defaultData[param.name] ||
                           !!v ||
                           'Field is required',
                       ]"
-                      filled
                       v-if="param.type != 'boolean' && param.type != 'enum'"
                     >
-                      <template v-slot:append>
-                        <q-icon
-                          v-if="secretData[param.name]"
-                          name="close"
-                          @click="
-                            secretData[param.name] =
-                              defaultData[param.name] || ''
-                          "
-                          class="cursor-pointer"
-                        />
-                      </template>
                       <template v-slot:after v-if="param.description">
                         <q-btn
                           round
@@ -80,7 +71,7 @@
                           @click="showHelpDialog(param)"
                         />
                       </template>
-                    </q-input>
+                    </multi-line-input>
                     <q-toggle
                       v-model="boolData[param.name]"
                       :label="param.title || param.name"
@@ -144,6 +135,7 @@ import {
 import { useAppStore } from 'src/stores/resources';
 import { Notify } from 'quasar';
 import { com_github_mgoltzsche_kubemate_pkg_apis_apps_v1alpha1_AppConfigSchema as AppConfigSchema } from 'src/gen';
+import MultiLineInput from 'src/components/MultiLineInput.vue';
 
 const kc = new apiclient.KubeConfig();
 const secretsClient = kc.newClient<Secret>('/api/v1', 'secrets');
@@ -179,6 +171,7 @@ function inputType(
 
 export default defineComponent({
   name: 'AppSettings',
+  components: { MultiLineInput },
   props: {
     app: {
       type: String,
