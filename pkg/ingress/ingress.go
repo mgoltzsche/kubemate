@@ -195,6 +195,34 @@ func newRouter(ctx context.Context, c client.Client, ingressClass string, auth r
 	paths := make(map[string]string, len(ingressKeys))
 	for _, k := range ingressKeys {
 		ing := ingressMap[k]
+		headers := http.Header{}
+		rewriteTargetPath := ""
+		backendProtocol := "http"
+		if ing.Annotations != nil {
+			rewriteTargetPath = ing.Annotations["kubemate.mgoltzsche.github.com/rewrite-target"]
+			if rewriteTargetPath == "" {
+				rewriteTargetPath = ing.Annotations["nginx.ingress.kubernetes.io/rewrite-target"]
+			}
+			p := ing.Annotations["kubemate.mgoltzsche.github.com/backend-protocol"]
+			if p == "" {
+				p = ing.Annotations["nginx.ingress.kubernetes.io/backend-protocol"]
+			}
+			if p != "" {
+				backendProtocol = p
+			}
+			headersStr := ing.Annotations["kubemate.mgoltzsche.github.com/set-headers"]
+			if headersStr != "" {
+				values, err := url.ParseQuery(headersStr)
+				if err != nil {
+					// TODO: emit kubernetes event / set Ingress status
+					logger.WithField("resource", k).WithError(err).
+						Warn(fmt.Sprintf("invalid set-headers annotation value %q specified with ingress %s, expects URL query param syntax", headersStr, k))
+				}
+				headers = http.Header(values)
+			}
+		}
+		backendProtocol = strings.ToLower(backendProtocol)
+
 		for _, r := range ing.Spec.Rules {
 			m := rootMux
 			if r.Host != "" {
@@ -215,29 +243,13 @@ func newRouter(ctx context.Context, c client.Client, ingressClass string, auth r
 					logger.WithField("resource", k).Warn(err.Error())
 					continue
 				}
-				path := fmt.Sprintf("%s%s", r.Host, p.Path)
-				otherIngressKey, exists := paths[path]
+				hostPath := fmt.Sprintf("%s%s", r.Host, p.Path)
+				otherIngressKey, exists := paths[hostPath]
 				if exists {
 					// TODO: emit kubernetes event
-					return nil, fmt.Errorf("duplicate ingress endpoint %s, ingresses: %s and %s", path, k, otherIngressKey)
+					return nil, fmt.Errorf("duplicate ingress endpoint %s, ingresses: %s and %s", hostPath, k, otherIngressKey)
 				}
-				paths[path] = k
-				rewriteTargetPath := ""
-				backendProtocol := "http"
-				if ing.Annotations != nil {
-					rewriteTargetPath = ing.Annotations["kubemate.mgoltzsche.github.com/rewrite-target"]
-					if rewriteTargetPath == "" {
-						rewriteTargetPath = ing.Annotations["nginx.ingress.kubernetes.io/rewrite-target"]
-					}
-					p := ing.Annotations["kubemate.mgoltzsche.github.com/backend-protocol"]
-					if p == "" {
-						p = ing.Annotations["nginx.ingress.kubernetes.io/backend-protocol"]
-					}
-					if p != "" {
-						backendProtocol = p
-					}
-				}
-				backendProtocol = strings.ToLower(backendProtocol)
+				paths[hostPath] = k
 				backendURL, err := endpointURL(ctx, backendProtocol, p.Backend.Service, ing.Namespace, c)
 				if err != nil {
 					logger.WithField("resource", k).Warn(err.Error())
@@ -258,9 +270,10 @@ func newRouter(ctx context.Context, c client.Client, ingressClass string, auth r
 					proxy:             ph,
 					targetPath:        p.Path,
 					rewriteTargetPath: rewriteTargetPath,
+					headers:           headers,
 					ingressName:       k,
 					serviceName:       p.Backend.Service.Name,
-					logger:            logger,
+					logger:            logger.WithField("ingress", k),
 				}
 				h, err = resourceserver.ProtectedEndpoint(h, auth)
 				if err != nil {
@@ -350,6 +363,7 @@ type ingressBackendHandler struct {
 	proxy             *httputil.ReverseProxy
 	targetPath        string
 	rewriteTargetPath string
+	headers           http.Header
 	ingressName       string
 	serviceName       string
 	logger            *logrus.Entry
@@ -360,12 +374,17 @@ func (h *ingressBackendHandler) ServeHTTP(w http.ResponseWriter, req *http.Reque
 	if h.rewriteTargetPath != "" {
 		req.URL.Path = path.Clean(fmt.Sprintf("%s%s", h.rewriteTargetPath, req.URL.Path[len(h.targetPath):]))
 	}
+	req.Header.Set("X-Forwarded-For", req.RemoteAddr)
+	req.Header.Set("X-Forwarded-Host", req.Host)
+	req.Header.Set("X-Forwarded-Proto", req.Proto)
+	for k, v := range h.headers {
+		req.Header[k] = v
+	}
 	w = &responseWriter{
 		ResponseWriter: w,
 		startTime:      startTime,
-		logger: h.logger.WithField("ingress", h.ingressName).
-			WithField("host", req.Host).WithField("method", req.Method).
-			WithField("path", req.URL.Path),
+		logger: h.logger.WithField("method", req.Method).
+			WithField("host", req.Host).WithField("path", req.URL.Path),
 	}
 	h.proxy.ServeHTTP(w, req)
 }
