@@ -9,7 +9,7 @@ Requires=docker.socket
 Type=exec
 ExecStartPre=/bin/mkdir -p /var/log/pods /var/lib/kubelet /var/lib/cni /var/lib/kubemate
 ExecStartPre=-/bin/docker rm -f kubemate
-ExecStartPre=mkdir -m 700 /tmp/kubemate
+ExecStartPre=mkdir -pm 700 /tmp/kubemate
 ExecStart=/bin/sh -aeuc ' \
 		VERSION="`cat /etc/kubemate/version`"; \
 		exec /bin/docker run --name kubemate --rm --network host --pid host --privileged \
