@@ -38,6 +38,10 @@ func (in *FakeResource) GetGroupVersionResource() schema.GroupVersionResource {
 	return GroupVersion.WithResource("fakeresource")
 }
 
+func (in *FakeResource) GetSingularName() string {
+	return "FakeResource"
+}
+
 func (in *FakeResource) DeepCopyIntoResource(res resource.Resource) error {
 	d, ok := res.(*FakeResource)
 	if !ok {
