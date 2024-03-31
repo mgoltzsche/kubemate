@@ -25,8 +25,8 @@ variable "wifi_ssid" {
 }
 
 source "arm-image" "raspios" {
-  iso_checksum      = "72c773781a0a57160eb3fa8bb2a927642fe60c3af62bc980827057bcecb7b98b"
-  iso_url           = "https://downloads.raspberrypi.org/raspios_lite_arm64/images/raspios_lite_arm64-2022-09-26/2022-09-22-raspios-bullseye-arm64-lite.img.xz"
+  iso_checksum      = "58a3ec57402c86332e67789a6b8f149aeeb4e7bb0a16c9388a66ea6e07012e45"
+  iso_url           = "https://downloads.raspberrypi.org/raspios_lite_arm64/images/raspios_lite_arm64-2024-03-15/2024-03-15-raspios-bookworm-arm64-lite.img.xz"
   qemu_binary       = "qemu-aarch64-static"
   target_image_size = 4294967296
 }
@@ -150,8 +150,7 @@ build {
     # Disable default wpa_supplicant (to let kubemate manage the wifi)
     inline = [
       "systemctl mask wpa_supplicant.service",
-      "sed -Ei 's/^#(option\s+ntp_servers)/\1/' /etc/dhcpcd.conf",
-      "echo 'denyinterfaces wlan0' >> /etc/dhcpcd.conf",
+      "printf '[keyfile]\nunmanaged-devices=interface-name:wlan0\n' > /etc/NetworkManager/conf.d/99-unmanaged-devices.conf",
     ]
   }
 
