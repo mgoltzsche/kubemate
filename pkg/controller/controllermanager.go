@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	//sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 	// TODO: make controllers import work - it pulls in the google-api-go-client
 	//kustomizecontrollers "github.com/fluxcd/kustomize-controller/controllers"
@@ -134,9 +135,10 @@ func runControllerManager(ctx context.Context, cfg ConfigFunc, scheme *runtime.S
 		return err
 	}
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
-		Scheme:                 scheme,
-		Port:                   9443,
-		MetricsBindAddress:     "0",
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: "0",
+		},
 		HealthProbeBindAddress: "0",
 		LeaderElection:         false,
 		Logger:                 logger,

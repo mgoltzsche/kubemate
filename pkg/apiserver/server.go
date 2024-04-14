@@ -138,8 +138,10 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		sets.NewString("watch", "proxy"),
 		sets.NewString("attach", "exec", "proxy", "log", "portforward"),
 	)
-	serverConfig.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapinamer.NewDefinitionNamer(scheme))
-	serverConfig.OpenAPIConfig.Info.Title = "kubemate"
+	//serverConfig.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(generatedopenapi.GetOpenAPIDefinitions, openapinamer.NewDefinitionNamer(scheme))
+	//serverConfig.OpenAPIConfig.Info.Title = "kubemate"
+	serverConfig.OpenAPIV3Config = genericapiserver.DefaultOpenAPIV3Config(generatedopenapi.GetOpenAPIDefinitions, openapinamer.NewDefinitionNamer(scheme))
+	serverConfig.OpenAPIV3Config.Info.Title = "kubemate"
 	clientgoExternalClient, err := clientgoclientset.NewForConfig(serverConfig.LoopbackClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create real external clientset: %w", err)

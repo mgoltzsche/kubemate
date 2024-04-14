@@ -11,10 +11,10 @@ OAPI_CODEGEN_VERSION = v1.9.0
 OAPI_CODEGEN = $(TOOLS_DIR)/oapi-codegen
 
 CONTROLLER_GEN = $(TOOLS_DIR)/controller-gen
-CONTROLLER_GEN_VERSION = v0.12.0
+CONTROLLER_GEN_VERSION = v0.14.0
 
 KUBE_OPENAPI_GEN = $(TOOLS_DIR)/openapi-gen
-KUBE_OPENAPI_GEN_VERSION = 5e7f5fdc6da62df0ce329920a63eda22f95b9614
+KUBE_OPENAPI_GEN_VERSION = dc4e619f62f39c61c7b7fc49a9e561ceee8a8935
 
 KUSTOMIZE := $(TOOLS_DIR)/kustomize
 KUSTOMIZE_VERSION ?= v4.5.5
@@ -80,8 +80,14 @@ generate: $(CONTROLLER_GEN) openapigen $(KUBE_OPENAPI_GEN) ## Generate code.
 	#PATH="$(TOOLS_DIR):$$PATH" go generate ./pkg/server
 	$(CONTROLLER_GEN) object paths=./pkg/apis/... paths=./pkg/resource/fake
 	$(CONTROLLER_GEN) crd paths="./pkg/apis/apps/..." output:crd:artifacts:config=config/crd
-	$(KUBE_OPENAPI_GEN) --output-base=./pkg/generated --output-package=openapi -O zz_generated.openapi -h ./boilerplate/boilerplate.go.txt \
-		--input-dirs=github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1,github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/api/core/v1,k8s.io/apimachinery/pkg/runtime,k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1,k8s.io/api/networking/v1
+	$(KUBE_OPENAPI_GEN) --output-dir=./pkg/generated --output-pkg=openapi --output-file zz_generated.openapi --go-header-file ./boilerplate/boilerplate.go.txt \
+		github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1 \
+		github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1 \
+		k8s.io/apimachinery/pkg/apis/meta/v1 \
+		k8s.io/api/core/v1 \
+		k8s.io/apimachinery/pkg/runtime \
+		k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1 \
+		k8s.io/api/networking/v1
 	./build/tools/openapigen openapi.yaml
 
 openapigen:

@@ -1,5 +1,5 @@
-FROM golang:1.20-alpine3.18 AS build
-RUN apk add --update --no-cache musl-dev gcc binutils-gold
+FROM golang:1.21-alpine3.19 AS build
+RUN apk add --update --no-cache git musl-dev gcc binutils-gold
 COPY go.mod go.sum /work/
 WORKDIR /work
 RUN go mod download
@@ -7,12 +7,19 @@ COPY main.go /work/
 COPY pkg /work/pkg
 ARG VERSION=dev
 ENV CGO_CFLAGS=-DSQLITE_ENABLE_DBSTAT_VTAB=1
-RUN go build -o kubemate -ldflags "-X main.Version=$VERSION -s -w -extldflags \"-static\"" .
+RUN set -eux; \
+	VERSION_GOLANG=$(go version | cut -d" " -f3); \
+	K3SPKG=github.com/k3s-io/k3s; \
+	VERSIONFLAGS=" \
+		-X ${K3SPKG}/pkg/version.Version=${VERSION} \
+		-X ${K3SPKG}/pkg/version.UpstreamGolang=${VERSION_GOLANG} \
+	"; \
+	go build -o kubemate -ldflags "$VERSIONFLAGS -s -w -extldflags \"-static\"" .
 
-FROM rancher/k3s:v1.27.2-k3s1 AS k3s
+FROM rancher/k3s:v1.29.3-k3s1 AS k3s
 COPY --from=build /work/kubemate /bin/kubemate
 
-FROM alpine:3.18
+FROM alpine:3.19
 RUN apk add --update --no-cache iptables ip6tables ipset socat openssl ca-certificates apparmor iw wpa_supplicant dhcpcd hostapd dnsmasq
 ARG VERSION="dev"
 RUN set -eu; \
@@ -37,6 +44,7 @@ RUN set -ex; \
 	ln -s cni /opt/cni/bin/loopback; \
 	ln -s cni /opt/cni/bin/bridge; \
 	ln -s cni /opt/cni/bin/portmap; \
+	ln -s cni /opt/cni/bin/bandwidth; \
 	ln -s cni /opt/cni/bin/flannel; \
 	ln -s kubemate /bin/kubectl; \
 	ln -s kubemate /bin/crictl; \
