@@ -42,9 +42,9 @@ ui: ## Build a the UI.
 	$(DOCKER) build --force-rm -t kubemate-webui-build:local -f Dockerfile-ui .
 	$(DOCKER) rm kubemate-webui-build 2>/dev/null || true
 	$(DOCKER) create --name=kubemate-webui-build kubemate-webui-build:local
-	rm -rf ./ui/dist/spa
+	rm -rf ./ui/dist
 	mkdir -p ./ui/dist
-	$(DOCKER) cp kubemate-webui-build:/src/ui/dist/spa ./ui/dist/spa
+	$(DOCKER) cp kubemate-webui-build:/src/ui/dist/pwa ./ui/dist/pwa
 	$(DOCKER) rm kubemate-webui-build
 
 .PHONY: container-multiarch
@@ -129,7 +129,7 @@ run: container ## Run a kubemate container locally within the host network.
 		-v `pwd`:/output \
 		--mount type=bind,src=`pwd`/ui/dist,dst=/usr/share/kubemate/web \
 		--device /dev/snd:/dev/snd \
-		$(IMAGE) connect --docker --web-dir=/usr/share/kubemate/web/spa --write-host-resolvconf --log-level=trace
+		$(IMAGE) connect --docker --web-dir=/usr/share/kubemate/web/pwa --write-host-resolvconf --log-level=trace
 			#--http-port=80 --https-port=443
 			#--no-deploy=servicelb,traefik,metrics-server \
 			#--disable-cloud-controller \
@@ -141,7 +141,7 @@ run-other: ## Run a kubemate container locally to test joining a cluster.
 		--mount type=bind,src=/etc/machine-id,dst=/etc/machine-id \
 		-v `pwd`/output:/output \
 		--mount type=bind,src=`pwd`/ui/dist,dst=/usr/share/kubemate/web \
-		$(IMAGE) connect --web-dir=/usr/share/kubemate/web/spa --log-level=trace
+		$(IMAGE) connect --web-dir=/usr/share/kubemate/web/pwa --log-level=trace
 
 .PHONY: raspios-image
 raspios-image: PACKER_FILE = ./packer/kubemate-raspios.pkr.hcl

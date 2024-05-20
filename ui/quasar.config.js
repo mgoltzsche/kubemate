@@ -112,7 +112,7 @@ module.exports = configure(function (ctx) {
 
     // https://v2.quasar.dev/quasar-cli-webpack/developing-ssr/configuring-ssr
     ssr: {
-      pwa: false,
+      pwa: true,
 
       // manualStoreHydration: true,
       // manualPostHydrationTrigger: true,
@@ -141,8 +141,8 @@ module.exports = configure(function (ctx) {
       // chainWebpackCustomSW (/* chain */) {},
 
       manifest: {
-        name: 'Kubemate UI',
-        short_name: 'Kubemate UI',
+        name: 'Kubemate',
+        short_name: 'Kubemate',
         description: '',
         display: 'standalone',
         orientation: 'portrait',
@@ -206,7 +206,7 @@ module.exports = configure(function (ctx) {
       builder: {
         // https://www.electron.build/configuration/configuration
 
-        appId: 'kubemate-ui',
+        appId: 'kubemate',
       },
 
       // "chain" is a webpack-chain object https://github.com/neutrinojs/webpack-chain

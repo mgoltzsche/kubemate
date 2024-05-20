@@ -10,8 +10,8 @@
   },
   "scripts": {
     "generate": "openapi --input \"$npm_package_config_openapi\" --output=./src/gen --client=fetch --exportCore=false --exportServices=false",
-    "build": "quasar build",
-    "debug": "quasar build --debug",
+    "build": "quasar build --mode pwa",
+    "debug": "quasar build --mode pwa --debug",
     "lint": "eslint --ext .js,.ts,.vue ./",
     "format": "prettier --write \"**/*.{js,ts,vue,scss,html,md,json}\" --ignore-path .gitignore",
     "test": "echo \"No test specified\" && exit 0",
@@ -35,8 +35,9 @@
     "eslint": "^8.10.0",
     "eslint-config-prettier": "^8.1.0",
     "eslint-plugin-vue": "^8.5.0",
+    "openapi-typescript-codegen": "^0.23.0",
     "prettier": "^2.5.1",
-    "openapi-typescript-codegen": "^0.23.0"
+    "workbox-webpack-plugin": "^6.0.0"
   },
   "browserslist": [
     "last 10 Chrome versions",
