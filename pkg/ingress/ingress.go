@@ -362,6 +362,7 @@ func (h *ingressBackendHandler) ServeHTTP(w http.ResponseWriter, req *http.Reque
 	req.Header.Set("X-Forwarded-For", req.RemoteAddr)
 	req.Header.Set("X-Forwarded-Host", req.Host)
 	req.Header.Set("X-Forwarded-Proto", req.Proto)
+	req.Header.Set("X-Forwarded-Scheme", req.Proto)
 	for k, v := range h.headers {
 		req.Header[k] = v
 	}
