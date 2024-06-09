@@ -29,7 +29,9 @@ ExecStart=/bin/sh -aeuc ' \
 		-v /etc/kubemate:/output \
 		-e KUBEMATE_SHUTDOWN_FILE=/host/tmp/kubemate/shutdown \
 		"mgoltzsche/kubemate:$VERSION" \
-		connect --docker --https-port=443 --http-port=80 --write-host-resolvconf'
+		connect --docker --https-port=443 --http-port=80 --write-host-resolvconf \
+			--kubelet-arg=container-log-max-size=10Mi \
+			--kubelet-arg=container-log-max-files=2'
 ExecReload=/bin/kill -s HUP $MAINPID
 ExecStopPost=/bin/sh -c '[ ! -f /tmp/kubemate/shutdown ] || systemctl halt'
 #TimeoutSec=0

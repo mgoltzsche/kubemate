@@ -92,7 +92,8 @@ build {
       # Configure docker to use cgroup driver "cgroupfs" instead of "systemd" since k3s does not support systemd.
       # This is due to static linking, see https://github.com/k3s-io/k3s/issues/797
       "mkdir -p /etc/docker",
-      "printf '{\n  \"exec-opts\": [\"native.cgroupdriver=cgroupfs\"]\n}' > /etc/docker/daemon.json"
+      # Max log size must be aligned between docker and kubelet, see https://github.com/rancher/rancher/issues/39819#issuecomment-1472278470
+      "printf '{\n  \"exec-opts\": [\"native.cgroupdriver=cgroupfs\"],\n  \"log-opts\": {\"max-size\": \"10m\"}}' > /etc/docker/daemon.json"
     ]
   }
 
