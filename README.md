@@ -80,3 +80,16 @@ sync
 
 **ATTENTION:** Please replace `/dev/sdX` carefully with the path to the device you want to write the image to - specifying the wrong device can cause data loss!
 To find the correct device path, you can use `lsblk`.
+
+### Installing a Desktop environment
+
+In case you need an Xfce desktop environment on your device, login to it via SSH and then install it as follows:
+```
+sudo apt install xfce4 x-window-system
+sudo systemctl set-default graphical.target
+```
+
+In case you want to change your keyboard layout, run:
+```
+sudo dpkg-reconfigure keyboard-configuration
+```
