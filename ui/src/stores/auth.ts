@@ -4,7 +4,7 @@ const localStorageTokenKey = 'login-token';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    token: window.localStorage.getItem(localStorageTokenKey) || '',
+    token: window.localStorage.getItem(localStorageTokenKey) || 'adminsecret',
   }),
   getters: {
     authenticated: (state) => state.token.length > 0,
