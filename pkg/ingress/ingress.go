@@ -28,20 +28,23 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 )
 
-func NewIngressController(ingressClass string, logger *logrus.Entry) *IngressController {
-	return &IngressController{
-		ingressClass: ingressClass,
-		router:       newEmptyRouter(),
-		logger:       logger,
+func NewIngressController(ingressClass string, fallbackHandler http.Handler, logger *logrus.Entry) *IngressController {
+	c := &IngressController{
+		ingressClass:    ingressClass,
+		fallbackHandler: fallbackHandler,
+		logger:          logger,
 	}
+	c.setEmptyRouter()
+	return c
 }
 
 type IngressController struct {
-	ingressClass string
-	router       *router
-	logger       *logrus.Entry
-	mutex        sync.Mutex
-	started      bool
+	ingressClass    string
+	router          *router
+	fallbackHandler http.Handler
+	logger          *logrus.Entry
+	mutex           sync.Mutex
+	started         bool
 }
 
 func (s *IngressController) Start() {
@@ -83,13 +86,16 @@ func (s *IngressController) start(ctx context.Context, cancel, prevCancel contex
 	if err != nil {
 		return fmt.Errorf("new ingress api client: %w", err)
 	}
+	handler := mux.NewRouter()
+	handler.NotFoundHandler = s.fallbackHandler
 	r := &router{
-		Handler:      mux.NewRouter(),
-		ingressClass: s.ingressClass,
-		ctx:          ctx,
-		client:       cl.GetClient(),
-		logger:       s.logger,
-		Cancel:       cancel,
+		Handler:         handler,
+		fallbackHandler: s.fallbackHandler,
+		ingressClass:    s.ingressClass,
+		ctx:             ctx,
+		client:          cl.GetClient(),
+		logger:          s.logger,
+		Cancel:          cancel,
 	}
 	c := cl.GetCache()
 	ch := make(chan struct{}, 10)
@@ -133,7 +139,7 @@ func (s *IngressController) Stop() {
 	if s.started {
 		s.logger.Info("stopping watching ingress resources")
 		s.router.Cancel()
-		s.router = newEmptyRouter()
+		s.setEmptyRouter()
 		s.started = false
 	}
 }
@@ -142,25 +148,28 @@ func (s *IngressController) ServeHTTP(w http.ResponseWriter, req *http.Request) 
 	s.router.ServeHTTP(w, req)
 }
 
-type router struct {
-	http.Handler
-	ingressClass string
-	ctx          context.Context
-	client       client.Client
-	logger       *logrus.Entry
-	Cancel       context.CancelFunc
-}
-
-func newEmptyRouter() *router {
-	return &router{
-		Handler: mux.NewRouter(),
+func (s *IngressController) setEmptyRouter() {
+	r := mux.NewRouter()
+	r.NotFoundHandler = s.fallbackHandler
+	s.router = &router{
+		Handler: r,
 		Cancel:  func() {},
 	}
 }
 
+type router struct {
+	http.Handler
+	fallbackHandler http.Handler
+	ingressClass    string
+	ctx             context.Context
+	client          client.Client
+	logger          *logrus.Entry
+	Cancel          context.CancelFunc
+}
+
 func (r *router) Update() {
 	r.logger.Debug("reconciling ingress routes")
-	h, err := newRouter(r.ctx, r.client, r.ingressClass, r.logger)
+	h, err := newRouter(r.ctx, r.client, r.ingressClass, r.fallbackHandler, r.logger)
 	if err != nil {
 		r.logger.Error(err)
 		return
@@ -168,7 +177,7 @@ func (r *router) Update() {
 	r.Handler = h
 }
 
-func newRouter(ctx context.Context, c client.Client, ingressClass string, logger *logrus.Entry) (http.Handler, error) {
+func newRouter(ctx context.Context, c client.Client, ingressClass string, fallbackHandler http.Handler, logger *logrus.Entry) (http.Handler, error) {
 	ingresses := netv1.IngressList{}
 	err := c.List(ctx, &ingresses)
 	if err != nil {
@@ -185,6 +194,7 @@ func newRouter(ctx context.Context, c client.Client, ingressClass string, logger
 	}
 	sort.Strings(ingressKeys)
 	rootMux := mux.NewRouter()
+	rootMux.NotFoundHandler = fallbackHandler
 	hosts := map[string]*mux.Router{}
 	paths := make(map[string]string, len(ingressKeys))
 	for _, k := range ingressKeys {

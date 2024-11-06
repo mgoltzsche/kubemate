@@ -3,6 +3,7 @@ package apiserver
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -252,12 +253,16 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 		return nil, err
 	}
 	installDeviceDiscovery(genericServer, discovery)
-	ingressRouter := ingress.NewIngressController("kubemate", logrus.WithField("comp", "ingress-controller"))
-	apiPaths := []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known", "/version"}
-	handler := genericServer.Handler.FullHandlerChain
-	handler = apiProxy.APIGroupListCompletionFilter(handler)
-	handler = NewWebUIHandler(o.WebDir, apiPaths, handler, ingressRouter)
-	handler = middleware.ForceHTTPS(handler)
+	apiHandler := genericServer.Handler.FullHandlerChain
+	apiHandler = apiProxy.APIGroupListCompletionFilter(apiHandler)
+	ingressRouter := ingress.NewIngressController("kubemate", http.NotFoundHandler(), logrus.WithField("comp", "ingress-controller"))
+	mux := http.NewServeMux()
+	mux.Handle("/", rootPathHandler("/ui/", ingressRouter, apiHandler))
+	mux.Handle("/ui/", http.StripPrefix("/ui/", http.FileServer(http.Dir(o.WebDir))))
+	for _, apiPath := range []string{"/api", "/apis", "/readyz", "/healthz", "/livez", "/metrics", "/openapi", "/.well-known", "/version"} {
+		mux.Handle(fmt.Sprintf("%s/", apiPath), apiHandler)
+	}
+	handler := middleware.ForceHTTPS(mux)
 	// TODO: don't redirect ingress hosts
 	handler = middleware.ForceHTTPSHost(externalAddr, handler)
 	genericServer.Handler.FullHandlerChain = handler
