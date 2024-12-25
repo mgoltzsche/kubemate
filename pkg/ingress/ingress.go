@@ -369,10 +369,16 @@ func (h *ingressBackendHandler) ServeHTTP(w http.ResponseWriter, req *http.Reque
 	if h.rewriteTargetPath != "" {
 		req.URL.Path = path.Clean(fmt.Sprintf("%s%s", h.rewriteTargetPath, req.URL.Path[len(h.targetPath):]))
 	}
+
+	scheme := "http"
+	if req.TLS != nil {
+		scheme = "https"
+	}
+
 	req.Header.Set("X-Forwarded-For", req.RemoteAddr)
 	req.Header.Set("X-Forwarded-Host", req.Host)
-	req.Header.Set("X-Forwarded-Proto", req.Proto)
-	req.Header.Set("X-Forwarded-Scheme", req.Proto)
+	req.Header.Set("X-Forwarded-Proto", scheme)
+	req.Header.Set("X-Forwarded-Scheme", scheme)
 	for k, v := range h.headers {
 		req.Header[k] = v
 	}
