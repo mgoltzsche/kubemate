@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/k3s-io/k3s/pkg/version"
 	deviceapi "github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1"
 	"github.com/mgoltzsche/kubemate/pkg/controller"
 	"github.com/mgoltzsche/kubemate/pkg/discovery"
@@ -41,6 +42,7 @@ import (
 	clientgoinformers "k8s.io/client-go/informers"
 	clientgoclientset "k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
+	basecompatibility "k8s.io/component-base/compatibility"
 )
 
 // ServerOptions defines the configuration options for the server.
@@ -105,6 +107,7 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	paramScheme := runtime.NewScheme()
 	paramCodecs := runtime.NewParameterCodec(paramScheme)
 	serverConfig := genericapiserver.NewRecommendedConfig(codecs)
+	serverConfig.EffectiveVersion = basecompatibility.NewEffectiveVersionFromString(version.Version, version.Version, "1.29.0+k3s1")
 	tlsOpts := options.NewSecureServingOptions()
 	tlsOpts.BindAddress = net.ParseIP(o.HTTPSAddress)
 	tlsOpts.BindPort = o.HTTPSPort
@@ -189,9 +192,10 @@ func NewServer(o ServerOptions) (*genericapiserver.GenericAPIServer, error) {
 	serverConfig.Authentication.Authenticator = union.New(
 		authz,
 		ctrlAuthz,
-		anonymous.NewAuthenticator(),
+		anonymous.NewAuthenticator(nil),
 	)
 	serverConfig.Authorization.Authorizer = NewDeviceAuthorizer()
+
 	k3sDataDir := filepath.Join(o.DataDir, "k3s")
 	k3sProxyEnabled := false
 	apiProxy := newAPIServerProxy("127.0.0.1:6443", filepath.Join(k3sDataDir, "server", "tls"), &k3sProxyEnabled)

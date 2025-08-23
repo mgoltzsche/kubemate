@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 
 	"github.com/mgoltzsche/kubemate/pkg/apiserver"
@@ -19,7 +17,8 @@ import (
 type ConnectConfig struct {
 	apiserver.ServerOptions
 	HTTPAddress     string
-	AdvertiseIfaces []string
+	AdvertiseIfaces cli.StringSlice
+	KubeletArgs     cli.StringSlice
 	LogLevel        string
 }
 
@@ -29,96 +28,96 @@ var Connect = ConnectConfig{
 }
 var shutdownFile string
 var ConnectFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:        "http-address",
 		Usage:       "(agent/runtime) net/IP to listen on without TLS",
-		EnvVar:      "KUBEMATE_INSECURE_ADDRESS",
+		EnvVars:     []string{"KUBEMATE_INSECURE_ADDRESS"},
 		Destination: &Connect.HTTPAddress,
 		Value:       Connect.HTTPAddress,
 	},
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:        "http-port",
 		Usage:       "(agent/runtime) non-TLS port to listen on.",
-		EnvVar:      "KUBEMATE_INSECURE_PORT",
+		EnvVars:     []string{"KUBEMATE_INSECURE_PORT"},
 		Destination: &Connect.HTTPPort,
 		Value:       Connect.HTTPPort,
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:        "https-address",
 		Usage:       "(agent/runtime) net/IP to listen on with TLS",
-		EnvVar:      "KUBEMATE_SECURE_ADDRESS",
+		EnvVars:     []string{"KUBEMATE_SECURE_ADDRESS"},
 		Destination: &Connect.HTTPSAddress,
 		Value:       Connect.HTTPSAddress,
 	},
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:        "https-port",
 		Usage:       "(agent/runtime) TLS port to listen on",
-		EnvVar:      "KUBEMATE_SECURE_PORT",
+		EnvVars:     []string{"KUBEMATE_SECURE_PORT"},
 		Destination: &Connect.HTTPSPort,
 		Value:       Connect.HTTPSPort,
 	},
-	cli.StringSliceFlag{
-		Name:   "advertise-iface",
-		Usage:  "(agent/runtime) Name(s) of the network interface(s) to advertise via mdns",
-		EnvVar: "KUBEMATE_ADVERTISE_IFACE",
-		Value:  (*cli.StringSlice)(&Connect.AdvertiseIfaces),
+	&cli.StringSliceFlag{
+		Name:    "advertise-iface",
+		Usage:   "(agent/runtime) Name(s) of the network interface(s) to advertise via mdns",
+		EnvVars: []string{"KUBEMATE_ADVERTISE_IFACE"},
+		Value:   &Connect.AdvertiseIfaces,
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:        "web-dir",
 		Usage:       "(agent/runtime) directory that holds the static web application",
-		EnvVar:      "KUBEMATE_WEB_DIR",
+		EnvVars:     []string{"KUBEMATE_WEB_DIR"},
 		Destination: &Connect.WebDir,
 		Value:       Connect.WebDir,
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:        "manifest-dir",
 		Usage:       "(agent/runtime) directory that holds additional manifests the server should be initialized with",
-		EnvVar:      "KUBEMATE_MANIFEST_DIR",
+		EnvVars:     []string{"KUBEMATE_MANIFEST_DIR"},
 		Destination: &Connect.ManifestDir,
 		Value:       Connect.ManifestDir,
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:        "data-dir",
 		Usage:       "(agent/runtime) directory that holds the apiserver state",
-		EnvVar:      "KUBEMATE_DATA_DIR",
+		EnvVars:     []string{"KUBEMATE_DATA_DIR"},
 		Destination: &Connect.DataDir,
 		Value:       Connect.DataDir,
 	},
-	cli.StringSliceFlag{
-		Name:   "kubelet-arg",
-		Usage:  "(agent/flags) Customized flag for kubelet process",
-		EnvVar: "KUBEMATE_KUBELET_ARG",
-		Value:  (*cli.StringSlice)(&Connect.KubeletArgs),
+	&cli.StringSliceFlag{
+		Name:    "kubelet-arg",
+		Usage:   "(agent/flags) Customized flag for kubelet process",
+		EnvVars: []string{"KUBEMATE_KUBELET_ARG"},
+		Value:   &Connect.KubeletArgs,
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:        "docker",
 		Usage:       "(agent/runtime) enable docker support",
-		EnvVar:      "KUBEMATE_DOCKER",
+		EnvVars:     []string{"KUBEMATE_DOCKER"},
 		Destination: &Connect.Docker,
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:        "write-host-resolvconf",
 		Usage:       "(agent/runtime) let kubemate copy /etc/resolv.conf to /host/etc/resolv.conf",
-		EnvVar:      "KUBEMATE_WRITE_HOST_RESOLVCONF",
+		EnvVars:     []string{"KUBEMATE_WRITE_HOST_RESOLVCONF"},
 		Destination: &Connect.WriteHostResolvConf,
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:        "shutdown-file",
 		Usage:       "(agent/runtime) write a file when a shutdown is initiated via the API",
-		EnvVar:      "KUBEMATE_SHUTDOWN_FILE",
+		EnvVars:     []string{"KUBEMATE_SHUTDOWN_FILE"},
 		Destination: &shutdownFile,
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:        "log-level",
 		Usage:       "(agent/runtime) log level",
-		EnvVar:      "KUBEMATE_LOG_LEVEL",
+		EnvVars:     []string{"KUBEMATE_LOG_LEVEL"},
 		Destination: &Connect.LogLevel,
 		Value:       Connect.LogLevel,
 	},
 }
 
-func NewConnectCommand(action func(*cli.Context) error) cli.Command {
-	return cli.Command{
+func NewConnectCommand(action func(*cli.Context) error) *cli.Command {
+	return &cli.Command{
 		Name:      "connect",
 		Usage:     "Run API and UI to create or join a cluster",
 		UsageText: appName + " connect [OPTIONS]",
@@ -144,6 +143,8 @@ func run(ctx context.Context) error {
 		cancel()
 		return nil
 	}
+	Connect.ServerOptions.AdvertiseIfaces = Connect.AdvertiseIfaces.Value()
+	Connect.ServerOptions.KubeletArgs = Connect.KubeletArgs.Value()
 	genericServer, err := apiserver.NewServer(Connect.ServerOptions)
 	if err != nil {
 		return err
@@ -197,19 +198,6 @@ func writeShutdownFile() error {
 		return fmt.Errorf("write shutdown file: %w", err)
 	}
 	return nil
-}
-
-func newContext() context.Context {
-	ctx, cancel := context.WithCancel(context.Background())
-	c := make(chan os.Signal, 2)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-c
-		cancel()
-		<-c
-		os.Exit(1) // exit immediately on 2nd signal
-	}()
-	return ctx
 }
 
 // parallelize runs the provided methods concurrently and cancels the context when any of them returns.
