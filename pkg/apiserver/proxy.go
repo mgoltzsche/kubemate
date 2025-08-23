@@ -164,7 +164,7 @@ func (s *apiServerDelegationTarget) ServeHTTP(w http.ResponseWriter, r *http.Req
 	tls, err := s.config.tlsTransport()
 	if err != nil {
 		logrus.WithError(err).Warn("failed to load proxy target TLS config")
-		if r.URL.Path == "/api" {
+		if r.URL.Path == "/api" || r.URL.Path == "/api/" {
 			writeEmptyAPIVersions(w, r)
 			return
 		}
@@ -200,7 +200,7 @@ func (s *apiServerDelegationTarget) ServeHTTP(w http.ResponseWriter, r *http.Req
 	}
 
 	if !*s.config.enabled {
-		if r.URL.Path == "/api" {
+		if r.URL.Path == "/api" || r.URL.Path == "/api/" {
 			writeEmptyAPIVersions(w, r)
 			return
 		}

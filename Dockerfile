@@ -1,4 +1,4 @@
-FROM golang:1.21-alpine3.19 AS build
+FROM golang:1.24-alpine3.22 AS build
 RUN apk add --update --no-cache git musl-dev gcc binutils-gold
 COPY go.mod go.sum /work/
 WORKDIR /work
@@ -16,10 +16,10 @@ RUN set -eux; \
 	"; \
 	go build -o kubemate -ldflags "$VERSIONFLAGS -s -w -extldflags \"-static\"" .
 
-FROM rancher/k3s:v1.29.3-k3s1 AS k3s
+FROM rancher/k3s:v1.33.3-k3s1 AS k3s
 COPY --from=build /work/kubemate /bin/kubemate
 
-FROM alpine:3.19
+FROM alpine:3.22
 RUN apk add --update --no-cache iptables ip6tables ipset socat openssl ca-certificates apparmor iw wpa_supplicant dhcpcd hostapd dnsmasq
 ARG VERSION="dev"
 RUN set -eu; \

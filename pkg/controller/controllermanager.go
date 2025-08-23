@@ -84,6 +84,8 @@ func (m *ControllerManager) Start() error {
 				logrus.Debug("stopping kubemate controller manager restart loop")
 				return
 			}
+			// TODO: don't recreate the ControllerManager on retry - otherwise it complains about duplicate, e.g.:
+			//       reconciler *device.NetworkInterfaceReconciler setup: controller with name networkinterface already exists. Controller names must be unique to avoid multiple controllers reporting the same metric
 			err := runControllerManager(ctx, m.configFn, m.scheme, m.reconcilers, m.logger)
 			if err != nil {
 				if e := ctx.Err(); e == nil {
