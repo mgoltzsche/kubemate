@@ -706,6 +706,15 @@ definitions:
             the IngressClass. Implementations can treat this as a separate PathType
             or treat it identically to Prefix or Exact path types.
           Implementations are required to support all path types.
+
+          Possible enum values:
+           - `"Exact"` matches the URL path exactly and with case sensitivity.
+           - `"ImplementationSpecific"` matching is up to the IngressClass. Implementations can treat this as a separate PathType or treat it identically to Prefix or Exact path types.
+           - `"Prefix"` matches based on a URL path prefix split by '/'. Matching is case sensitive and done on a path element by element basis. A path element refers to the list of labels in the path split by the '/' separator. A request is a match for path p if every p is an element-wise prefix of p of the request path. Note that if the last element of the path is a substring of the last element in request path, it is not a match (e.g. /foo/bar matches /foo/bar/baz, but does not match /foo/barbaz). If multiple matching paths exist in an Ingress spec, the longest matching path is given priority. Examples: - /foo/bar does not match requests to /foo/barbaz - /foo/bar matches request to /foo/bar and /foo/bar/baz - /foo and /foo/ both match requests to /foo and /foo/. If both paths are present in an Ingress spec, the longest matching path (/foo/) is given priority.
+        enum:
+        - Exact
+        - ImplementationSpecific
+        - Prefix
         type: string
     required:
     - pathType
@@ -798,6 +807,7 @@ definitions:
           $ref: '#/definitions/io.k8s.api.networking.v1.IngressLoadBalancerIngress'
           default: {}
         type: array
+        x-kubernetes-list-type: atomic
     type: object
   io.k8s.api.networking.v1.IngressPortStatus:
     description: IngressPortStatus represents the error condition of a service port
@@ -961,6 +971,7 @@ definitions:
         format: int32
         type: integer
     type: object
+    x-kubernetes-map-type: atomic
   io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.CustomResourceColumnDefinition:
     description: CustomResourceColumnDefinition specifies a column for server side
       printing.
@@ -1053,7 +1064,6 @@ definitions:
     properties:
       lastTransitionTime:
         $ref: '#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time'
-        default: {}
         description: lastTransitionTime last time the condition transitioned from
           one status to another.
       message:
@@ -1088,6 +1098,7 @@ definitions:
           default: ""
           type: string
         type: array
+        x-kubernetes-list-type: atomic
       kind:
         default: ""
         description: kind is the serialized kind of the resource. It is normally CamelCase
@@ -1113,6 +1124,7 @@ definitions:
           default: ""
           type: string
         type: array
+        x-kubernetes-list-type: atomic
       singular:
         description: singular is the singular name of the resource. It must be all
           lowercase. Defaults to lowercased `kind`.
@@ -1166,6 +1178,7 @@ definitions:
           $ref: '#/definitions/io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.CustomResourceDefinitionVersion'
           default: {}
         type: array
+        x-kubernetes-list-type: atomic
     required:
     - group
     - names
@@ -1200,6 +1213,7 @@ definitions:
           default: ""
           type: string
         type: array
+        x-kubernetes-list-type: atomic
     type: object
   io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.CustomResourceDefinitionVersion:
     description: CustomResourceDefinitionVersion describes a version for CRD.
@@ -1213,6 +1227,7 @@ definitions:
           $ref: '#/definitions/io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.CustomResourceColumnDefinition'
           default: {}
         type: array
+        x-kubernetes-list-type: atomic
       deprecated:
         description: deprecated indicates this version of the custom resource API
           is deprecated. When set to true, API requests to this version receive a
@@ -1234,6 +1249,14 @@ definitions:
         $ref: '#/definitions/io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.CustomResourceValidation'
         description: schema describes the schema used for validation, pruning, and
           defaulting of this version of the custom resource.
+      selectableFields:
+        description: selectableFields specifies paths to fields that may be used as
+          field selectors. A maximum of 8 selectable fields are allowed. See https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors
+        items:
+          $ref: '#/definitions/io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.SelectableField'
+          default: {}
+        type: array
+        x-kubernetes-list-type: atomic
       served:
         default: false
         description: served is a flag enabling/disabling this version from being served
@@ -1348,11 +1371,13 @@ definitions:
           $ref: '#/definitions/io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSONSchemaProps'
           default: {}
         type: array
+        x-kubernetes-list-type: atomic
       anyOf:
         items:
           $ref: '#/definitions/io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSONSchemaProps'
           default: {}
         type: array
+        x-kubernetes-list-type: atomic
       default:
         $ref: '#/definitions/io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSON'
         description: default is a default value for undefined object fields. Defaulting
@@ -1366,15 +1391,14 @@ definitions:
       dependencies:
         additionalProperties:
           $ref: '#/definitions/io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSONSchemaPropsOrStringArray'
-          default: {}
         type: object
       description:
         type: string
       enum:
         items:
           $ref: '#/definitions/io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSON'
-          default: {}
         type: array
+        x-kubernetes-list-type: atomic
       example:
         $ref: '#/definitions/io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSON'
       exclusiveMaximum:
@@ -1429,6 +1453,7 @@ definitions:
           $ref: '#/definitions/io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSONSchemaProps'
           default: {}
         type: array
+        x-kubernetes-list-type: atomic
       pattern:
         type: string
       patternProperties:
@@ -1446,6 +1471,7 @@ definitions:
           default: ""
           type: string
         type: array
+        x-kubernetes-list-type: atomic
       title:
         type: string
       type:
@@ -1484,6 +1510,7 @@ definitions:
           default: ""
           type: string
         type: array
+        x-kubernetes-list-type: atomic
       x-kubernetes-list-type:
         description: |-
           x-kubernetes-list-type annotates an array to further describe its topology. This extension must only be used on lists and may have 3 possible values:
@@ -1521,9 +1548,7 @@ definitions:
         type: boolean
       x-kubernetes-validations:
         description: x-kubernetes-validations describes a list of validation rules
-          written in the CEL expression language. This field is an alpha-level. Using
-          this field requires the feature gate `CustomResourceValidationExpressions`
-          to be enabled.
+          written in the CEL expression language.
         items:
           $ref: '#/definitions/io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.ValidationRule'
           default: {}
@@ -1543,6 +1568,22 @@ definitions:
   io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSONSchemaPropsOrStringArray:
     description: JSONSchemaPropsOrStringArray represents a JSONSchemaProps or a string
       array.
+  io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.SelectableField:
+    description: SelectableField specifies the JSON path of a field that may be used
+      with field selectors.
+    properties:
+      jsonPath:
+        default: ""
+        description: jsonPath is a simple JSON path which is evaluated against each
+          custom resource to produce a field selector value. Only JSON paths without
+          the array notation are allowed. Must point to a field of type string, boolean
+          or integer. Types with enum values and strings with formats are allowed.
+          If jsonPath refers to absent field in a resource, the jsonPath evaluates
+          to an empty string. Must not point to metdata fields. Required.
+        type: string
+    required:
+    - jsonPath
+    type: object
   io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.ServiceReference:
     description: ServiceReference holds a reference to Service.legacy.k8s.io
     properties:
@@ -1619,14 +1660,19 @@ definitions:
           May not be set unless `oldSelf` is used in `rule`.
         type: boolean
       reason:
-        description: 'reason provides a machine-readable validation failure reason
-          that is returned to the caller when a request fails this validation rule.
-          The HTTP status code returned to the caller will match the reason of the
-          reason of the first failed validation rule. The currently supported reasons
-          are: "FieldValueInvalid", "FieldValueForbidden", "FieldValueRequired", "FieldValueDuplicate".
-          If not set, default to use "FieldValueInvalid". All future added reasons
-          must be accepted by clients when reading this value and unknown reasons
-          should be treated as FieldValueInvalid.'
+        description: |-
+          reason provides a machine-readable validation failure reason that is returned to the caller when a request fails this validation rule. The HTTP status code returned to the caller will match the reason of the reason of the first failed validation rule. The currently supported reasons are: "FieldValueInvalid", "FieldValueForbidden", "FieldValueRequired", "FieldValueDuplicate". If not set, default to use "FieldValueInvalid". All future added reasons must be accepted by clients when reading this value and unknown reasons should be treated as FieldValueInvalid.
+
+          Possible enum values:
+           - `"FieldValueDuplicate"` is used to report collisions of values that must be unique (e.g. unique IDs).
+           - `"FieldValueForbidden"` is used to report valid (as per formatting rules) values which would be accepted under some conditions, but which are not permitted by the current conditions (such as security policy).
+           - `"FieldValueInvalid"` is used to report malformed values (e.g. failed regex match, too long, out of bounds).
+           - `"FieldValueRequired"` is used to report required values that are not provided (e.g. empty strings, null values, or empty arrays).
+        enum:
+        - FieldValueDuplicate
+        - FieldValueForbidden
+        - FieldValueInvalid
+        - FieldValueRequired
         type: string
       rule:
         default: ""
@@ -1741,6 +1787,7 @@ definitions:
           default: ""
           type: string
         type: array
+        x-kubernetes-list-type: atomic
     required:
     - conversionReviewVersions
     type: object
@@ -1814,7 +1861,6 @@ definitions:
         type: object
       creationTimestamp:
         $ref: '#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time'
-        default: {}
         description: |-
           CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC.
 
@@ -1848,6 +1894,7 @@ definitions:
           default: ""
           type: string
         type: array
+        x-kubernetes-list-type: set
         x-kubernetes-patch-strategy: merge
       generateName:
         description: |-
@@ -1881,6 +1928,7 @@ definitions:
           $ref: '#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ManagedFieldsEntry'
           default: {}
         type: array
+        x-kubernetes-list-type: atomic
       name:
         description: 'Name must be unique within a namespace. Is required when creating
           resources, although some resources may allow a client to request the generation
@@ -1904,6 +1952,9 @@ definitions:
           $ref: '#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.OwnerReference'
           default: {}
         type: array
+        x-kubernetes-list-map-keys:
+        - uid
+        x-kubernetes-list-type: map
         x-kubernetes-patch-merge-key: uid
         x-kubernetes-patch-strategy: merge
       resourceVersion:

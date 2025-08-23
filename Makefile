@@ -1,4 +1,4 @@
-VERSION ?= dev
+VERSION ?= 0.6.0-dev
 IMAGE_REGISTRY ?= local
 IMAGE = $(IMAGE_REGISTRY)/kubemate:$(VERSION)
 
@@ -80,14 +80,15 @@ generate: $(CONTROLLER_GEN) openapigen $(KUBE_OPENAPI_GEN) ## Generate code.
 	#PATH="$(TOOLS_DIR):$$PATH" go generate ./pkg/server
 	$(CONTROLLER_GEN) object paths=./pkg/apis/... paths=./pkg/resource/fake
 	$(CONTROLLER_GEN) crd paths="./pkg/apis/apps/..." output:crd:artifacts:config=config/crd
-	$(KUBE_OPENAPI_GEN) --output-dir=./pkg/generated --output-pkg=openapi --output-file zz_generated.openapi --go-header-file ./boilerplate/boilerplate.go.txt \
+	$(KUBE_OPENAPI_GEN) --output-dir=./pkg/generated --output-pkg=openapi --output-file openapi/zz_generated.openapi.go --go-header-file ./boilerplate/boilerplate.go.txt \
 		github.com/mgoltzsche/kubemate/pkg/apis/devices/v1alpha1 \
 		github.com/mgoltzsche/kubemate/pkg/apis/apps/v1alpha1 \
 		k8s.io/apimachinery/pkg/apis/meta/v1 \
 		k8s.io/api/core/v1 \
 		k8s.io/apimachinery/pkg/runtime \
 		k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1 \
-		k8s.io/api/networking/v1
+		k8s.io/api/networking/v1 \
+		k8s.io/apimachinery/pkg/version
 	./build/tools/openapigen openapi.yaml
 
 openapigen:
