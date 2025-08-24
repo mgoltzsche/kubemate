@@ -34,21 +34,22 @@ import (
 
 // DeviceReconciler reconciles a Device object.
 type DeviceReconciler struct {
-	DeviceName        string
-	DeviceAddress     string
-	DataDir           string
-	ManifestDir       string
-	ExternalPort      int
-	K3sProxyEnabled   *bool
-	Docker            bool
-	KubeletArgs       []string
-	Devices           storage.Interface
-	DeviceTokens      storage.Interface
-	NetworkInterfaces storage.Interface
-	DeviceDiscovery   *discovery.DeviceDiscovery
-	IngressController *ingress.IngressController
-	Shutdown          func() error
-	Logger            *logrus.Entry
+	DeviceName            string
+	DeviceAddress         string
+	DataDir               string
+	ManifestDir           string
+	ExternalPort          int
+	K3sProxyEnabled       *bool
+	Docker                bool
+	KubeletArgs           []string
+	Devices               storage.Interface
+	DeviceTokens          storage.Interface
+	NetworkInterfaces     storage.Interface
+	NetworkInterfaceNames []string
+	DeviceDiscovery       *discovery.DeviceDiscovery
+	IngressController     *ingress.IngressController
+	Shutdown              func() error
+	Logger                *logrus.Entry
 	client.Client
 	scheme         *runtime.Scheme
 	k3s            *runner.Runner
@@ -81,8 +82,12 @@ func (r *DeviceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.dnsServer = newDeviceDnsServerReconciler(dnsDir, r.DeviceName, r.Devices, r.NetworkInterfaces, r.Logger)
 	// TODO: use mgr.GetLogger() logr.Logger that controller-runtime is providing to the Reconcile method as well
 	r.controllers = controller.NewControllerManager(ctrl.GetConfig, logrus.WithField("comp", "controller-manager"))
-	r.controllers.RegisterReconciler(&app.AppReconciler{})
 	r.controllers.RegisterReconciler(nodeReconciler)
+	r.controllers.RegisterReconciler(&app.AppReconciler{})
+	r.controllers.RegisterReconciler(&app.MDNSReconciler{
+		DeviceName:        r.DeviceName,
+		NetworkInterfaces: r.NetworkInterfaceNames,
+	})
 	r.nodeController = controller.NewControllerManager(r.nodeClientConfig, logrus.WithField("comp", "node-controller-manager"))
 	r.nodeController.RegisterReconciler(nodeReconciler)
 	r.k3s = runner.New(r.Logger.WithField("proc", "k3s"))
@@ -320,6 +325,7 @@ func joinAddress(d *deviceapi.Device) (string, error) {
 func buildK3sServerArgs(d *deviceapi.Device, nodeIP net.IP, dataDir string, docker bool, kubeletArgs []string, clusterTokens storage.Interface) []string {
 	args := []string{
 		"server",
+		// TODO: specify path to k3s config here and configure everything there
 		fmt.Sprintf("--node-external-ip=%s", nodeIP.String()),
 		"--disable-cloud-controller",
 		"--disable-helm-controller",

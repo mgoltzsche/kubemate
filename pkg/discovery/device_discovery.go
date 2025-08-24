@@ -150,7 +150,9 @@ func (d *DeviceDiscovery) ExternalIPs() ([]net.IP, error) {
 		}
 	} else {
 		for _, iface := range ifaces {
-			ips = append(ips, ifaceIPMap[iface.Name])
+			if ip, ok := ifaceIPMap[iface.Name]; ok {
+				ips = append(ips, ip)
+			}
 		}
 	}
 	if err != nil {
