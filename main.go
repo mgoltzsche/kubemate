@@ -29,7 +29,7 @@ import (
 	addcmds "github.com/mgoltzsche/kubemate/pkg/cli/cmds"
 )
 
-// Copied from https://github.com/k3s-io/k3s/blob/v1.29.3%2Bk3s1/cmd/server/main.go and added `connect` command.
+// Copied from https://github.com/k3s-io/k3s/blob/v1.33.4%2Bk3s1/cmd/server/main.go and added `connect` command.
 
 func init() {
 	reexec.Register("containerd", containerd.Main)

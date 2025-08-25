@@ -16,11 +16,11 @@ RUN set -eux; \
 	"; \
 	go build -o kubemate -ldflags "$VERSIONFLAGS -s -w -extldflags \"-static\"" .
 
-FROM rancher/k3s:v1.33.3-k3s1 AS k3s
+FROM rancher/k3s:v1.33.4-k3s1 AS k3s
 COPY --from=build /work/kubemate /bin/kubemate
 
 FROM alpine:3.22
-RUN apk add --update --no-cache iptables ip6tables ipset socat openssl ca-certificates apparmor iw wpa_supplicant dhcpcd hostapd dnsmasq
+RUN apk add --update --no-cache iptables ip6tables nftables ipset socat openssl ca-certificates apparmor iw wpa_supplicant dhcpcd hostapd dnsmasq
 ARG VERSION="dev"
 RUN set -eu; \
 	ln -sf xtables-nft-multi /sbin/iptables; \

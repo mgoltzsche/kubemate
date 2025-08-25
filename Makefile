@@ -1,4 +1,4 @@
-VERSION ?= 1.33.3-dev
+VERSION ?= 1.33.4-dev
 IMAGE_REGISTRY ?= local
 IMAGE = $(IMAGE_REGISTRY)/kubemate:$(VERSION)
 
