@@ -6,7 +6,7 @@ RUN go mod download
 COPY main.go /work/
 COPY pkg /work/pkg
 ARG VERSION=dev
-ENV CGO_CFLAGS=-DSQLITE_ENABLE_DBSTAT_VTAB=1
+ENV CGO_CFLAGS='-DSQLITE_ENABLE_DBSTAT_VTAB=1 -DSQLITE_USE_ALLOCA=1'
 RUN set -eux; \
 	VERSION_GOLANG=$(go version | cut -d" " -f3); \
 	K3SPKG=github.com/k3s-io/k3s; \
